@@ -1,0 +1,25 @@
+node_modules
+.git
+.turbo
+dist
+build
+.next
+.dockerignore
+Dockerfile
+docker-compose.yml
+README.md
+
+# パッケージマネージャー関係
+.pnpm-store
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+
+# ワークスペース各パッケージの node_modules
+apps/*/node_modules
+packages/*/node_modules
+
+# ローカルの環境変数ファイル (コンテナにはビルド時に直接渡すため)
+.env*
+!.env.example

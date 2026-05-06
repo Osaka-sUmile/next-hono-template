@@ -1,0 +1,44 @@
+/**
+ * このファイルはQuery Services層（参照系・Query）の実装テンプレート・サンプルです。
+ * 開発や構築用に配置しています。
+ * Prismaのモデル構造が実際の仕様に沿って確定したら、コメントアウトを解除し適用してください。
+ * 
+ * 参照系では、リポジトリ層のようなドメインエンティティへの変換を行わず、
+ * DBの構造に近い型（またはフロントが求める型）のままデータを返します。
+ */
+
+/*
+import { PrismaClient } from "@prisma/client";
+
+// フロントに直接渡すべき型があればここで定義や加工をします。
+// 例: type UserQueryResult = Pick<PrismaUser, "id" | "name">;
+
+export class UserQueryService {
+  constructor(private readonly prisma: PrismaClient) {}
+
+  // IDによる単一ユーザの検索
+  async getUserInfo(id: string) {
+    return await this.prisma.user.findUnique({
+      where: { id },
+      select: {
+        id: true,
+        name: true,
+        email: true,
+      }
+    });
+  }
+
+  // ユーザ一覧の取得
+  async listUsers(skip: number = 0, take: number = 10) {
+    const [users, totalCount] = await Promise.all([
+      this.prisma.user.findMany({ skip, take }),
+      this.prisma.user.count()
+    ]);
+
+    return {
+      users,
+      totalCount
+    };
+  }
+}
+*/

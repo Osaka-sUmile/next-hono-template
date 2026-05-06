@@ -1,0 +1,21 @@
+openapi: 3.0.3
+info:
+  title: Yomutan API
+  description: Yomutan backend API specification
+  version: 1.0.0
+servers:
+  - url: http://localhost:8080/api/v1
+    description: Local development server
+
+paths:
+  /health:
+    $ref: './paths/health.yaml'
+  /users:
+    $ref: './paths/users.yaml'
+
+components:
+  schemas:
+    Error:
+      $ref: './components/schemas/Error.yaml'
+    User:
+      $ref: './components/schemas/User.yaml'
