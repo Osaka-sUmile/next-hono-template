@@ -12,6 +12,18 @@ paths:
     $ref: './paths/health.yaml'
   /users:
     $ref: './paths/users.yaml'
+  /auth/register:
+    $ref: './paths/auth.yaml#/register'
+  /auth/login:
+    $ref: './paths/auth.yaml#/login'
+  /auth/logout:
+    $ref: './paths/auth.yaml#/logout'
+  /auth/refresh:
+    $ref: './paths/auth.yaml#/refresh'
+  /auth/password-reset/request:
+    $ref: './paths/auth.yaml#/passwordResetRequest'
+  /auth/password-reset/confirm:
+    $ref: './paths/auth.yaml#/passwordResetConfirm'
 
 components:
   schemas:
@@ -19,3 +31,15 @@ components:
       $ref: './components/schemas/Error.yaml'
     User:
       $ref: './components/schemas/User.yaml'
+    AuthTokens:
+      $ref: './components/schemas/AuthTokens.yaml'
+    UserProfile:
+      $ref: './components/schemas/UserProfile.yaml'
+    RegisterRequest:
+      $ref: './components/schemas/RegisterRequest.yaml'
+    LoginRequest:
+      $ref: './components/schemas/LoginRequest.yaml'
+    PasswordResetRequest:
+      $ref: './components/schemas/PasswordResetRequest.yaml'
+    PasswordResetConfirmRequest:
+      $ref: './components/schemas/PasswordResetConfirmRequest.yaml'

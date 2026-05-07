@@ -1,0 +1,142 @@
+register:
+  post:
+    summary: Register a new user
+    tags:
+      - Auth
+    requestBody:
+      required: true
+      content:
+        application/json:
+          schema:
+            $ref: '../components/schemas/RegisterRequest.yaml'
+    responses:
+      '201':
+        description: User registered successfully
+        content:
+          application/json:
+            schema:
+              $ref: '../components/schemas/UserProfile.yaml'
+      '400':
+        description: Validation error
+        content:
+          application/json:
+            schema:
+              $ref: '../components/schemas/Error.yaml'
+      '409':
+        description: Email already in use
+        content:
+          application/json:
+            schema:
+              $ref: '../components/schemas/Error.yaml'
+
+login:
+  post:
+    summary: Log in and receive access token
+    tags:
+      - Auth
+    requestBody:
+      required: true
+      content:
+        application/json:
+          schema:
+            $ref: '../components/schemas/LoginRequest.yaml'
+    responses:
+      '200':
+        description: Login successful
+        headers:
+          Set-Cookie:
+            description: httpOnly refresh token cookie
+            schema:
+              type: string
+        content:
+          application/json:
+            schema:
+              $ref: '../components/schemas/AuthTokens.yaml'
+      '400':
+        description: Validation error
+        content:
+          application/json:
+            schema:
+              $ref: '../components/schemas/Error.yaml'
+      '401':
+        description: Invalid credentials
+        content:
+          application/json:
+            schema:
+              $ref: '../components/schemas/Error.yaml'
+
+logout:
+  post:
+    summary: Log out and invalidate refresh token
+    tags:
+      - Auth
+    responses:
+      '204':
+        description: Logged out successfully
+
+refresh:
+  post:
+    summary: Refresh access token using httpOnly cookie
+    tags:
+      - Auth
+    responses:
+      '200':
+        description: Token refreshed successfully
+        headers:
+          Set-Cookie:
+            description: Updated httpOnly refresh token cookie
+            schema:
+              type: string
+        content:
+          application/json:
+            schema:
+              $ref: '../components/schemas/AuthTokens.yaml'
+      '401':
+        description: Invalid or expired refresh token
+        content:
+          application/json:
+            schema:
+              $ref: '../components/schemas/Error.yaml'
+
+passwordResetRequest:
+  post:
+    summary: Request a password reset email
+    description: Always returns 200 to prevent email enumeration
+    tags:
+      - Auth
+    requestBody:
+      required: true
+      content:
+        application/json:
+          schema:
+            $ref: '../components/schemas/PasswordResetRequest.yaml'
+    responses:
+      '200':
+        description: Reset email sent (if account exists)
+      '400':
+        description: Validation error
+        content:
+          application/json:
+            schema:
+              $ref: '../components/schemas/Error.yaml'
+
+passwordResetConfirm:
+  post:
+    summary: Confirm password reset with token
+    tags:
+      - Auth
+    requestBody:
+      required: true
+      content:
+        application/json:
+          schema:
+            $ref: '../components/schemas/PasswordResetConfirmRequest.yaml'
+    responses:
+      '200':
+        description: Password reset successfully
+      '400':
+        description: Invalid or expired token
+        content:
+          application/json:
+            schema:
+              $ref: '../components/schemas/Error.yaml'

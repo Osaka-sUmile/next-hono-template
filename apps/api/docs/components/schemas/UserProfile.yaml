@@ -1,0 +1,12 @@
+type: object
+required:
+  - id
+  - email
+properties:
+  id:
+    type: string
+    description: User ID
+  email:
+    type: string
+    format: email
+    description: User email address
