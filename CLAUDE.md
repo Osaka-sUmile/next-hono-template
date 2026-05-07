@@ -5,7 +5,7 @@
 1. **Domain (packages/domain)**: エンティティ・リポジトリインターフェース (`*.entity.ts`, `*.repository.ts`)
 2. **Database (packages/database)**: リポジトリ実装・クエリサービス (`*.prisma-repository.ts`, `*.query-service.ts`)
 3. **Application (apps/api/src/application)**: ユースケース (`*.use-case.ts`) (Command / Query を分離し、Command は副作用あり、Query は参照のみ)
-4. **Presentation (apps/api/src/presentation)**: リクエストバリデーション(Zod)・コントローラー (`*.controller.ts`)
+4. **Presentation (apps/api/src/presentation)**: リクエストスキーマ(Zod) (`request-schemas/*.schema.ts`)・コントローラー (`controllers/*.controller.ts`)
 
 ## CQRS の使い分け
 - **Command**: 副作用ありの処理。必要なら UseCase 内で `prisma.$transaction` を張る。
@@ -25,7 +25,7 @@
 - フロントエンドの詳細ガイドライン（フォルダ構成・コンポーネント追加・スタイリング・Server/Client Components・API 呼び出し）は `docs/frontend-guidelines.md` を参照すること。
 
 ## バリデーション境界
-- **入力 (Presentation)**: Zodで型と形式を検証。
+- **入力 (Presentation)**: Zodで型と形式を検証。スキーマは `request-schemas/<feature>.schema.ts` に定義し、Controller からインポートする。
 - **ビジネス (Domain)**: エンティティメソッド内で整合性を検証。
 
 ## エクスポート/インポート規則 (Barrel Pattern)
