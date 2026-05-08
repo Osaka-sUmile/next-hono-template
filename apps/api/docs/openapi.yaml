@@ -43,3 +43,12 @@ components:
       $ref: './components/schemas/PasswordResetRequest.yaml'
     PasswordResetConfirmRequest:
       $ref: './components/schemas/PasswordResetConfirmRequest.yaml'
+  securitySchemes:
+    bearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+    cookieAuth:
+      type: apiKey
+      in: cookie
+      name: refreshToken

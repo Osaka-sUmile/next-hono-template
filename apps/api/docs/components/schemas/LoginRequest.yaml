@@ -1,4 +1,7 @@
 type: object
+description: >
+  Request body for authenticating an existing user. Currently identical to RegisterRequest,
+  but kept separate as the two flows may evolve independently.
 required:
   - email
   - password

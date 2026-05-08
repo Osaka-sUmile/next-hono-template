@@ -1,4 +1,8 @@
 type: object
+description: >
+  Request body for new account creation. Creates the minimal auth identity (User).
+  Display data (name, avatar) is managed separately via the profile endpoint.
+  May diverge from LoginRequest in the future (e.g. confirmPassword).
 required:
   - email
   - password

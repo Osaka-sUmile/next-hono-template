@@ -1,19 +1,21 @@
 type: object
+description: >
+  Minimal user representation for authentication and system identification.
+  Returned by auth endpoints (e.g. /auth/register).
+  For display data (name, avatar) see UserProfile.
 required:
   - id
   - email
+  - createdAt
+  - updatedAt
 properties:
   id:
     type: string
-    description: The user ID
+    description: User ID
   email:
     type: string
     format: email
     description: User email address
-  name:
-    type: string
-    nullable: true
-    description: User full name
   createdAt:
     type: string
     format: date-time

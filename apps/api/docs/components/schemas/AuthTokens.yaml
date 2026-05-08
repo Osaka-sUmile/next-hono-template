@@ -1,7 +1,18 @@
 type: object
 required:
   - accessToken
+  - tokenType
 properties:
   accessToken:
     type: string
     description: JWT access token
+  tokenType:
+    type: string
+    example: bearer
+    description: >-
+      Token type for use in Authorization header
+      (e.g. "Authorization: Bearer <token>")
+  expiresIn:
+    type: integer
+    description: Seconds until the access token expires
+    example: 900

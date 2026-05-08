@@ -1,12 +1,19 @@
 type: object
+description: >
+  Display-oriented user profile containing presentation data.
+  Extended separately from User to keep auth identity lean.
+  Future profile fields (bio, timezone, etc.) should be added here.
 required:
   - id
-  - email
 properties:
   id:
     type: string
-    description: User ID
-  email:
+    description: User ID (correlates with User.id)
+  name:
     type: string
-    format: email
-    description: User email address
+    nullable: true
+    description: Display name
+  avatarUrl:
+    type: string
+    nullable: true
+    description: Profile picture URL

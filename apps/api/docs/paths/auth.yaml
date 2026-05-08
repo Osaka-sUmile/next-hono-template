@@ -15,7 +15,7 @@ register:
         content:
           application/json:
             schema:
-              $ref: '../components/schemas/UserProfile.yaml'
+              $ref: '../components/schemas/User.yaml'
       '400':
         description: Validation error
         content:
@@ -32,6 +32,8 @@ register:
 login:
   post:
     summary: Log in and receive access token
+    description: >
+      Rate limiting should be applied to this endpoint to prevent brute-force attacks.
     tags:
       - Auth
     requestBody:
@@ -68,8 +70,11 @@ login:
 logout:
   post:
     summary: Log out and invalidate refresh token
+    description: Requires a valid refreshToken cookie. Clears the cookie on success.
     tags:
       - Auth
+    security:
+      - cookieAuth: []
     responses:
       '204':
         description: Logged out successfully
@@ -79,6 +84,8 @@ refresh:
     summary: Refresh access token using httpOnly cookie
     tags:
       - Auth
+    security:
+      - cookieAuth: []
     responses:
       '200':
         description: Token refreshed successfully
@@ -101,7 +108,9 @@ refresh:
 passwordResetRequest:
   post:
     summary: Request a password reset email
-    description: Always returns 200 to prevent email enumeration
+    description: >
+      Always returns 200 to prevent email enumeration.
+      Rate limiting should be applied to this endpoint to prevent abuse.
     tags:
       - Auth
     requestBody:
@@ -135,7 +144,10 @@ passwordResetConfirm:
       '200':
         description: Password reset successfully
       '400':
-        description: Invalid or expired token
+        description: >
+          Invalid or expired token. Use the `code` field in the error response to distinguish:
+          `TOKEN_INVALID` for malformed/unknown tokens, `TOKEN_EXPIRED` for expired tokens,
+          `TOKEN_USED` for already-consumed tokens.
         content:
           application/json:
             schema:
