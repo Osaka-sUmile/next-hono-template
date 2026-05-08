@@ -8,14 +8,14 @@ const envSchema = z
     OPENAPI_PATH: z.string().optional(),
     JWT_SECRET: z.string().min(32),
     JWT_REFRESH_SECRET: z.string().min(32),
-    JWT_ACCESS_EXPIRES_IN: z.string().default("15m"),
-    JWT_REFRESH_EXPIRES_IN: z.string().default("7d"),
+    JWT_ACCESS_EXPIRES_IN: z.string().regex(/^\d+[smhd]$/, "Must be a duration like 15m, 1h, 7d").default("15m"),
+    JWT_REFRESH_EXPIRES_IN: z.string().regex(/^\d+[smhd]$/, "Must be a duration like 15m, 1h, 7d").default("7d"),
     SMTP_HOST: z.string().optional(),
     SMTP_PORT: z.coerce.number().optional(),
     SMTP_USER: z.string().optional(),
     SMTP_PASS: z.string().optional(),
     MAIL_FROM: z.string().optional(),
-    APP_BASE_URL: z.string().default("http://localhost:3000"),
+    APP_BASE_URL: z.string().url().default("http://localhost:3000"),
   })
   .superRefine((data, ctx) => {
     if (data.NODE_ENV === "production") {
