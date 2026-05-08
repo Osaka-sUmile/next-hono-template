@@ -1,0 +1,18 @@
+post:
+  summary: Log out and invalidate refresh token
+  description: >
+    Requires a valid refreshToken cookie. Clears the cookie on success.
+    Returns 401 if the cookie is missing or the token is invalid/expired.
+  tags:
+    - Auth
+  security:
+    - cookieAuth: []
+  responses:
+    '204':
+      description: Logged out successfully
+    '401':
+      description: Missing or invalid refresh token cookie
+      content:
+        application/json:
+          schema:
+            $ref: '../components/schemas/Error.yaml'

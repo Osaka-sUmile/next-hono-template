@@ -1,0 +1,36 @@
+post:
+  summary: Log in and receive access token
+  description: >
+    Rate limiting should be applied to this endpoint to prevent brute-force attacks.
+  tags:
+    - Auth
+  requestBody:
+    required: true
+    content:
+      application/json:
+        schema:
+          $ref: '../components/schemas/LoginRequest.yaml'
+  responses:
+    '200':
+      description: Login successful
+      headers:
+        Set-Cookie:
+          description: httpOnly refresh token cookie
+          schema:
+            type: string
+      content:
+        application/json:
+          schema:
+            $ref: '../components/schemas/AuthTokens.yaml'
+    '400':
+      description: Validation error
+      content:
+        application/json:
+          schema:
+            $ref: '../components/schemas/Error.yaml'
+    '401':
+      description: Invalid credentials
+      content:
+        application/json:
+          schema:
+            $ref: '../components/schemas/Error.yaml'

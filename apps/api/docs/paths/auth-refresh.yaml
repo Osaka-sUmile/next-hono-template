@@ -1,0 +1,24 @@
+post:
+  summary: Refresh access token using httpOnly cookie
+  tags:
+    - Auth
+  security:
+    - cookieAuth: []
+  responses:
+    '200':
+      description: Token refreshed successfully
+      headers:
+        Set-Cookie:
+          description: Updated httpOnly refresh token cookie
+          schema:
+            type: string
+      content:
+        application/json:
+          schema:
+            $ref: '../components/schemas/AuthTokens.yaml'
+    '401':
+      description: Invalid or expired refresh token
+      content:
+        application/json:
+          schema:
+            $ref: '../components/schemas/Error.yaml'

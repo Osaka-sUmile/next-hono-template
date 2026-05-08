@@ -13,17 +13,17 @@ paths:
   /users:
     $ref: './paths/users.yaml'
   /auth/register:
-    $ref: './paths/auth.yaml#/register'
+    $ref: './paths/auth-register.yaml'
   /auth/login:
-    $ref: './paths/auth.yaml#/login'
+    $ref: './paths/auth-login.yaml'
   /auth/logout:
-    $ref: './paths/auth.yaml#/logout'
+    $ref: './paths/auth-logout.yaml'
   /auth/refresh:
-    $ref: './paths/auth.yaml#/refresh'
+    $ref: './paths/auth-refresh.yaml'
   /auth/password-reset/request:
-    $ref: './paths/auth.yaml#/passwordResetRequest'
+    $ref: './paths/auth-password-reset-request.yaml'
   /auth/password-reset/confirm:
-    $ref: './paths/auth.yaml#/passwordResetConfirm'
+    $ref: './paths/auth-password-reset-confirm.yaml'
 
 components:
   schemas:
