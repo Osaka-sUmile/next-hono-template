@@ -63,7 +63,8 @@ yomutan/
 │   │       ├── presentation/
 │   │       │   ├── middleware/
 │   │       │   │   ├── require-auth.middleware.ts       # ★ 新規
-│   │       │   │   └── require-auth.middleware.test.ts  # ★ 新規
+│   │       │   │   ├── require-auth.middleware.test.ts  # ★ 新規
+│   │       │   │   └── index.ts                         # ★ 新規
 │   │       │   └── controllers/
 │   │       │       ├── user.controller.ts          # ★ 新規
 │   │       │       ├── user.controller.test.ts     # ★ 新規
@@ -243,6 +244,8 @@ model Verification {
 ### 新規: packages/domain/src/models/user.entity.ts
 
 ```typescript
+import { BaseEntity } from "./base.entity"
+
 export type UserRole = "user" | "admin"
 
 export class UserEntity extends BaseEntity<string> {
@@ -288,11 +291,13 @@ export interface IUserRepository extends IRepository<UserEntity, string> {
 Response DTO への変換は Application 層（UseCase）で行う。
 
 ```typescript
+import { UserRole } from "../models/user.entity"
+
 export type UserQueryResult = {
   id: string
   email: string
   name: string
-  role: string
+  role: UserRole
   displayName: string | null
   image: string | null
   emailVerified: boolean
@@ -327,7 +332,7 @@ export class UserPrismaRepository
     )
   }
 
-  protected toPersistence(entity: UserEntity): Prisma.UserCreateInput {
+  protected toCreateInput(entity: UserEntity): Prisma.UserCreateInput {
     return {
       id: entity.id,
       email: entity.email,
@@ -335,8 +340,7 @@ export class UserPrismaRepository
       role: entity.role,
       displayName: entity.displayName ?? null,
       emailVerified: false,
-      createdAt: new Date(),
-      updatedAt: new Date(),
+      // updatedAt は @updatedAt で Prisma が自動管理するため省略
     }
   }
 
@@ -346,11 +350,16 @@ export class UserPrismaRepository
   }
 
   async save(entity: UserEntity): Promise<void> {
-    const data = this.toPersistence(entity)
     await this.prisma.user.upsert({
       where: { id: entity.id },
-      update: data,
-      create: data,
+      // better-auth が管理する emailVerified / createdAt は update 時に含めない
+      // updatedAt は @updatedAt で Prisma が自動更新するため省略
+      update: {
+        name: entity.name,
+        role: entity.role,
+        displayName: entity.displayName ?? null,
+      },
+      create: this.toCreateInput(entity),
     })
   }
 
@@ -361,8 +370,31 @@ export class UserPrismaRepository
 ```
 
 ### 新規: packages/database/src/query-services/user.query-service.ts
-- `IUserQueryService` を実装
-- `findById()`: `prisma.user.findUnique()` で `UserQueryResult` を返す
+
+```typescript
+import { PrismaClient } from "@prisma/client"
+import { IUserQueryService, UserQueryResult } from "@workspace/domain"
+
+export class UserQueryService implements IUserQueryService {
+  constructor(private readonly prisma: PrismaClient) {}
+
+  async findById(id: string): Promise<UserQueryResult | null> {
+    return this.prisma.user.findUnique({
+      where: { id },
+      select: {
+        id: true,
+        email: true,
+        name: true,
+        role: true,
+        displayName: true,
+        image: true,
+        emailVerified: true,
+        createdAt: true,
+      },
+    })
+  }
+}
+```
 
 ### barrel index 更新
 - `packages/domain/src/models/index.ts`: `UserEntity`, `UserRole` を追加
@@ -417,9 +449,11 @@ export function createApp() {
   })
 
   const app = express()
-  app.use(express.json())
+  // cors はすべてのルートに適用するため先行させる
   app.use(cors({ origin: env.WEB_BASE_URL, credentials: true }))
+  // toNodeHandler はボディストリームを直接読むため express.json() より前に配置する
   app.use("/api/auth", toNodeHandler(auth))
+  app.use(express.json())
 
   const apiRouter = express.Router()
   const healthController = new HealthController()
@@ -458,6 +492,7 @@ curl http://localhost:8080/api/auth/get-session
 
 ```typescript
 import { Request, Response, NextFunction } from "express"
+import { fromNodeHeaders } from "better-auth/node"
 import { AuthInstance } from "@workspace/auth/server"
 
 export type AuthenticatedRequest = Request & {
@@ -467,7 +502,8 @@ export type AuthenticatedRequest = Request & {
 export function createRequireAuth(auth: AuthInstance) {
   return async (req: Request, res: Response, next: NextFunction) => {
     try {
-      const session = await auth.api.getSession({ headers: req.headers })
+      // Express の IncomingHttpHeaders を Web API の Headers に変換してから渡す
+      const session = await auth.api.getSession({ headers: fromNodeHeaders(req.headers) })
       if (!session) {
         res.status(401).json({ error: "Unauthorized" })
         return
@@ -493,9 +529,18 @@ UseCase は `IUserQueryService`（Domain）から `UserQueryResult` を受け取
 
 ```typescript
 import { BaseQueryUseCase } from "./base.query"
-import { IUserQueryService, UserQueryResult } from "@workspace/domain"
+import { IUserQueryService, UserRole } from "@workspace/domain"
 
-export type UserResponseDto = UserQueryResult  // 現スコープでは変換不要だが、Application 層で定義する
+export type UserResponseDto = {
+  id: string
+  email: string
+  name: string
+  role: UserRole
+  displayName: string | null
+  image: string | null
+  emailVerified: boolean
+  createdAt: Date
+}
 
 export class GetCurrentUserUseCase
   extends BaseQueryUseCase<{ userId: string }, UserResponseDto | null>
@@ -503,7 +548,18 @@ export class GetCurrentUserUseCase
   constructor(private readonly userQueryService: IUserQueryService) { super() }
 
   async execute({ userId }: { userId: string }): Promise<UserResponseDto | null> {
-    return this.userQueryService.findById(userId)
+    const result = await this.userQueryService.findById(userId)
+    if (!result) return null
+    return {
+      id: result.id,
+      email: result.email,
+      name: result.name,
+      role: result.role,
+      displayName: result.displayName,
+      image: result.image,
+      emailVerified: result.emailVerified,
+      createdAt: result.createdAt,
+    }
   }
 }
 ```
@@ -512,7 +568,7 @@ export class GetCurrentUserUseCase
 
 ```typescript
 import { Response } from "express"
-import { GetCurrentUserUseCase } from "../../application/queries/get-current-user.use-case"
+import { GetCurrentUserUseCase } from "../../application"
 import { AuthenticatedRequest } from "../middleware/require-auth.middleware"
 
 export class UserController {
@@ -540,10 +596,9 @@ export class UserController {
 
 ### 更新: apps/api/src/composition/create-app.ts (Step 3 からの差分)
 ```typescript
-import { createRequireAuth } from "../presentation/middleware/require-auth.middleware"
+import { createRequireAuth, UserController } from "../presentation"
 import { UserQueryService } from "@workspace/database"
-import { GetCurrentUserUseCase } from "../application/queries/get-current-user.use-case"
-import { UserController } from "../presentation/controllers/user.controller"
+import { GetCurrentUserUseCase } from "../application"
 
 // Step 3 の createApp() に追加
 const requireAuth = createRequireAuth(auth)
@@ -556,6 +611,8 @@ apiRouter.get("/me", requireAuth, userController.getUserMe)
 
 ### barrel index 更新
 - `application/queries/index.ts`: `GetCurrentUserUseCase`, `UserResponseDto` を追加
+- `presentation/middleware/index.ts`: `createRequireAuth`, `AuthenticatedRequest` を export する `index.ts` を新規作成
+- `presentation/index.ts`: `export * from "./middleware"` を追加
 - `presentation/controllers/index.ts`: `UserController` を追加
 
 ### 新規: apps/web/lib/auth-client.ts

@@ -22,8 +22,8 @@ export class UserPrismaRepository
     return new UserEntity(model.id, model.email, model.name || undefined);
   }
 
-  // Domainのエンティティから、Prisma用のデータに変換
-  protected toPersistence(entity: UserEntity) {
+  // upsert の create: 側でのみ使用する。update: は save() 内で個別定義する。
+  protected toCreateInput(entity: UserEntity) {
     return {
       id: entity.id,
       email: entity.email,
