@@ -1,7 +1,6 @@
 import { BaseQueryUseCase } from "./base.query";
-import { IUserQueryService, UserQueryResult } from "@workspace/domain";
-
-export type UserResponseDto = UserQueryResult;
+import { IUserQueryService } from "@workspace/domain";
+import type { UserResponseDto } from "../dtos";
 
 export class GetCurrentUserUseCase extends BaseQueryUseCase<
   { userId: string },
