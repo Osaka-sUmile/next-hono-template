@@ -2,6 +2,13 @@ import { BaseEntity } from "./base.entity";
 
 export type UserRole = "user" | "admin";
 
+const USER_ROLES: ReadonlySet<string> = new Set<UserRole>(["user", "admin"]);
+
+export function parseUserRole(value: string): UserRole {
+  if (!USER_ROLES.has(value)) throw new Error(`Invalid UserRole: "${value}"`);
+  return value as UserRole;
+}
+
 export class UserEntity extends BaseEntity<string> {
   private constructor(
     id: string,

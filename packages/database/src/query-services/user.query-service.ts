@@ -1,5 +1,5 @@
 import { PrismaClient } from "@prisma/client";
-import { IUserQueryService, UserQueryResult, UserRole } from "@workspace/domain";
+import { IUserQueryService, UserQueryResult, parseUserRole } from "@workspace/domain";
 
 export class UserQueryService implements IUserQueryService {
   constructor(private readonly prisma: PrismaClient) {}
@@ -19,6 +19,6 @@ export class UserQueryService implements IUserQueryService {
       },
     });
     if (!raw) return null;
-    return { ...raw, role: raw.role as UserRole };
+    return { ...raw, role: parseUserRole(raw.role) };
   }
 }

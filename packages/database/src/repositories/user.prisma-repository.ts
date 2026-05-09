@@ -1,5 +1,5 @@
 import { PrismaClient, Prisma, User as PrismaUser } from "@prisma/client";
-import { IUserRepository, UserEntity, UserRole } from "@workspace/domain";
+import { IUserRepository, UserEntity, parseUserRole } from "@workspace/domain";
 import { BasePrismaRepository } from "./base.prisma-repository";
 
 export class UserPrismaRepository
@@ -15,7 +15,7 @@ export class UserPrismaRepository
       model.id,
       model.email,
       model.name,
-      model.role as UserRole,
+      parseUserRole(model.role),
       model.displayName,
     );
   }
