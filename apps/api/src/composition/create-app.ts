@@ -1,10 +1,23 @@
-import express, { type RequestHandler } from "express";
+import express from "express";
 import cors from "cors";
 import { createAuth, toNodeHandler } from "@workspace/auth/server";
 import { createPrismaClient, UserQueryService } from "@workspace/database";
 import { GetCurrentUserUseCase } from "../application";
-import { HealthController, UserController, createRequireAuth } from "../presentation";
+import { HealthController, UserController, createRequireAuth, withAuth } from "../presentation";
 import { env } from "../infrastructure/env";
+
+type RouterDeps = {
+  requireAuth: ReturnType<typeof createRequireAuth>;
+  healthController: HealthController;
+  userController: UserController;
+};
+
+function buildV1Router(deps: RouterDeps): express.Router {
+  const router = express.Router();
+  router.get("/health", deps.healthController.check);
+  router.get("/me", deps.requireAuth, withAuth(deps.userController.getUserMe));
+  return router;
+}
 
 export function createApp(): express.Express {
   const prisma = createPrismaClient(env.DATABASE_URL, env.NODE_ENV === "development");
@@ -28,15 +41,15 @@ export function createApp(): express.Express {
   const requireAuth = createRequireAuth(auth);
   const userQueryService = new UserQueryService(prisma);
   const getCurrentUserUseCase = new GetCurrentUserUseCase(userQueryService);
-  const userController = new UserController(getCurrentUserUseCase);
 
-  const apiRouter = express.Router();
-  const healthController = new HealthController();
-
-  apiRouter.get("/health", healthController.check);
-  apiRouter.get("/me", requireAuth, userController.getUserMe as unknown as RequestHandler);
-
-  app.use("/api/v1", apiRouter);
+  app.use(
+    "/api/v1",
+    buildV1Router({
+      requireAuth,
+      healthController: new HealthController(),
+      userController: new UserController(getCurrentUserUseCase),
+    }),
+  );
 
   return app;
 }

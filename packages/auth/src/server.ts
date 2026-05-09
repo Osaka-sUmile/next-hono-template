@@ -32,12 +32,13 @@ export function createAuth(config: AuthConfig) {
     plugins: [
       emailOTP({
         async sendVerificationOTP({ email, otp }: { email: string; otp: string; type: string }) {
-          await resendClient.emails.send({
+          const { error } = await resendClient.emails.send({
             from: "noreply@yomutan.app",
             to: email,
             subject: "Your verification code",
             text: `Your code is: ${otp}`,
           });
+          if (error) throw new Error(`Failed to send OTP email: ${error.message}`);
         },
       }),
     ],

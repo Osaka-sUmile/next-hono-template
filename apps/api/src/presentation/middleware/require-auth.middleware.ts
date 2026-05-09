@@ -1,4 +1,4 @@
-import { Request, Response, NextFunction } from "express";
+import { Request, Response, NextFunction, type RequestHandler } from "express";
 import { fromNodeHeaders } from "@workspace/auth/server";
 import type { AuthInstance } from "@workspace/auth/server";
 import { logger } from "../../infrastructure";
@@ -23,6 +23,14 @@ function isBetterAuthAPIError(err: unknown): err is BetterAuthAPIError {
     "statusCode" in err &&
     typeof (err as { statusCode: unknown }).statusCode === "number"
   );
+}
+
+// requireAuth が先行して auth を設定していることを前提とする。
+// 型アサーションをここに集約することで、ルート登録側でのキャストを不要にする。
+export function withAuth(
+  handler: (req: AuthenticatedRequest, res: Response) => Promise<void> | void,
+): RequestHandler {
+  return (req, res) => handler(req as AuthenticatedRequest, res);
 }
 
 export function createRequireAuth(auth: AuthInstance) {

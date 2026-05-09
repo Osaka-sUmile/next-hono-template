@@ -27,6 +27,8 @@ export class UserPrismaRepository
       name: entity.name,
       role: entity.role,
       displayName: entity.displayName ?? null,
+      // UserEntity は emailVerified を持たない。better-auth が認証フロー完了後に true へ更新するため、
+      // create 側は false 固定で問題ない（update 側も emailVerified を触らない設計）。
       emailVerified: false,
     };
   }

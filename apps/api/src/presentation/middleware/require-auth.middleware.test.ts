@@ -67,4 +67,44 @@ describe("createRequireAuth", () => {
     expect(res.status).toHaveBeenCalledWith(500);
     expect(res.json).toHaveBeenCalledWith({ error: "Internal Server Error", code: ErrorCodes.SESSION_FETCH_FAILED });
   });
+
+  it("returns 401 SESSION_EXPIRED when better-auth throws 401 with SESSION_EXPIRED code", async () => {
+    const err = Object.assign(new Error("session expired"), {
+      statusCode: 401,
+      body: { code: "SESSION_EXPIRED" },
+    });
+    mockGetSession.mockRejectedValue(err);
+    const req = { headers: {} } as Request;
+    const res = {
+      status: vi.fn().mockReturnThis(),
+      json: vi.fn().mockReturnThis(),
+    } as unknown as Response;
+    const next = vi.fn() as unknown as NextFunction;
+
+    await requireAuth(req, res, next);
+
+    expect(res.status).toHaveBeenCalledWith(401);
+    expect(res.json).toHaveBeenCalledWith({ error: "Session expired", code: ErrorCodes.SESSION_EXPIRED });
+    expect(next).not.toHaveBeenCalled();
+  });
+
+  it("returns 401 SESSION_INVALID when better-auth throws 401 without SESSION_EXPIRED code", async () => {
+    const err = Object.assign(new Error("invalid token"), {
+      statusCode: 401,
+      body: { code: "INVALID_TOKEN" },
+    });
+    mockGetSession.mockRejectedValue(err);
+    const req = { headers: {} } as Request;
+    const res = {
+      status: vi.fn().mockReturnThis(),
+      json: vi.fn().mockReturnThis(),
+    } as unknown as Response;
+    const next = vi.fn() as unknown as NextFunction;
+
+    await requireAuth(req, res, next);
+
+    expect(res.status).toHaveBeenCalledWith(401);
+    expect(res.json).toHaveBeenCalledWith({ error: "Unauthorized", code: ErrorCodes.SESSION_INVALID });
+    expect(next).not.toHaveBeenCalled();
+  });
 });
