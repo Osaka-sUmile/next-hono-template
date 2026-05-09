@@ -1,10 +1,16 @@
 type: object
 required:
   - message
+  - code
 properties:
   message:
     type: string
     description: Error message describing the issue
   code:
     type: string
-    description: Optional error code
+    enum:
+      - USER_NOT_FOUND
+      - SESSION_INVALID
+      - SESSION_FETCH_FAILED
+      - INTERNAL_ERROR
+    description: Machine-readable error code for client-side handling
