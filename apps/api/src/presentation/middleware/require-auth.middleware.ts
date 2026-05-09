@@ -1,6 +1,7 @@
 import { Request, Response, NextFunction } from "express";
 import { fromNodeHeaders } from "@workspace/auth/server";
 import type { AuthInstance } from "@workspace/auth/server";
+import { ErrorCodes } from "../error-codes";
 
 export type AuthenticatedRequest = Request & {
   auth: NonNullable<Awaited<ReturnType<AuthInstance["api"]["getSession"]>>>;
@@ -11,14 +12,14 @@ export function createRequireAuth(auth: AuthInstance) {
     try {
       const session = await auth.api.getSession({ headers: fromNodeHeaders(req.headers) });
       if (!session) {
-        res.status(401).json({ error: "Unauthorized", code: "INVALID_SESSION" });
+        res.status(401).json({ error: "Unauthorized", code: ErrorCodes.SESSION_INVALID });
         return;
       }
       (req as AuthenticatedRequest).auth = session;
       next();
     } catch (err) {
       console.error("[requireAuth] getSession failed:", err);
-      res.status(500).json({ error: "Internal Server Error", code: "SESSION_FETCH_ERROR" });
+      res.status(500).json({ error: "Internal Server Error", code: ErrorCodes.SESSION_FETCH_FAILED });
     }
   };
 }

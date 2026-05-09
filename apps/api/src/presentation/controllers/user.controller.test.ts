@@ -3,6 +3,7 @@ import type { Response } from "express";
 import { UserController } from "./user.controller";
 import type { GetCurrentUserUseCase, UserResponseDto } from "../../application";
 import type { AuthenticatedRequest } from "../middleware/require-auth.middleware";
+import { ErrorCodes } from "../error-codes";
 
 describe("UserController", () => {
   const mockExecute = vi.fn();
@@ -51,7 +52,7 @@ describe("UserController", () => {
     await controller.getUserMe(makeReq(), res);
 
     expect(res.status).toHaveBeenCalledWith(404);
-    expect(res.json).toHaveBeenCalledWith({ error: "User not found", code: "USER_NOT_FOUND" });
+    expect(res.json).toHaveBeenCalledWith({ error: "User not found", code: ErrorCodes.USER_NOT_FOUND });
   });
 
   it("returns 500 when use case throws", async () => {
@@ -61,6 +62,6 @@ describe("UserController", () => {
     await controller.getUserMe(makeReq(), res);
 
     expect(res.status).toHaveBeenCalledWith(500);
-    expect(res.json).toHaveBeenCalledWith({ error: "Internal Server Error", code: "INTERNAL_ERROR" });
+    expect(res.json).toHaveBeenCalledWith({ error: "Internal Server Error", code: ErrorCodes.INTERNAL_ERROR });
   });
 });

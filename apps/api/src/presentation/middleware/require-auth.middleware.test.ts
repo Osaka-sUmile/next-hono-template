@@ -2,6 +2,7 @@ import { describe, expect, it, vi, beforeEach } from "vitest";
 import type { Request, Response, NextFunction } from "express";
 import { createRequireAuth } from "./require-auth.middleware";
 import type { AuthInstance } from "@workspace/auth/server";
+import { ErrorCodes } from "../error-codes";
 
 vi.mock("better-auth/node", () => ({
   fromNodeHeaders: (headers: unknown) => headers,
@@ -31,7 +32,7 @@ describe("createRequireAuth", () => {
     await requireAuth(req, res, next);
 
     expect(res.status).toHaveBeenCalledWith(401);
-    expect(res.json).toHaveBeenCalledWith({ error: "Unauthorized", code: "INVALID_SESSION" });
+    expect(res.json).toHaveBeenCalledWith({ error: "Unauthorized", code: ErrorCodes.SESSION_INVALID });
     expect(next).not.toHaveBeenCalled();
   });
 
@@ -60,6 +61,6 @@ describe("createRequireAuth", () => {
     await requireAuth(req, res, next);
 
     expect(res.status).toHaveBeenCalledWith(500);
-    expect(res.json).toHaveBeenCalledWith({ error: "Internal Server Error", code: "SESSION_FETCH_ERROR" });
+    expect(res.json).toHaveBeenCalledWith({ error: "Internal Server Error", code: ErrorCodes.SESSION_FETCH_FAILED });
   });
 });
