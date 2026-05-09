@@ -10,8 +10,6 @@ servers:
 paths:
   /health:
     $ref: './paths/health.yaml'
-  /users:
-    $ref: './paths/users.yaml'
   /me:
     $ref: './paths/me.yaml'
 

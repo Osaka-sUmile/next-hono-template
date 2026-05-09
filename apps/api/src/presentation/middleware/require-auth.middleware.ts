@@ -16,7 +16,8 @@ export function createRequireAuth(auth: AuthInstance) {
       }
       (req as AuthenticatedRequest).auth = session;
       next();
-    } catch {
+    } catch (err) {
+      console.error("[requireAuth] getSession failed:", err);
       res.status(500).json({ error: "Internal Server Error" });
     }
   };

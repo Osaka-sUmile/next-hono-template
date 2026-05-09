@@ -13,7 +13,8 @@ export class UserController {
         return;
       }
       res.json(user);
-    } catch {
+    } catch (err) {
+      console.error("[UserController] getUserMe failed:", err);
       res.status(500).json({ error: "Internal Server Error" });
     }
   };
