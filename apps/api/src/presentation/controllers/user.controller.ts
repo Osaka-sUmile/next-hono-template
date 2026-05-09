@@ -1,5 +1,6 @@
 import { Response } from "express";
 import { GetCurrentUserUseCase } from "../../application";
+import { logger } from "../../infrastructure";
 import { AuthenticatedRequest } from "../middleware/require-auth.middleware";
 import { ErrorCodes } from "../error-codes";
 
@@ -15,7 +16,7 @@ export class UserController {
       }
       res.json(user);
     } catch (err) {
-      console.error("[UserController] getUserMe failed:", err);
+      logger.error({ err }, "[UserController] getUserMe failed");
       res.status(500).json({ error: "Internal Server Error", code: ErrorCodes.INTERNAL_ERROR });
     }
   };

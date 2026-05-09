@@ -8,6 +8,10 @@ vi.mock("better-auth/node", () => ({
   fromNodeHeaders: (headers: unknown) => headers,
 }));
 
+vi.mock("../../infrastructure/logger", () => ({
+  logger: { error: vi.fn(), info: vi.fn(), debug: vi.fn() },
+}));
+
 describe("createRequireAuth", () => {
   const mockGetSession = vi.fn();
   const auth = {

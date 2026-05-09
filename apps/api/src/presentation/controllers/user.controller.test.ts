@@ -5,6 +5,10 @@ import type { GetCurrentUserUseCase, UserResponseDto } from "../../application";
 import type { AuthenticatedRequest } from "../middleware/require-auth.middleware";
 import { ErrorCodes } from "../error-codes";
 
+vi.mock("../../infrastructure/logger", () => ({
+  logger: { error: vi.fn(), info: vi.fn(), debug: vi.fn() },
+}));
+
 describe("UserController", () => {
   const mockExecute = vi.fn();
   const useCase = { execute: mockExecute } as unknown as GetCurrentUserUseCase;

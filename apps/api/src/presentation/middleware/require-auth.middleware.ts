@@ -1,10 +1,13 @@
 import { Request, Response, NextFunction } from "express";
 import { fromNodeHeaders } from "@workspace/auth/server";
 import type { AuthInstance } from "@workspace/auth/server";
+import { logger } from "../../infrastructure";
 import { ErrorCodes } from "../error-codes";
 
+export type AuthSession = NonNullable<Awaited<ReturnType<AuthInstance["api"]["getSession"]>>>;
+
 export type AuthenticatedRequest = Request & {
-  auth: NonNullable<Awaited<ReturnType<AuthInstance["api"]["getSession"]>>>;
+  auth: AuthSession;
 };
 
 export function createRequireAuth(auth: AuthInstance) {
@@ -17,7 +20,10 @@ export function createRequireAuth(auth: AuthInstance) {
       (req as AuthenticatedRequest).auth = session;
       next();
     } catch (err) {
-      console.error("[requireAuth] getSession failed:", err);
+      if (err instanceof Error && "status" in err && (err as { status: number }).status === 401) {
+        return res.status(401).json({ error: "Session expired", code: ErrorCodes.SESSION_EXPIRED });
+      }
+      logger.error({ err }, "[requireAuth] getSession failed");
       return res.status(500).json({ error: "Internal Server Error", code: ErrorCodes.SESSION_FETCH_FAILED });
     }
   };
