@@ -23,14 +23,18 @@ yomutan/
 │   │   │   ├── client.ts                 # createClient()
 │   │   │   └── index.ts                  # 共通型 re-export
 │   │   ├── package.json
-│   │   └── tsconfig.json
+│   │   ├── tsconfig.json
+│   │   └── eslint.config.mjs             # ★ @workspace/eslint-config を使用
 │   ├── domain/
 │   │   └── src/
 │   │       ├── models/
 │   │       │   ├── user.entity.ts        # ★ 新規
 │   │       │   └── index.ts              # ★ 更新
+│   │       ├── repositories/
+│   │       │   ├── user.repository.ts    # ★ 新規 (IUserRepository)
+│   │       │   └── index.ts              # ★ 更新
 │   │       ├── services/                 # ★ 新規ディレクトリ
-│   │       │   ├── user.query-service.ts # IUserQueryService + UserDto
+│   │       │   ├── user.query-service.ts # IUserQueryService + UserQueryResult
 │   │       │   └── index.ts
 │   │       └── index.ts                  # ★ 更新
 │   └── database/
@@ -49,7 +53,7 @@ yomutan/
 │   │   ├── docs/
 │   │   │   ├── openapi.yaml              # ★ 更新 (/me path & cookieAuth scheme 追加)
 │   │   │   ├── components/schemas/
-│   │   │   │   └── User.yaml             # ★ 更新 (role/displayName/emailVerified/image 追加)
+│   │   │   │   └── User.yaml             # ★ 更新 (role/displayName/emailVerified/image/createdAt 追加)
 │   │   │   └── paths/
 │   │   │       └── me.yaml               # ★ 新規 (GET /me 定義)
 │   │   ├── package.json                  # ★ 更新 (cors, @workspace/auth)
@@ -58,13 +62,15 @@ yomutan/
 │   │       │   └── env.ts                # ★ 更新 (認証env変数追加)
 │   │       ├── presentation/
 │   │       │   ├── middleware/
-│   │       │   │   └── require-auth.middleware.ts  # ★ 新規
+│   │       │   │   ├── require-auth.middleware.ts       # ★ 新規
+│   │       │   │   └── require-auth.middleware.test.ts  # ★ 新規
 │   │       │   └── controllers/
 │   │       │       ├── user.controller.ts          # ★ 新規
+│   │       │       ├── user.controller.test.ts     # ★ 新規
 │   │       │       └── index.ts                    # ★ 更新
 │   │       ├── application/
 │   │       │   └── queries/
-│   │       │       ├── get-current-user.use-case.ts # ★ 新規
+│   │       │       ├── get-current-user.use-case.ts # ★ 新規 (UserResponseDto もここで定義)
 │   │       │       └── index.ts                     # ★ 更新
 │   │       └── composition/
 │   │           └── create-app.ts         # ★ 更新 (auth配線)
@@ -114,8 +120,8 @@ packages/database → @workspace/domain
   },
   "scripts": { "typecheck": "tsc --noEmit", "lint": "eslint ." },
   "dependencies": {
-    "better-auth": "^1.x",
-    "resend": "^4.x"
+    "better-auth": "^1.0.0",
+    "resend": "^4.0.0"
   },
   "peerDependencies": {
     "@prisma/client": "^7",
@@ -133,8 +139,24 @@ packages/database → @workspace/domain
 **packages/auth/tsconfig.json**
 - `@workspace/typescript-config/base.json` を extends
 
+**packages/auth/eslint.config.mjs**
+- 他パッケージ（`packages/domain/eslint.config.mjs` 等）と同じパターンで `@workspace/eslint-config` を使用
+
 **packages/auth/src/server.ts**
-- `AuthConfig` インターフェース: `{ prisma: PrismaClient, secret, baseURL, resendApiKey, google: {clientId, clientSecret}, apple: {clientId, clientSecret} }`
+- `AuthConfig` インターフェース:
+  ```typescript
+  interface AuthConfig {
+    prisma: PrismaClient
+    secret: string
+    baseURL: string
+    resendApiKey: string
+    google: { clientId: string; clientSecret: string }
+    apple: { clientId: string; clientSecret: string }
+  }
+  ```
+  > **Note**: Apple Sign In の `clientSecret` は better-auth が内部で JWT 形式に変換するため、
+  > `APPLE_CLIENT_SECRET` 環境変数には Apple Developer から取得した秘密鍵（PEM 形式）を設定する。
+  > `teamId` / `keyId` が別途必要かどうかは better-auth の Apple プロバイダー実装を確認すること。
 - `createAuth(config: AuthConfig)` を export
   - `emailOtp` プラグイン: Resend でメール送信
   - `socialProviders`: google, apple
@@ -159,7 +181,7 @@ pnpm --filter @workspace/auth typecheck
 
 ## Step 2: Database Schema & Domain Entity
 
-**目標**: Prisma スキーマに better-auth テーブルを追加し、Domain の UserEntity と DB実装を完成させる。
+**目標**: Prisma スキーマに better-auth テーブルを追加し、Domain の UserEntity・IUserRepository・IUserQueryService と DB実装を完成させる。
 
 ### 更新: packages/database/prisma/schema.prisma
 以下の4モデルを追加（datasource/generator ブロックはそのまま）:
@@ -219,6 +241,7 @@ model Verification {
 ```
 
 ### 新規: packages/domain/src/models/user.entity.ts
+
 ```typescript
 export type UserRole = "user" | "admin"
 
@@ -231,37 +254,122 @@ export class UserEntity extends BaseEntity<string> {
     readonly displayName: string | null,
   ) { super(id) }
 
-  static reconstitute(id, email, name, role, displayName): UserEntity
+  static reconstitute(
+    id: string,
+    email: string,
+    name: string,
+    role: UserRole,
+    displayName: string | null,
+  ): UserEntity {
+    return new UserEntity(id, email, name, role, displayName)
+  }
+}
+```
+
+### 新規: packages/domain/src/repositories/user.repository.ts
+
+CLAUDE.md の実装フロー「Domain: `*.entity.ts`, `*.repository.ts`」に従い、ユーザー固有のリポジトリインターフェースを定義する。
+
+```typescript
+import { IRepository } from "./base.repository"
+import { UserEntity } from "../models/user.entity"
+
+export interface IUserRepository extends IRepository<UserEntity, string> {
+  // 現スコープでは findById / save / delete のみ。
+  // User固有メソッド（findByEmail 等）が必要になったタイミングで追加する。
 }
 ```
 
 ### 新規: packages/domain/src/services/ (新ディレクトリ)
+
 **user.query-service.ts**
+
+`UserQueryResult` は DB から読み取ったデータの Domain 側表現。DTO ではなくドメインの読み取り契約として定義する。
+Response DTO への変換は Application 層（UseCase）で行う。
+
 ```typescript
-export type UserDto = {
-  id: string; email: string; name: string
-  role: string; displayName: string | null
-  image: string | null; emailVerified: boolean; createdAt: Date
+export type UserQueryResult = {
+  id: string
+  email: string
+  name: string
+  role: string
+  displayName: string | null
+  image: string | null
+  emailVerified: boolean
+  createdAt: Date
 }
+
 export interface IUserQueryService {
-  findById(id: string): Promise<UserDto | null>
+  findById(id: string): Promise<UserQueryResult | null>
 }
 ```
 
 ### 新規: packages/database/src/repositories/user.prisma-repository.ts
-- `BasePrismaRepository<UserEntity, string, Prisma.User, Prisma.UserCreateInput>` を継承
-- `toDomain()`: `UserEntity.reconstitute(...)` を使用
-- `findById`, `save`, `delete` を実装
+
+```typescript
+import { PrismaClient, Prisma, User as PrismaUser } from "@prisma/client"
+import { IUserRepository, UserEntity, UserRole } from "@workspace/domain"
+import { BasePrismaRepository } from "./base.prisma-repository"
+
+export class UserPrismaRepository
+  extends BasePrismaRepository<UserEntity, string, PrismaUser, Prisma.UserCreateInput>
+  implements IUserRepository
+{
+  constructor(prisma: PrismaClient) { super(prisma) }
+
+  protected toDomain(model: PrismaUser): UserEntity {
+    return UserEntity.reconstitute(
+      model.id,
+      model.email,
+      model.name,
+      model.role as UserRole,
+      model.displayName,
+    )
+  }
+
+  protected toPersistence(entity: UserEntity): Prisma.UserCreateInput {
+    return {
+      id: entity.id,
+      email: entity.email,
+      name: entity.name,
+      role: entity.role,
+      displayName: entity.displayName ?? null,
+      emailVerified: false,
+      createdAt: new Date(),
+      updatedAt: new Date(),
+    }
+  }
+
+  async findById(id: string): Promise<UserEntity | null> {
+    const user = await this.prisma.user.findUnique({ where: { id } })
+    return user ? this.toDomain(user) : null
+  }
+
+  async save(entity: UserEntity): Promise<void> {
+    const data = this.toPersistence(entity)
+    await this.prisma.user.upsert({
+      where: { id: entity.id },
+      update: data,
+      create: data,
+    })
+  }
+
+  async delete(entity: UserEntity): Promise<void> {
+    await this.prisma.user.delete({ where: { id: entity.id } })
+  }
+}
+```
 
 ### 新規: packages/database/src/query-services/user.query-service.ts
 - `IUserQueryService` を実装
-- `findById()`: `prisma.user.findUnique()` で UserDto を返す
+- `findById()`: `prisma.user.findUnique()` で `UserQueryResult` を返す
 
 ### barrel index 更新
-- `packages/domain/src/models/index.ts`: UserEntity 追加
-- `packages/domain/src/index.ts`: `export * from "./services"` 追加
-- `packages/database/src/repositories/index.ts`: user.prisma-repository 追加
-- `packages/database/src/query-services/index.ts`: user.query-service 追加
+- `packages/domain/src/models/index.ts`: `UserEntity`, `UserRole` を追加
+- `packages/domain/src/repositories/index.ts`: `IUserRepository` を追加
+- `packages/domain/src/index.ts`: `export * from "./services"` を追加（コメントアウト行を有効化）
+- `packages/database/src/repositories/index.ts`: `UserPrismaRepository` を追加
+- `packages/database/src/query-services/index.ts`: `UserQueryService` を追加
 - `packages/database/src/index.ts`: `export * from "./query-services"` を有効化
 
 ### 検証コマンド
@@ -347,41 +455,108 @@ curl http://localhost:8080/api/auth/get-session
 **目標**: `/api/v1/me` が認証ミドルウェアで保護され、ログイン済みユーザーの情報を返す。
 
 ### 新規: apps/api/src/presentation/middleware/require-auth.middleware.ts
-- `AuthenticatedRequest` 型: `Request & { auth: NonNullable<Awaited<ReturnType<AuthInstance["api"]["getSession"]>>> }`
-- `createRequireAuth(auth: AuthInstance)`: セッション取得 → なければ 401 → `req.auth` にセット
 
-### 新規: apps/api/src/application/queries/get-current-user.use-case.ts
-- `BaseQueryUseCase<{ userId: string }, UserDto | null>` を継承
-- constructor: `IUserQueryService` を DI
-- `execute({ userId })`: `userQueryService.findById(userId)` を返す
-
-### 新規: apps/api/src/presentation/controllers/user.controller.ts
 ```typescript
-export class UserController {
-  constructor(private readonly getCurrentUserQuery: GetCurrentUserQuery) {}
+import { Request, Response, NextFunction } from "express"
+import { AuthInstance } from "@workspace/auth/server"
 
-  getUserMe = async (req: AuthenticatedRequest, res: Response) => {
-    const user = await this.getCurrentUserQuery.execute({ userId: req.auth.user.id })
-    if (!user) { res.status(404).json({ error: "User not found" }); return }
-    res.json(user)
+export type AuthenticatedRequest = Request & {
+  auth: NonNullable<Awaited<ReturnType<AuthInstance["api"]["getSession"]>>>
+}
+
+export function createRequireAuth(auth: AuthInstance) {
+  return async (req: Request, res: Response, next: NextFunction) => {
+    try {
+      const session = await auth.api.getSession({ headers: req.headers })
+      if (!session) {
+        res.status(401).json({ error: "Unauthorized" })
+        return
+      }
+      (req as AuthenticatedRequest).auth = session
+      next()
+    } catch {
+      res.status(500).json({ error: "Internal Server Error" })
+    }
   }
 }
 ```
 
+### 新規: apps/api/src/presentation/middleware/require-auth.middleware.test.ts
+- 未認証時に 401 を返すことをテスト
+- 認証済み時に `req.auth` がセットされ `next()` が呼ばれることをテスト
+- `getSession` が例外をスローした場合に 500 を返すことをテスト
+
+### 新規: apps/api/src/application/queries/get-current-user.use-case.ts
+
+CLAUDE.md 規約「Response DTO: Application で組み立てる」に従い、`UserResponseDto` はここで定義・返却する。
+UseCase は `IUserQueryService`（Domain）から `UserQueryResult` を受け取り、`UserResponseDto` として組み立てる。
+
+```typescript
+import { BaseQueryUseCase } from "./base.query"
+import { IUserQueryService, UserQueryResult } from "@workspace/domain"
+
+export type UserResponseDto = UserQueryResult  // 現スコープでは変換不要だが、Application 層で定義する
+
+export class GetCurrentUserUseCase
+  extends BaseQueryUseCase<{ userId: string }, UserResponseDto | null>
+{
+  constructor(private readonly userQueryService: IUserQueryService) { super() }
+
+  async execute({ userId }: { userId: string }): Promise<UserResponseDto | null> {
+    return this.userQueryService.findById(userId)
+  }
+}
+```
+
+### 新規: apps/api/src/presentation/controllers/user.controller.ts
+
+```typescript
+import { Response } from "express"
+import { GetCurrentUserUseCase } from "../../application/queries/get-current-user.use-case"
+import { AuthenticatedRequest } from "../middleware/require-auth.middleware"
+
+export class UserController {
+  constructor(private readonly getCurrentUserUseCase: GetCurrentUserUseCase) {}
+
+  getUserMe = async (req: AuthenticatedRequest, res: Response) => {
+    try {
+      const user = await this.getCurrentUserUseCase.execute({ userId: req.auth.user.id })
+      if (!user) {
+        res.status(404).json({ error: "User not found" })
+        return
+      }
+      res.json(user)
+    } catch {
+      res.status(500).json({ error: "Internal Server Error" })
+    }
+  }
+}
+```
+
+### 新規: apps/api/src/presentation/controllers/user.controller.test.ts
+- 認証済みユーザーが存在する場合に 200 + ユーザー情報を返すことをテスト
+- ユーザーが見つからない場合に 404 を返すことをテスト
+- UseCase が例外をスローした場合に 500 を返すことをテスト
+
 ### 更新: apps/api/src/composition/create-app.ts (Step 3 からの差分)
 ```typescript
+import { createRequireAuth } from "../presentation/middleware/require-auth.middleware"
+import { UserQueryService } from "@workspace/database"
+import { GetCurrentUserUseCase } from "../application/queries/get-current-user.use-case"
+import { UserController } from "../presentation/controllers/user.controller"
+
 // Step 3 の createApp() に追加
 const requireAuth = createRequireAuth(auth)
 const userQueryService = new UserQueryService(prisma)
-const getCurrentUserQuery = new GetCurrentUserQuery(userQueryService)
-const userController = new UserController(getCurrentUserQuery)
+const getCurrentUserUseCase = new GetCurrentUserUseCase(userQueryService)
+const userController = new UserController(getCurrentUserUseCase)
 
 apiRouter.get("/me", requireAuth, userController.getUserMe)
 ```
 
 ### barrel index 更新
-- `application/queries/index.ts`: GetCurrentUserQuery 追加
-- `presentation/controllers/index.ts`: UserController 追加
+- `application/queries/index.ts`: `GetCurrentUserUseCase`, `UserResponseDto` を追加
+- `presentation/controllers/index.ts`: `UserController` を追加
 
 ### 新規: apps/web/lib/auth-client.ts
 ```typescript
@@ -397,7 +572,7 @@ export const authClient = createClient(
 ### OpenAPI 定義の更新
 
 **更新: apps/api/docs/components/schemas/User.yaml**
-better-auth の additionalFields に合わせて以下フィールドを追加:
+better-auth の additionalFields + `createdAt` を追加:
 ```yaml
 role:
   type: string
@@ -412,6 +587,9 @@ emailVerified:
 image:
   type: string
   nullable: true
+createdAt:
+  type: string
+  format: date-time
 ```
 
 **新規: apps/api/docs/paths/me.yaml**
@@ -457,7 +635,7 @@ get:
 
 ### Docs 更新
 - `docs/architecture.md`: packages/auth をディレクトリ構造・依存グラフ・インフラ共有パターンに追記
-- `CLAUDE.md`: packages/auth の存在と役割を認証フロー説明に追記
+- `CLAUDE.md`: packages/auth の存在・役割・依存方向を認証セクションとして追記
 
 ### 検証コマンド・確認項目
 ```bash
@@ -469,5 +647,5 @@ curl http://localhost:8080/api/v1/me
 
 # 認証済みの場合 (Cookie付き)
 curl -b "session=..." http://localhost:8080/api/v1/me
-# → { id, email, name, role, displayName, ... }
+# → { id, email, name, role, displayName, image, emailVerified, createdAt }
 ```
