@@ -51,7 +51,7 @@ describe("UserController", () => {
     await controller.getUserMe(makeReq(), res);
 
     expect(res.status).toHaveBeenCalledWith(404);
-    expect(res.json).toHaveBeenCalledWith({ error: "User not found" });
+    expect(res.json).toHaveBeenCalledWith({ error: "User not found", code: "USER_NOT_FOUND" });
   });
 
   it("returns 500 when use case throws", async () => {
@@ -61,6 +61,6 @@ describe("UserController", () => {
     await controller.getUserMe(makeReq(), res);
 
     expect(res.status).toHaveBeenCalledWith(500);
-    expect(res.json).toHaveBeenCalledWith({ error: "Internal Server Error" });
+    expect(res.json).toHaveBeenCalledWith({ error: "Internal Server Error", code: "INTERNAL_ERROR" });
   });
 });

@@ -31,7 +31,7 @@ describe("createRequireAuth", () => {
     await requireAuth(req, res, next);
 
     expect(res.status).toHaveBeenCalledWith(401);
-    expect(res.json).toHaveBeenCalledWith({ error: "Unauthorized" });
+    expect(res.json).toHaveBeenCalledWith({ error: "Unauthorized", code: "INVALID_SESSION" });
     expect(next).not.toHaveBeenCalled();
   });
 
@@ -60,6 +60,6 @@ describe("createRequireAuth", () => {
     await requireAuth(req, res, next);
 
     expect(res.status).toHaveBeenCalledWith(500);
-    expect(res.json).toHaveBeenCalledWith({ error: "Internal Server Error" });
+    expect(res.json).toHaveBeenCalledWith({ error: "Internal Server Error", code: "SESSION_FETCH_ERROR" });
   });
 });

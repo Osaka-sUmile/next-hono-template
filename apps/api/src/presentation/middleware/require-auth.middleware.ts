@@ -11,14 +11,14 @@ export function createRequireAuth(auth: AuthInstance) {
     try {
       const session = await auth.api.getSession({ headers: fromNodeHeaders(req.headers) });
       if (!session) {
-        res.status(401).json({ error: "Unauthorized" });
+        res.status(401).json({ error: "Unauthorized", code: "INVALID_SESSION" });
         return;
       }
       (req as AuthenticatedRequest).auth = session;
       next();
     } catch (err) {
       console.error("[requireAuth] getSession failed:", err);
-      res.status(500).json({ error: "Internal Server Error" });
+      res.status(500).json({ error: "Internal Server Error", code: "SESSION_FETCH_ERROR" });
     }
   };
 }

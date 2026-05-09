@@ -44,6 +44,7 @@ export class UserPrismaRepository
         name: entity.name,
         role: entity.role,
         displayName: entity.displayName ?? null,
+        // emailVerified は認証時に別途更新されるため、ここではアプリケーション側の更新を受けない
       },
       create: this.toCreateInput(entity),
     });

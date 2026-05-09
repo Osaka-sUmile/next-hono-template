@@ -19,6 +19,7 @@ export class UserQueryService implements IUserQueryService {
       },
     });
     if (!raw) return null;
+    // DBから取得したroleを型安全なUserRoleに変換。無効な値は例外を発行
     return { ...raw, role: parseUserRole(raw.role) };
   }
 }
