@@ -373,13 +373,13 @@ export class UserPrismaRepository
 
 ```typescript
 import { PrismaClient } from "@prisma/client"
-import { IUserQueryService, UserQueryResult } from "@workspace/domain"
+import { IUserQueryService, UserQueryResult, UserRole } from "@workspace/domain"
 
 export class UserQueryService implements IUserQueryService {
   constructor(private readonly prisma: PrismaClient) {}
 
   async findById(id: string): Promise<UserQueryResult | null> {
-    return this.prisma.user.findUnique({
+    const raw = await this.prisma.user.findUnique({
       where: { id },
       select: {
         id: true,
@@ -392,6 +392,9 @@ export class UserQueryService implements IUserQueryService {
         createdAt: true,
       },
     })
+    if (!raw) return null
+    // Prisma の生成型は role を string として扱うため UserRole へキャストする
+    return { ...raw, role: raw.role as UserRole }
   }
 }
 ```

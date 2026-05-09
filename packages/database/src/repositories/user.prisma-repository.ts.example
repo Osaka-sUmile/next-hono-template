@@ -6,33 +6,39 @@
 
 /*
 import { PrismaClient, Prisma, User as PrismaUser } from "@prisma/client";
-import { IUserRepository, UserEntity } from "@workspace/domain";
+import { IUserRepository, UserEntity, UserRole } from "@workspace/domain";
 import { BasePrismaRepository } from "./base.prisma-repository";
 
-export class UserPrismaRepository 
-  extends BasePrismaRepository<UserEntity, string, PrismaUser, Prisma.UserCreateInput> 
-  implements IUserRepository 
+export class UserPrismaRepository
+  extends BasePrismaRepository<UserEntity, string, PrismaUser, Prisma.UserCreateInput>
+  implements IUserRepository
 {
   constructor(prisma: PrismaClient) {
     super(prisma);
   }
 
-  // DBからのデータ(PrismaUser)をDomainのUserEntityに再構築
   protected toDomain(model: PrismaUser): UserEntity {
-    return new UserEntity(model.id, model.email, model.name || undefined);
+    return UserEntity.reconstitute(
+      model.id,
+      model.email,
+      model.name,
+      model.role as UserRole,
+      model.displayName,
+    );
   }
 
   // upsert の create: 側でのみ使用する。update: は save() 内で個別定義する。
-  protected toCreateInput(entity: UserEntity) {
+  protected toCreateInput(entity: UserEntity): Prisma.UserCreateInput {
     return {
       id: entity.id,
       email: entity.email,
-      name: entity.name ?? null,
-      updatedAt: new Date() // など必要に応じた変換処理
+      name: entity.name,
+      role: entity.role,
+      displayName: entity.displayName ?? null,
+      emailVerified: false,
     };
   }
 
-  // IRepositoryの実装
   async findById(id: string): Promise<UserEntity | null> {
     const user = await this.prisma.user.findUnique({ where: { id } });
     if (!user) return null;
@@ -40,23 +46,19 @@ export class UserPrismaRepository
   }
 
   async save(entity: UserEntity): Promise<void> {
-    const data = this.toPersistence(entity);
     await this.prisma.user.upsert({
       where: { id: entity.id },
-      update: data,
-      create: data,
+      update: {
+        name: entity.name,
+        role: entity.role,
+        displayName: entity.displayName ?? null,
+      },
+      create: this.toCreateInput(entity),
     });
   }
 
   async delete(entity: UserEntity): Promise<void> {
     await this.prisma.user.delete({ where: { id: entity.id } });
-  }
-
-  // User固有のメソッド実装など
-  async findByEmail(email: string): Promise<UserEntity | null> {
-    const user = await this.prisma.user.findUnique({ where: { email } });
-    if (!user) return null;
-    return this.toDomain(user);
   }
 }
 */

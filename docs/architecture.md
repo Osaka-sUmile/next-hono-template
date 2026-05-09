@@ -51,7 +51,7 @@ yomutan/
 │   │   └── src/
 │   │       ├── server.ts             # createAuth() + toNodeHandler
 │   │       ├── client.ts             # createClient()
-│   │       └── index.ts             # 共通型 re-export
+│   │       └── index.ts              # 共通型 re-export
 │   ├── domain/                       # ドメイン層（外部依存ゼロ）
 │   │   └── src/
 │   │       ├── models/               # エンティティ・値オブジェクト
