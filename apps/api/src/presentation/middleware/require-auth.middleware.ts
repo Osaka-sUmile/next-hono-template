@@ -10,6 +10,21 @@ export type AuthenticatedRequest = Request & {
   auth: AuthSession;
 };
 
+type BetterAuthAPIError = {
+  statusCode: number;
+  body?: { code?: string };
+};
+
+// better-auth/better-call の APIError は const 宣言のため instanceof で型が絞り込めない。
+// InternalAPIError extends Error かつ statusCode: number を持つ構造を直接検査する。
+function isBetterAuthAPIError(err: unknown): err is BetterAuthAPIError {
+  return (
+    err instanceof Error &&
+    "statusCode" in err &&
+    typeof (err as { statusCode: unknown }).statusCode === "number"
+  );
+}
+
 export function createRequireAuth(auth: AuthInstance) {
   return async (req: Request, res: Response, next: NextFunction) => {
     try {
@@ -20,8 +35,12 @@ export function createRequireAuth(auth: AuthInstance) {
       (req as AuthenticatedRequest).auth = session;
       next();
     } catch (err) {
-      if (err instanceof Error && "status" in err && (err as { status: number }).status === 401) {
-        return res.status(401).json({ error: "Session expired", code: ErrorCodes.SESSION_EXPIRED });
+      if (isBetterAuthAPIError(err) && err.statusCode === 401) {
+        const isExpired = err.body?.code === "SESSION_EXPIRED";
+        return res.status(401).json({
+          error: isExpired ? "Session expired" : "Unauthorized",
+          code: isExpired ? ErrorCodes.SESSION_EXPIRED : ErrorCodes.SESSION_INVALID,
+        });
       }
       logger.error({ err }, "[requireAuth] getSession failed");
       return res.status(500).json({ error: "Internal Server Error", code: ErrorCodes.SESSION_FETCH_FAILED });
