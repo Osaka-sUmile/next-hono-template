@@ -16,6 +16,28 @@
 - **Response DTO**: Application で組み立てる。
 - **Domain Error / Application Error**: `apps/api/src/application/errors/` に集約し、Presentation で HTTP エラーへ変換する。
 
+## エラーコードの追加手順
+エラーコードを追加する際は、以下の **3 箇所を同時に更新** すること。順序を守り、どちらか一方だけの更新を防ぐ。
+
+1. **`apps/api/src/presentation/error-codes.ts`** - ErrorCodes 定数オブジェクトに追加
+   ```typescript
+   RESOURCE_NOT_FOUND: "RESOURCE_NOT_FOUND",
+   ```
+
+2. **`apps/api/src/presentation/error-codes.ts`** - ErrorCode 型に union を追加
+   ```typescript
+   export type ErrorCode = "USER_NOT_FOUND" | ... | "RESOURCE_NOT_FOUND";
+   ```
+
+3. **`apps/api/docs/components/schemas/Error.yaml`** - enum に追加
+   ```yaml
+   enum:
+     - USER_NOT_FOUND       # User-related errors
+     - RESOURCE_NOT_FOUND   # Resource-related errors
+   ```
+
+**理由**: 型定義とドキュメントが同期していないと、クライアント実装が破綻する。CI で enum の一致を検証することを推奨。
+
 ## テスト配置
 - **Vitest**: 実装と同じ階層に `*.test.ts` / `*.test.tsx` を co-located で置く。
 - **Playwright**: `apps/web/tests/e2e/` に集約する。

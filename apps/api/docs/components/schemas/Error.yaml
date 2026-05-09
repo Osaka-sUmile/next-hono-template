@@ -9,8 +9,8 @@ properties:
   code:
     type: string
     enum:
-      - USER_NOT_FOUND
-      - SESSION_INVALID
-      - SESSION_FETCH_FAILED
-      - INTERNAL_ERROR
-    description: Machine-readable error code for client-side handling
+      - USER_NOT_FOUND       # User profile not found (404)
+      - SESSION_INVALID      # Invalid or missing session token (401)
+      - SESSION_FETCH_FAILED # Session retrieval failed (500)
+      - INTERNAL_ERROR       # Unexpected server error (500)
+    description: Machine-readable error code for client-side handling. See enum comments for details.
