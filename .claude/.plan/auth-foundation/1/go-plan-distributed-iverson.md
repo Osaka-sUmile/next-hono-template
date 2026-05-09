@@ -71,6 +71,7 @@ yomutan/
 │   │       │       └── index.ts                    # ★ 更新
 │   │       ├── application/
 │   │       │   └── queries/
+│   │       │       ├── base.query.ts                # ★ 新規 (BaseQueryUseCase 抽象クラス)
 │   │       │       ├── get-current-user.use-case.ts # ★ 新規 (UserResponseDto もここで定義)
 │   │       │       └── index.ts                     # ★ 更新
 │   │       └── composition/
@@ -525,6 +526,16 @@ export function createRequireAuth(auth: AuthInstance) {
 - 認証済み時に `req.auth` がセットされ `next()` が呼ばれることをテスト
 - `getSession` が例外をスローした場合に 500 を返すことをテスト
 
+### 新規: apps/api/src/application/queries/base.query.ts
+
+すべての Query UseCase が実装すべき抽象基底クラス。
+
+```typescript
+export abstract class BaseQueryUseCase<TInput, TOutput> {
+  abstract execute(input: TInput): Promise<TOutput>
+}
+```
+
 ### 新規: apps/api/src/application/queries/get-current-user.use-case.ts
 
 CLAUDE.md 規約「Response DTO: Application で組み立てる」に従い、`UserResponseDto` はここで定義・返却する。
@@ -613,7 +624,7 @@ apiRouter.get("/me", requireAuth, userController.getUserMe)
 ```
 
 ### barrel index 更新
-- `application/queries/index.ts`: `GetCurrentUserUseCase`, `UserResponseDto` を追加
+- `application/queries/index.ts`: `BaseQueryUseCase`, `GetCurrentUserUseCase`, `UserResponseDto` を追加
 - `presentation/middleware/index.ts`: `createRequireAuth`, `AuthenticatedRequest` を export する `index.ts` を新規作成
 - `presentation/index.ts`: `export * from "./middleware"` を追加
 - `presentation/controllers/index.ts`: `UserController` を追加
