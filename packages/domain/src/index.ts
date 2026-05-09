@@ -3,5 +3,6 @@
 
 export * from "./models";
 export * from "./repositories";
-// 今後追加する value-objects/services/errors も同パターンで束ねる
+export * from "./services";
+// 今後追加する value-objects/errors も同パターンで束ねる
 // export * from "./value-objects";

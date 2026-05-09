@@ -12,6 +12,8 @@ paths:
     $ref: './paths/health.yaml'
   /users:
     $ref: './paths/users.yaml'
+  /me:
+    $ref: './paths/me.yaml'
 
 components:
   schemas:
@@ -19,3 +21,8 @@ components:
       $ref: './components/schemas/Error.yaml'
     User:
       $ref: './components/schemas/User.yaml'
+  securitySchemes:
+    cookieAuth:
+      type: apiKey
+      in: cookie
+      name: better-auth.session_token

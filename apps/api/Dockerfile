@@ -17,7 +17,10 @@ FROM node:20-alpine AS builder
 WORKDIR /app
 COPY --from=pruner /app/out/full/ .
 COPY --from=installer /app/ .
-RUN npm install -g pnpm turbo && turbo build --filter=api
+# prisma generate を先に実行して @prisma/client の型を生成してから turbo build を走らせる
+RUN npm install -g pnpm turbo && \
+    pnpm --filter @workspace/database db:generate && \
+    turbo build --filter=api
 
 # 4. Runner
 FROM node:20-alpine AS runner

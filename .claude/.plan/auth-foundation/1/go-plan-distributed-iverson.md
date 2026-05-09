@@ -9,7 +9,7 @@
 - **User テーブル**: better-auth の User テーブルに `role` + `displayName` を additionalFields で同居
 - **Domain Entity**: better-auth の User と同じ id を共有する `UserEntity` を packages/domain に定義
 - **スコープ**: packages/auth の作成から apps/web の authClient まで
-
+- **進捗**: progress.md に逐次記録
 ---
 
 ## 完成後のディレクトリ構造（新規・更新ファイルのみ）
@@ -178,6 +178,7 @@ packages/database → @workspace/domain
 pnpm install
 pnpm --filter @workspace/auth typecheck
 ```
+検証が通ったら、progress.md に完了を記録し、Step 2 に進む。
 
 ---
 
@@ -415,6 +416,7 @@ pnpm typecheck                                  # 全パッケージ型チェッ
 ```
 → **DBマイグレーションは `prisma migrate dev` をユーザーが手動実行** (Docker Compose 起動が前提)
 
+検証が終わったら、progress.md に完了を記録し、Step 3 に進む。
 ---
 
 ## Step 3: API Infrastructure — better-auth ルートのマウント
@@ -485,6 +487,8 @@ pnpm dev  # API サーバー起動
 curl http://localhost:8080/api/auth/get-session
 # → null (未ログイン時の正常レスポンス)
 ```
+
+検証が終わったら、progress.md に完了を記録し、Step 4 に進む。
 
 ---
 
