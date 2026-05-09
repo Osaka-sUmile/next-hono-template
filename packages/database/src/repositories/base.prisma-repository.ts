@@ -19,4 +19,3 @@ export abstract class BasePrismaRepository<
   abstract save(entity: TEntity): Promise<void>;
   abstract delete(entity: TEntity): Promise<void>;
 }
-
