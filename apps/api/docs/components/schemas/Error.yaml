@@ -1,9 +1,9 @@
 type: object
 required:
-  - message
+  - error
   - code
 properties:
-  message:
+  error:
     type: string
     description: Error message describing the issue
   code:

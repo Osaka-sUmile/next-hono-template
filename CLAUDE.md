@@ -38,6 +38,12 @@
 
 **理由**: 型定義とドキュメントが同期していないと、クライアント実装が破綻する。CI で enum の一致を検証することを推奨。
 
+**チェックリスト**: エラーコード追加時は以下を確認すること
+- [ ] `error-codes.ts` の ErrorCodes 定数に追加されている
+- [ ] `error-codes.ts` の ErrorCode 型に union として追加されている  
+- [ ] `Error.yaml` の enum に同じコード（大文字スネークケース）で追加されている
+- [ ] エラーレスポンスのキー名が `error` であることを確認（OpenAPI スキーマ Error.yaml と一致）
+
 ## テスト配置
 - **Vitest**: 実装と同じ階層に `*.test.ts` / `*.test.tsx` を co-located で置く。
 - **Playwright**: `apps/web/tests/e2e/` に集約する。
