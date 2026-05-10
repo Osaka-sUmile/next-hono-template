@@ -2,19 +2,20 @@ import { betterAuth } from "better-auth";
 import { prismaAdapter } from "better-auth/adapters/prisma";
 import { emailOTP } from "better-auth/plugins";
 import { Resend } from "resend";
+import type { PrismaClient } from "@prisma/client";
 
-// Avoid importing PrismaClient from @prisma/client directly.
-// @prisma/client only exports PrismaClient after `prisma generate` is run,
-// so a direct import would break builds that don't run prisma generate (e.g. apps/web).
-// The actual PrismaClient is provided by apps/api at runtime via dependency injection.
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
-type PrismaClientInput = Record<string, any>;
+// better-auth's prismaAdapter requires only user, session, account, and verification delegations.
+// We use Pick to ensure strict type safety and avoid broad any typing.
+// Avoid runtime import of PrismaClient: only the type is imported to prevent build issues
+// when prisma generate hasn't run (e.g., in apps/web). The actual instance is injected at runtime.
+type PrismaClientInput = Pick<PrismaClient, "user" | "session" | "account" | "verification">;
 
 interface AuthConfig {
   prisma: PrismaClientInput;
   secret: string;
   baseURL: string;
   resendApiKey: string;
+  resendFromEmail: string;
   google: { clientId: string; clientSecret: string };
   apple: { clientId: string; clientSecret: string };
 }
@@ -25,15 +26,14 @@ export function createAuth(config: AuthConfig) {
   return betterAuth({
     secret: config.secret,
     baseURL: config.baseURL,
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    database: prismaAdapter(config.prisma as any, {
+    database: prismaAdapter(config.prisma, {
       provider: "postgresql",
     }),
     plugins: [
       emailOTP({
         async sendVerificationOTP({ email, otp }: { email: string; otp: string; type: string }) {
           const { error } = await resendClient.emails.send({
-            from: "noreply@yomutan.app",
+            from: config.resendFromEmail,
             to: email,
             subject: "Your verification code",
             text: `Your code is: ${otp}`,
