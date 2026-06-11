@@ -17,102 +17,42 @@ path_filters:
   - "!**/*.example"
 
 instructions: |
-  このリポジトリは yomutan プロジェクトのバックエンド（Express + TypeScript）と
-  フロントエンド（Next.js）で構成されています。
-  CLAUDE.md に定義された開発ガイドラインに従っているかを重点的に確認してください。
-
-  ## アーキテクチャルール
-
-  ### 実装レイヤー順序
-  新機能追加時は以下の順序で実装されているか確認する：
-  1. Domain (packages/domain): エンティティ・リポジトリインターフェース
-  2. Database (packages/database): リポジトリ実装・クエリサービス
-  3. Application (apps/api/src/application): ユースケース
-  4. Presentation (apps/api/src/presentation): バリデーション・コントローラー
-
-  ### CQRS
-  - Command（副作用あり）と Query（参照のみ）のユースケースが混在していないか
-  - Command は必要に応じて `prisma.$transaction` を使用しているか
-
-  ### DTO / エラーの責務
-  - Request DTO は Presentation 層で Zod から生成されているか
-  - Response DTO は Application 層で組み立てられているか
-  - エラークラスは `apps/api/src/application/errors/` に集約されているか
-
-  ### エラーコード（重要）
-  エラーコードを追加・変更している場合、以下の 3 箇所が同時に更新されているか必ず確認する：
-  1. `apps/api/src/presentation/error-codes.ts` の ErrorCodes 定数
-  2. `apps/api/src/presentation/error-codes.ts` の ErrorCode 型（union）
-  3. `apps/api/docs/components/schemas/Error.yaml` の enum
-  いずれか 1 箇所でも欠けている場合はレビューコメントで指摘する。
-  また、エラーレスポンスのキー名は必ず `error` であること（`message` / `msg` は不可）。
-
-  ### テスト配置
-  - Vitest テストは実装ファイルと同じ階層に co-located されているか（`__tests__/` ディレクトリは不可）
-  - E2E テストは `apps/web/tests/e2e/` に配置されているか
-  - テスト共通ユーティリティは `<app>/src/test-utils/` に置き、独自の深い階層を作らないこと
-
-  ### バリデーション境界
-  - 入力バリデーションは Presentation 層（Zod）で行われているか
-  - ビジネスロジックのバリデーションは Domain 層（エンティティメソッド内）で行われているか
-  - Presentation 層でビジネスルールのバリデーションをしていないか
-
-  ### Barrel Pattern
-  - 外部パッケージからのインポートは `package.json` の公開エントリーポイント経由か
-  - 深い階層を直接 import していないか（例: `@workspace/database/src/repositories/user` は不可）
-
-  ### 環境変数
-  - `process.env` を直接参照していないか
-  - `apps/api/src/infrastructure/env.ts` の型付き `env` を使用しているか
-  - 新しい環境変数は `env.ts` の Zod スキーマに追加されているか
+  リポジトリルートの CLAUDE.md に定義された開発ガイドラインに従っているかを確認してください。
+  特に以下の点は厳守事項です：
+  - エラーコード追加時は error-codes.ts（定数・union型）と Error.yaml の enum を必ず同時更新する
+  - 実装レイヤーの順序（Domain → Database → Application → Presentation）が守られているか
+  - Barrel Pattern・環境変数・バリデーション境界のルールに違反していないか
 
 path_instructions:
   - path: "packages/domain/**"
     instructions: |
-      【絶対厳守】純粋なドメイン層。以下を必ず確認する：
-      - prisma / express / next / react など外部ライブラリの import が一切ないか（あれば必ず指摘）
-      - バリデーションはエンティティのメソッド内にカプセル化されているか（Presentation 層でやっていないか）
-      - リポジトリインターフェースがドメイン用語で定義されているか（インフラ詳細が漏れていないか）
-      - ファイル命名規則: *.entity.ts / *.repository.ts
+      packages/domain/CLAUDE.md の制約に従っているか確認してください。
 
   - path: "packages/database/**"
     instructions: |
-      【データベース層の制約】以下を確認する：
-      - Prisma モデルをそのまま外部に公開していないか（必ずドメインモデル/Entity に変換して返すこと）
-      - 変換ロジック（Mapper）がこのディレクトリ内に記述されているか
-      - ビジネスルールの実装がこの層に混入していないか（永続化と変換のみが責務）
-      - `packages/domain` のインターフェースを正しく実装しているか
-      - Barrel Pattern: `repositories/` / `query-services/` 各ディレクトリに `index.ts` があり、パッケージルートの `src/index.ts` はディレクトリ単位でまとめてエクスポートしているか
-      - ファイル命名規則: *.prisma-repository.ts / *.query-service.ts
+      packages/database/CLAUDE.md の制約に従っているか確認してください。
 
   - path: "apps/api/src/application/**"
     instructions: |
-      【アプリケーション層の制約】以下を確認する：
-      - 具体的な DB クエリをここに直接書いていないか（Repository 経由であること）
-      - HTTP リクエスト / レスポンスをこの層で直接扱っていないか
-      - 複雑なビジネスロジックをここに書いていないか（ロジックは Entity / ValueObject へ）
-      - 依存先が `packages/domain` のモデルとインターフェースのみか（Response DTO の組み立ては可）
-      - Command と Query が適切に分離されているか
-      - Command ユースケースで必要なトランザクション処理（`prisma.$transaction`）が行われているか
+      apps/api/src/application/CLAUDE.md の制約に従っているか確認してください。
 
   - path: "apps/api/src/presentation/**"
     instructions: |
-      - Zod による入力バリデーションが実装されているか
-      - エラーは HTTP ステータスコードと ErrorCode に適切に変換されているか
-      - エラーレスポンスのキー名が `error` であるか
+      ルートの CLAUDE.md「DTO / エラーの責務」「バリデーション境界」のルールに従っているか確認してください。
+      エラーレスポンスのキー名は必ず `error` であること。
 
   - path: "apps/api/src/presentation/error-codes.ts"
     instructions: |
-      このファイルを変更している場合、以下も同時に変更されているか確認する：
-      - ErrorCodes 定数オブジェクトへの追加
-      - ErrorCode union 型への追加
-      - apps/api/docs/components/schemas/Error.yaml の enum への追加
+      このファイルを変更している場合、以下の 3 箇所が同時に更新されているか確認してください：
+      1. ErrorCodes 定数オブジェクト
+      2. ErrorCode union 型
+      3. apps/api/docs/components/schemas/Error.yaml の enum
 
   - path: "apps/api/docs/components/schemas/Error.yaml"
     instructions: |
-      enum の値が apps/api/src/presentation/error-codes.ts の ErrorCode 型・ErrorCodes 定数と完全に一致しているか確認する。
+      enum の値が apps/api/src/presentation/error-codes.ts の ErrorCodes 定数・ErrorCode 型と完全に一致しているか確認してください。
 
   - path: "**/*.test.ts"
     instructions: |
-      - テストファイルが実装ファイルと同じ階層に配置されているか
-      - 正常系・異常系のテストケースが網羅されているか
+      ルートの CLAUDE.md「テスト配置」のルールに従っているか確認してください。
+      テストファイルは実装ファイルと同じ階層に配置されているか（__tests__/ は不可）。
