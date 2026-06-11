@@ -31,7 +31,7 @@ export function createAuth(config: AuthConfig) {
     }),
     plugins: [
       emailOTP({
-        async sendVerificationOTP({ email, otp }: { email: string; otp: string; type: string }) {
+        async sendVerificationOTP({ email, otp }: { email: string; otp: string }) {
           const { error } = await resendClient.emails.send({
             from: config.resendFromEmail,
             to: email,

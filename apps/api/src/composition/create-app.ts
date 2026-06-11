@@ -4,7 +4,7 @@ import { createAuth, toNodeHandler } from "@workspace/auth/server";
 import { createPrismaClient, UserQueryService } from "@workspace/database";
 import { GetCurrentUserUseCase } from "../application";
 import { HealthController, UserController, createRequireAuth, withAuth } from "../presentation";
-import { env } from "../infrastructure/env";
+import { env, logger } from "../infrastructure";
 
 type RouterDeps = {
   requireAuth: ReturnType<typeof createRequireAuth>;
@@ -51,6 +51,14 @@ export function createApp(): express.Express {
       userController: new UserController(getCurrentUserUseCase),
     }),
   );
+
+  app.use((err: Error, _req: express.Request, res: express.Response, _next: express.NextFunction) => {
+    logger.error({ err }, "[createApp] Unhandled error");
+    res.status(500).json({
+      error: env.NODE_ENV === "production" ? "Internal Server Error" : err.message,
+      code: "INTERNAL_ERROR",
+    });
+  });
 
   return app;
 }

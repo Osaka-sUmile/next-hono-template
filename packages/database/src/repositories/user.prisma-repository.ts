@@ -11,13 +11,17 @@ export class UserPrismaRepository
   }
 
   protected toDomain(model: PrismaUser): UserEntity {
-    return UserEntity.reconstitute(
-      model.id,
-      model.email,
-      model.name,
-      parseUserRole(model.role),
-      model.displayName,
-    );
+    try {
+      return UserEntity.reconstitute(
+        model.id,
+        model.email,
+        model.name,
+        parseUserRole(model.role),
+        model.displayName,
+      );
+    } catch (err) {
+      throw new Error(`Failed to reconstitute UserEntity (id=${model.id}, role="${model.role}"): ${String(err)}`);
+    }
   }
 
   protected toCreateInput(entity: UserEntity): Prisma.UserCreateInput {

@@ -1,5 +1,5 @@
 import { BaseEntity } from "./base.entity";
-import { DomainError } from "../errors";
+import { DomainError, InvalidArgumentError } from "../errors";
 
 export type UserRole = "user" | "admin";
 
@@ -16,6 +16,9 @@ export function parseUserRole(value: string): UserRole {
   return value as UserRole;
 }
 
+const EMAIL_REGEX = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+const DISPLAY_NAME_MAX_LENGTH = 100;
+
 export class UserEntity extends BaseEntity<string> {
   private constructor(
     id: string,
@@ -25,6 +28,10 @@ export class UserEntity extends BaseEntity<string> {
     readonly displayName: string | null,
   ) {
     super(id);
+    if (!EMAIL_REGEX.test(email)) throw new InvalidArgumentError(`Invalid email format: "${email}"`);
+    if (displayName !== null && displayName.length > DISPLAY_NAME_MAX_LENGTH) {
+      throw new InvalidArgumentError(`displayName must be ${DISPLAY_NAME_MAX_LENGTH} characters or fewer`);
+    }
   }
 
   static reconstitute(

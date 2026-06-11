@@ -9,4 +9,4 @@ export const ErrorCodes = {
   INTERNAL_ERROR: "INTERNAL_ERROR",
 } as const;
 
-export type ErrorCode = "USER_NOT_FOUND" | "SESSION_INVALID" | "SESSION_EXPIRED" | "SESSION_FETCH_FAILED" | "INTERNAL_ERROR";
+export type ErrorCode = (typeof ErrorCodes)[keyof typeof ErrorCodes];
