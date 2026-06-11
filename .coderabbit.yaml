@@ -69,20 +69,31 @@ instructions: |
 path_instructions:
   - path: "packages/domain/**"
     instructions: |
-      - エンティティにビジネスロジックが適切にカプセル化されているか
+      【絶対厳守】純粋なドメイン層。以下を必ず確認する：
+      - prisma / express / next / react など外部ライブラリの import が一切ないか（あれば必ず指摘）
+      - バリデーションはエンティティのメソッド内にカプセル化されているか（Presentation 層でやっていないか）
       - リポジトリインターフェースがドメイン用語で定義されているか（インフラ詳細が漏れていないか）
       - ファイル命名規則: *.entity.ts / *.repository.ts
 
   - path: "packages/database/**"
     instructions: |
-      - Prisma の実装がドメインのリポジトリインターフェースを正しく実装しているか
+      【データベース層の制約】以下を確認する：
+      - Prisma モデルをそのまま外部に公開していないか（必ずドメインモデル/Entity に変換して返すこと）
+      - 変換ロジック（Mapper）がこのディレクトリ内に記述されているか
+      - ビジネスルールの実装がこの層に混入していないか（永続化と変換のみが責務）
+      - `packages/domain` のインターフェースを正しく実装しているか
+      - Barrel Pattern: `repositories/` / `query-services/` 各ディレクトリに `index.ts` があり、パッケージルートの `src/index.ts` はディレクトリ単位でまとめてエクスポートしているか
       - ファイル命名規則: *.prisma-repository.ts / *.query-service.ts
 
   - path: "apps/api/src/application/**"
     instructions: |
+      【アプリケーション層の制約】以下を確認する：
+      - 具体的な DB クエリをここに直接書いていないか（Repository 経由であること）
+      - HTTP リクエスト / レスポンスをこの層で直接扱っていないか
+      - 複雑なビジネスロジックをここに書いていないか（ロジックは Entity / ValueObject へ）
+      - 依存先が `packages/domain` のモデルとインターフェースのみか（Response DTO の組み立ては可）
       - Command と Query が適切に分離されているか
-      - Command ユースケースで必要なトランザクション処理が行われているか
-      - Response DTO がこの層で組み立てられているか（Presentation 層で組み立てていないか）
+      - Command ユースケースで必要なトランザクション処理（`prisma.$transaction`）が行われているか
 
   - path: "apps/api/src/presentation/**"
     instructions: |
