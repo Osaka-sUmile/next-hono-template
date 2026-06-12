@@ -30,7 +30,12 @@ function isBetterAuthAPIError(err: unknown): err is BetterAuthAPIError {
 export function withAuth(
   handler: (req: AuthenticatedRequest, res: Response) => Promise<void> | void,
 ): RequestHandler {
-  return (req, res) => handler(req as AuthenticatedRequest, res);
+  return (req, res, next) => {
+    const result = handler(req as AuthenticatedRequest, res);
+    if (result instanceof Promise) {
+      result.catch(next);
+    }
+  };
 }
 
 export function createRequireAuth(auth: AuthInstance) {

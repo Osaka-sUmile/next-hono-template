@@ -18,12 +18,6 @@ get:
         application/json:
           schema:
             $ref: '../components/schemas/Error.yaml'
-    '404':
-      description: User not found
-      content:
-        application/json:
-          schema:
-            $ref: '../components/schemas/Error.yaml'
     '500':
       description: Internal server error
       content:

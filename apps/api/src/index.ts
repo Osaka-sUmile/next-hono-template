@@ -8,8 +8,12 @@ const bootstrap = async () => {
 
   await setupSwagger(app);
 
-  app.listen(env.PORT, () => {
-    logger.info({ port: env.PORT }, "API Server listening on port");
+  await new Promise<void>((resolve, reject) => {
+    const server = app.listen(env.PORT, () => {
+      logger.info({ port: env.PORT }, "API Server listening on port");
+      resolve();
+    });
+    server.once("error", reject);
   });
 };
 

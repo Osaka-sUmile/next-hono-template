@@ -19,7 +19,12 @@ export class UserQueryService implements IUserQueryService {
       },
     });
     if (!raw) return null;
-    // DBから取得したroleを型安全なUserRoleに変換。無効な値は例外を発行
-    return { ...raw, role: parseUserRole(raw.role) };
+    try {
+      return { ...raw, role: parseUserRole(raw.role) };
+    } catch (err) {
+      throw new Error(
+        `Failed to map user query result (id=${raw.id}, role="${raw.role}"): ${String(err)}`,
+      );
+    }
   }
 }
