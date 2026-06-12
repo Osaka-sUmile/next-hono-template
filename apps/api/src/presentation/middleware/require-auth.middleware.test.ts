@@ -66,6 +66,7 @@ describe("createRequireAuth", () => {
 
     expect(res.status).toHaveBeenCalledWith(500);
     expect(res.json).toHaveBeenCalledWith({ error: "Internal Server Error", code: ErrorCodes.SESSION_FETCH_FAILED });
+    expect(next).not.toHaveBeenCalled();
   });
 
   it("returns 401 SESSION_EXPIRED when better-auth throws 401 with SESSION_EXPIRED code", async () => {

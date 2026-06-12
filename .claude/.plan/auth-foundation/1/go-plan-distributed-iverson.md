@@ -14,7 +14,7 @@
 
 ## 完成後のディレクトリ構造（新規・更新ファイルのみ）
 
-```
+```text
 yomutan/
 ├── packages/
 │   ├── auth/                              # ★ 新規パッケージ
@@ -90,7 +90,7 @@ yomutan/
 
 ## 依存グラフ（最終形）
 
-```
+```text
 apps/api  → @workspace/auth (server)  → better-auth, resend
           → @workspace/domain                (@prisma/client は peerDeps)
           → @workspace/database
@@ -417,6 +417,7 @@ pnpm typecheck                                  # 全パッケージ型チェッ
 → **DBマイグレーションは `prisma migrate dev` をユーザーが手動実行** (Docker Compose 起動が前提)
 
 検証が終わったら、progress.md に完了を記録し、Step 3 に進む。
+
 ---
 
 ## Step 3: API Infrastructure — better-auth ルートのマウント

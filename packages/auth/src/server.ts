@@ -38,7 +38,7 @@ export function createAuth(config: AuthConfig) {
             subject: "Your verification code",
             text: `Your code is: ${otp}`,
           });
-          if (error) throw new Error(`Failed to send OTP email: ${error.message}`);
+          if (error) throw new Error(`Failed to send OTP email: ${error.message ?? JSON.stringify(error)}`);
         },
       }),
     ],
