@@ -44,6 +44,16 @@
 - [ ] `Error.yaml` の enum に同じコード（大文字スネークケース）で追加されている
 - [ ] エラーレスポンスのキー名が `error` であることを確認（OpenAPI スキーマ Error.yaml と一致）
 
+## エラーコード追加のブランチ戦略
+エラーコードを追加する際は、必ず `develop` から専用ブランチを派生させて PR を作成すること。フィーチャーブランチへの同梱は禁止。
+
+```
+# 例
+develop
+  └── chore/add-post-error-codes  ← 別にブランチを分ける
+  └── feat/post
+```
+
 ## テスト配置
 - **Vitest**: 実装と同じ階層に `*.test.ts` / `*.test.tsx` を co-located で置く。
 - **Playwright**: `apps/web/tests/e2e/` に集約する。
