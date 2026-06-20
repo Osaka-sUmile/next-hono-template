@@ -26,11 +26,16 @@ export function createAuth(config: AuthConfig) {
   return betterAuth({
     secret: config.secret,
     baseURL: config.baseURL,
+    session: {
+      expiresIn: 7 * 24 * 60 * 60, // 7 days
+      updateAge: 24 * 60 * 60,     // refresh session every 24 hours
+    },
     database: prismaAdapter(config.prisma, {
       provider: "postgresql",
     }),
     plugins: [
       emailOTP({
+        expiresIn: 10 * 60, // 10 minutes
         async sendVerificationOTP({ email, otp }: { email: string; otp: string }) {
           const { error } = await resendClient.emails.send({
             from: config.resendFromEmail,
