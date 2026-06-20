@@ -1,4 +1,4 @@
-# yomutan 開発ガイドライン (Actionable Rules)
+# 開発ガイドライン (Actionable Rules)
 
 ## 実装フロー (Feature Implementation Flow)
 新規機能追加時は以下の順序で作成すること。

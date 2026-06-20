@@ -1,0 +1,58 @@
+language: "ja-JP"
+
+reviews:
+  poem: false
+  collapse_walkthrough: false
+  auto_review:
+    enabled: true
+    auto_incremental_review: true
+    drafts: false
+    base_branches:
+      - develop
+      - main
+
+path_filters:
+  - "!pnpm-lock.yaml"
+  - "!.claude/**"
+  - "!**/*.example"
+
+instructions: |
+  リポジトリルートの CLAUDE.md に定義された開発ガイドラインに従っているかを確認してください。
+  特に以下の点は厳守事項です：
+  - エラーコード追加時は error-codes.ts（定数・union型）と Error.yaml の enum を必ず同時更新する
+  - 実装レイヤーの順序（Domain → Database → Application → Presentation）が守られているか
+  - Barrel Pattern・環境変数・バリデーション境界のルールに違反していないか
+
+path_instructions:
+  - path: "packages/domain/**"
+    instructions: |
+      packages/domain/CLAUDE.md の制約に従っているか確認してください。
+
+  - path: "packages/database/**"
+    instructions: |
+      packages/database/CLAUDE.md の制約に従っているか確認してください。
+
+  - path: "apps/api/src/application/**"
+    instructions: |
+      apps/api/src/application/CLAUDE.md の制約に従っているか確認してください。
+
+  - path: "apps/api/src/presentation/**"
+    instructions: |
+      ルートの CLAUDE.md「DTO / エラーの責務」「バリデーション境界」のルールに従っているか確認してください。
+      エラーレスポンスのキー名は必ず `error` であること。
+
+  - path: "apps/api/src/presentation/error-codes.ts"
+    instructions: |
+      このファイルを変更している場合、以下の 3 箇所が同時に更新されているか確認してください：
+      1. ErrorCodes 定数オブジェクト
+      2. ErrorCode union 型
+      3. apps/api/docs/components/schemas/Error.yaml の enum
+
+  - path: "apps/api/docs/components/schemas/Error.yaml"
+    instructions: |
+      enum の値が apps/api/src/presentation/error-codes.ts の ErrorCodes 定数・ErrorCode 型と完全に一致しているか確認してください。
+
+  - path: "**/*.test.ts"
+    instructions: |
+      ルートの CLAUDE.md「テスト配置」のルールに従っているか確認してください。
+      テストファイルは実装ファイルと同じ階層に配置されているか（__tests__/ は不可）。
