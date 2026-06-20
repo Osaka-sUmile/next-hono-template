@@ -18,7 +18,7 @@ const envSchema = z.object({
   API_BASE_URL: originUrlSchema.default("http://localhost:8080"),
   WEB_BASE_URL: originUrlSchema.default("http://localhost:3001"),
   RESEND_API_KEY: z.string().min(1),
-  RESEND_FROM_EMAIL: z.string().email().default("noreply@yomutan.app"),
+  RESEND_FROM_EMAIL: z.string().email(),
   GOOGLE_CLIENT_ID: z.string().min(1),
   GOOGLE_CLIENT_SECRET: z.string().min(1),
   APPLE_CLIENT_ID: z.string().min(1),
