@@ -1,0 +1,31 @@
+{
+  "name": "@workspace/auth",
+  "version": "0.0.1",
+  "private": true,
+  "exports": {
+    ".":        { "types": "./src/index.ts",  "default": "./dist/index.js" },
+    "./server": { "types": "./src/server.ts", "default": "./dist/server.js" },
+    "./client": { "types": "./src/client.ts", "default": "./dist/client.js" }
+  },
+  "scripts": {
+    "build": "tsc",
+    "typecheck": "tsc --noEmit",
+    "lint": "eslint ."
+  },
+  "dependencies": {
+    "better-auth": "^1.0.0",
+    "resend": "^4.0.0"
+  },
+  "peerDependencies": {
+    "@prisma/client": "^7",
+    "react": "^19"
+  },
+  "peerDependenciesMeta": {
+    "react": { "optional": true }
+  },
+  "devDependencies": {
+    "@workspace/eslint-config": "workspace:*",
+    "@workspace/typescript-config": "workspace:*",
+    "typescript": "5.9.3"
+  }
+}

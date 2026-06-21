@@ -37,7 +37,8 @@ my-app/
 │   │       ├── composition/          # DI 配線・アプリ組み立て
 │   │       ├── infrastructure/       # env, Swagger 等の基盤
 │   │       ├── presentation/
-│   │       │   └── controllers/      # コントローラー・リクエスト検証
+│   │       │   ├── controllers/      # コントローラー・リクエスト検証
+│   │       │   └── middleware/       # 認証・認可ミドルウェア
 │   │       └── test-utils/           # テスト共通ヘルパー
 │   └── web/                          # Next.js フロントエンド
 │       ├── app/                      # App Router (page / layout)
@@ -46,6 +47,11 @@ my-app/
 │       ├── lib/                      # API クライアント・ユーティリティ
 │       └── tests/e2e/                # Playwright E2E テスト
 ├── packages/
+│   ├── auth/                         # 認証 SDK（better-auth ラッパー）
+│   │   └── src/
+│   │       ├── server.ts             # createAuth() + toNodeHandler
+│   │       ├── client.ts             # createClient()
+│   │       └── index.ts              # 共通型 re-export
 │   ├── domain/                       # ドメイン層（外部依存ゼロ）
 │   │   └── src/
 │   │       ├── models/               # エンティティ・値オブジェクト
@@ -77,12 +83,16 @@ my-app/
 
 ```
 apps/web        →  packages/ui
+                →  packages/auth (client)
 apps/api        →  packages/domain
                 →  packages/database
+                →  packages/auth (server)
+packages/auth   →  better-auth, resend (外部ライブラリ)
 packages/database  →  packages/domain
 ```
 
 `packages/domain` は最内層のため、他パッケージへの依存は一切禁止。
+`packages/auth` は `packages/database` に依存しない。PrismaClient は `apps/api/src/composition/` から注入する。
 
 ## 📂 将来のフォルダ拡張ルール (Project Map)
 新しいフォルダを作成する際はここに従うこと。勝手な階層は作らない。
@@ -91,6 +101,7 @@ packages/database  →  packages/domain
 - `apps/api/src/application/`: `dtos/`, `errors/`
 - `apps/api/src/infrastructure/`: `env/`, `swagger/`, `db/`
 - `apps/api/src/composition/`: `create-app/`, `bootstrap/`
+- `apps/api/src/presentation/`: `middleware/`
 - `packages/common/`: `utils/`, `types/`
 
 ## tests の配置ルール

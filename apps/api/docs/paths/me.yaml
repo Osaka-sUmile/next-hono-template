@@ -1,0 +1,26 @@
+get:
+  summary: Get current user
+  description: Returns the authenticated user's profile
+  tags:
+    - Users
+  security:
+    - cookieAuth: []
+  responses:
+    '200':
+      description: Current user profile
+      content:
+        application/json:
+          schema:
+            $ref: '../components/schemas/User.yaml'
+    '401':
+      description: Unauthorized
+      content:
+        application/json:
+          schema:
+            $ref: '../components/schemas/Error.yaml'
+    '500':
+      description: Internal server error
+      content:
+        application/json:
+          schema:
+            $ref: '../components/schemas/Error.yaml'

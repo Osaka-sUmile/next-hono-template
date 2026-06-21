@@ -1,6 +1,6 @@
 import "dotenv/config";
 import { createApp } from "./composition";
-import { env } from "./infrastructure";
+import { env, logger } from "./infrastructure";
 import { setupSwagger } from "./infrastructure";
 
 const bootstrap = async () => {
@@ -8,13 +8,17 @@ const bootstrap = async () => {
 
   await setupSwagger(app);
 
-  app.listen(env.PORT, () => {
-    console.log(`API Server listening on port ${env.PORT}`);
+  await new Promise<void>((resolve, reject) => {
+    const server = app.listen(env.PORT, () => {
+      logger.info({ port: env.PORT }, "API Server listening on port");
+      resolve();
+    });
+    server.once("error", reject);
   });
 };
 
 bootstrap().catch((error) => {
-  console.error("Error starting server", error);
+  logger.error({ error }, "Error starting server");
   process.exit(1);
 });
 
