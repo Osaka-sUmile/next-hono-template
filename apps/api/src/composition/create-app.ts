@@ -25,6 +25,7 @@ export function createApp(): express.Express {
     prisma,
     secret: env.AUTH_SECRET,
     baseURL: env.API_BASE_URL,
+    trustedOrigins: [env.WEB_BASE_URL],
     resendApiKey: env.RESEND_API_KEY,
     resendFromEmail: env.RESEND_FROM_EMAIL,
     google: { clientId: env.GOOGLE_CLIENT_ID, clientSecret: env.GOOGLE_CLIENT_SECRET },

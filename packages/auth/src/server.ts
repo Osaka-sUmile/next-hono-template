@@ -14,6 +14,7 @@ interface AuthConfig {
   prisma: PrismaClientInput;
   secret: string;
   baseURL: string;
+  trustedOrigins: string[];
   resendApiKey: string;
   resendFromEmail: string;
   google: { clientId: string; clientSecret: string };
@@ -26,6 +27,7 @@ export function createAuth(config: AuthConfig) {
   return betterAuth({
     secret: config.secret,
     baseURL: config.baseURL,
+    trustedOrigins: config.trustedOrigins,
     session: {
       expiresIn: 7 * 24 * 60 * 60, // 7 days
       updateAge: 24 * 60 * 60,     // refresh session every 24 hours
