@@ -1,18 +1,17 @@
 "use client";
 
 import { useState } from "react";
-import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { Button } from "@workspace/ui/components/button";
 import { authClient } from "@/lib/auth-client";
 
 export default function ResetPasswordPage() {
-  const router = useRouter();
   const [email, setEmail] = useState("");
   const [otp, setOtp] = useState("");
   const [password, setPassword] = useState("");
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
+  const [succeeded, setSucceeded] = useState(false);
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
@@ -20,12 +19,26 @@ export default function ResetPasswordPage() {
     setLoading(true);
     try {
       await authClient.emailOtp.resetPassword({ email, otp, password });
-      router.push("/");
+      setSucceeded(true);
     } catch {
       setError("リセットに失敗しました。コードが正しいか確認してください。");
     } finally {
       setLoading(false);
     }
+  }
+
+  if (succeeded) {
+    return (
+      <div className="flex min-h-screen flex-col items-center justify-center gap-4 p-6">
+        <h1 className="text-2xl font-bold">パスワードをリセットしました</h1>
+        <p className="text-muted-foreground text-center max-w-sm">
+          新しいパスワードでログインしてください。
+        </p>
+        <Link href="/" className="text-primary underline underline-offset-4">
+          トップへ戻る
+        </Link>
+      </div>
+    );
   }
 
   return (
