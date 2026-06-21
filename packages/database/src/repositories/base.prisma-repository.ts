@@ -16,6 +16,6 @@ export abstract class BasePrismaRepository<
   protected abstract toCreateInput(entity: TEntity): TPrismaCreateInput;
 
   abstract findById(id: TId): Promise<TEntity | null>;
-  abstract save(entity: TEntity): Promise<void>;
+  abstract save(entity: TEntity): Promise<TEntity>;
   abstract delete(entity: TEntity): Promise<void>;
 }

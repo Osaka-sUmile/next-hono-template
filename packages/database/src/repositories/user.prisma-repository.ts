@@ -43,8 +43,8 @@ export class UserPrismaRepository
     return this.toDomain(user);
   }
 
-  async save(entity: UserEntity): Promise<void> {
-    await this.prisma.user.upsert({
+  async save(entity: UserEntity): Promise<UserEntity> {
+    const model = await this.prisma.user.upsert({
       where: { id: entity.id },
       update: {
         name: entity.name,
@@ -54,6 +54,7 @@ export class UserPrismaRepository
       },
       create: this.toCreateInput(entity),
     });
+    return this.toDomain(model);
   }
 
   async delete(entity: UserEntity): Promise<void> {
