@@ -3,6 +3,7 @@ language: "ja-JP"
 reviews:
   poem: false
   collapse_walkthrough: false
+  request_changes_workflow: true
   auto_review:
     enabled: true
     auto_incremental_review: true
