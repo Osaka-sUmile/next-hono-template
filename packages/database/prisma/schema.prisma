@@ -38,6 +38,8 @@ model Session {
   userAgent String?
   userId    String
   user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
 }
 
 model Account {
@@ -58,6 +60,7 @@ model Account {
 
   @@unique([accountId, providerId])
   @@unique([userId, providerId])
+  @@index([userId])
 }
 
 model Verification {
