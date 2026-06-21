@@ -54,7 +54,7 @@ export function createApp(): express.Express {
   );
 
   app.use((err: unknown, _req: express.Request, res: express.Response, _next: express.NextFunction) => {
-    const message = err instanceof Error ? err.message : "Internal Server Error";
+    const message = err instanceof Error ? err.message : String(err);
     logger.error({ err }, "[createApp] Unhandled error");
     res.status(500).json({
       error: env.NODE_ENV === "production" ? "Internal Server Error" : message,
