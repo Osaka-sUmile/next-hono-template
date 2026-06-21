@@ -14,6 +14,10 @@ type RouterDeps = {
 
 function buildV1Router(deps: RouterDeps): express.Router {
   const router = express.Router();
+  router.use((_req, res, next) => {
+    res.set('Cache-Control', 'private, no-cache, no-store, must-revalidate');
+    next();
+  });
   router.get("/health", deps.healthController.check);
   router.get("/me", deps.requireAuth, withAuth(deps.userController.getUserMe));
   return router;

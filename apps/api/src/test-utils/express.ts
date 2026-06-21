@@ -23,14 +23,17 @@ export function mockResponse(): Response & {
   status: ReturnType<typeof vi.fn>;
   json: ReturnType<typeof vi.fn>;
   send: ReturnType<typeof vi.fn>;
+  set: ReturnType<typeof vi.fn>;
 } {
   const res = {} as Response & {
     status: ReturnType<typeof vi.fn>;
     json: ReturnType<typeof vi.fn>;
     send: ReturnType<typeof vi.fn>;
+    set: ReturnType<typeof vi.fn>;
   };
   res.status = vi.fn(() => res);
   res.json = vi.fn(() => res);
   res.send = vi.fn(() => res);
+  res.set = vi.fn(() => res);
   return res;
 }
