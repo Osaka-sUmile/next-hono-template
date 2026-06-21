@@ -1,5 +1,7 @@
 import express from "express";
 import cors from "cors";
+import helmet from "helmet";
+import { rateLimit } from "express-rate-limit";
 import { createAuth, toNodeHandler } from "@workspace/auth/server";
 import { createPrismaClient, UserQueryService } from "@workspace/database";
 import { GetCurrentUserUseCase } from "../application";
@@ -32,12 +34,21 @@ export function createApp(): express.Express {
     apple: { clientId: env.APPLE_CLIENT_ID, clientSecret: env.APPLE_CLIENT_SECRET },
   });
 
+  const authLimiter = rateLimit({
+    windowMs: 15 * 60 * 1000,
+    max: 20,
+    standardHeaders: true,
+    legacyHeaders: false,
+    message: { error: "Too many requests", code: "RATE_LIMIT_EXCEEDED" },
+  });
+
   const app = express();
 
+  app.use(helmet());
   // cors はすべてのルートに適用するため先行させる
   app.use(cors({ origin: env.WEB_BASE_URL, credentials: true }));
   // toNodeHandler はボディストリームを直接読むため express.json() より前に配置する
-  app.use("/api/auth", toNodeHandler(auth));
+  app.use("/api/auth", authLimiter, toNodeHandler(auth));
   app.use(express.json());
 
   const requireAuth = createRequireAuth(auth);
