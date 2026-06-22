@@ -21,7 +21,8 @@ export default function ChangeEmailPage() {
     try {
       await authClient.emailOtp.requestEmailChange({ newEmail });
       setStep("verify");
-    } catch {
+    } catch (error) {
+      console.error("Failed to request email change:", error);
       setError("送信に失敗しました。ログイン済みか確認してください。");
     } finally {
       setLoading(false);
@@ -35,7 +36,8 @@ export default function ChangeEmailPage() {
     try {
       await authClient.emailOtp.changeEmail({ newEmail, otp });
       setStep("done");
-    } catch {
+    } catch (error) {
+      console.error("Failed to change email:", error);
       setError("変更に失敗しました。コードが正しいか確認してください。");
     } finally {
       setLoading(false);
