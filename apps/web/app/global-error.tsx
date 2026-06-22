@@ -13,7 +13,7 @@ export default function GlobalError({ error, reset }: Props) {
   }, [error]);
 
   return (
-    <html lang="en">
+    <html lang="ja">
       <body>
         <div className="flex min-h-screen flex-col items-center justify-center gap-4">
           <h1 className="text-4xl font-bold">深刻なエラーが発生しました</h1>
