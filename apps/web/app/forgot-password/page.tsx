@@ -73,6 +73,8 @@ export default function ForgotPasswordPage() {
               <input
                 id="otp"
                 type="text"
+                inputMode="numeric"
+                autoComplete="one-time-code"
                 required
                 value={otp}
                 onChange={(e) => setOtp(e.target.value)}
@@ -87,6 +89,7 @@ export default function ForgotPasswordPage() {
               <input
                 id="password"
                 type="password"
+                autoComplete="new-password"
                 required
                 minLength={8}
                 value={password}
