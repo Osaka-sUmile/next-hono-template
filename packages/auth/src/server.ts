@@ -37,14 +37,13 @@ export function createAuth(config: AuthConfig) {
     }),
     plugins: [
       emailOTP({
-        expiresIn: 10 * 60, // 10 minutes
         changeEmail: { enabled: true },
         async sendVerificationOTP({ email, otp, type }: { email: string; otp: string; type: string }) {
           const subject =
             type === "forget-password" ? "パスワードリセットコード" :
             type === "change-email"    ? "メールアドレス変更コード" :
                                          "認証コード";
-          const body = `${subject}: ${otp}\n\nこのコードは10分間有効です。`;
+          const body = `${subject}: ${otp}\n\nこのコードは5分間有効です。`;
           const { error } = await resendClient.emails.send({
             from: config.resendFromEmail,
             to: email,
