@@ -38,12 +38,18 @@ export function createAuth(config: AuthConfig) {
     plugins: [
       emailOTP({
         expiresIn: 10 * 60, // 10 minutes
-        async sendVerificationOTP({ email, otp }: { email: string; otp: string }) {
+        changeEmail: { enabled: true },
+        async sendVerificationOTP({ email, otp, type }: { email: string; otp: string; type: string }) {
+          const subject =
+            type === "forget-password" ? "パスワードリセットコード" :
+            type === "change-email"    ? "メールアドレス変更コード" :
+                                         "認証コード";
+          const body = `${subject}: ${otp}\n\nこのコードは10分間有効です。`;
           const { error } = await resendClient.emails.send({
             from: config.resendFromEmail,
             to: email,
-            subject: "Your verification code",
-            text: `Your code is: ${otp}`,
+            subject,
+            text: body,
           });
           if (error) throw new Error(`Failed to send OTP email: ${error.message ?? JSON.stringify(error)}`);
         },
