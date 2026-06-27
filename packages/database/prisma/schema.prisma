@@ -60,7 +60,6 @@ model Account {
 
   @@unique([accountId, providerId])
   @@unique([userId, providerId])
-  @@index([userId])
 }
 
 model Verification {
