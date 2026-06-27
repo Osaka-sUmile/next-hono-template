@@ -18,6 +18,7 @@
   "license": "ISC",
   "dependencies": {
     "@apidevtools/swagger-parser": "^12.1.0",
+    "@prisma/client": "^7.8.0",
     "@workspace/auth": "workspace:^",
     "@workspace/database": "workspace:^",
     "@workspace/domain": "workspace:^",
