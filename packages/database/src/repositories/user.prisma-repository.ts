@@ -1,16 +1,10 @@
 import { PrismaClient, User as PrismaUser } from "@prisma/client";
 import { IUserRepository, UserEntity, parseUserRole } from "@workspace/domain";
-import { BasePrismaRepository } from "./base.prisma-repository";
 
-export class UserPrismaRepository
-  extends BasePrismaRepository<UserEntity, string, PrismaUser>
-  implements IUserRepository
-{
-  constructor(prisma: PrismaClient) {
-    super(prisma);
-  }
+export class UserPrismaRepository implements IUserRepository {
+  constructor(private readonly prisma: PrismaClient) {}
 
-  protected toDomain(model: PrismaUser): UserEntity {
+  private toDomain(model: PrismaUser): UserEntity {
     try {
       return UserEntity.reconstitute(
         model.id,
