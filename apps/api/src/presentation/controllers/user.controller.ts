@@ -22,7 +22,7 @@ export class UserController {
       const user = await this.getCurrentUserUseCase.execute({ userId: dto.auth.user.id });
       if (!user) {
         logger.error({ userId: dto.auth.user.id }, "[UserController] user not found despite valid session — data inconsistency");
-        res.status(404).json({ error: "User not found", code: ErrorCodes.USER_NOT_FOUND });
+        res.status(500).json({ error: "Internal Server Error", code: ErrorCodes.INTERNAL_ERROR });
         return;
       }
       res.json(user);

@@ -49,14 +49,14 @@ describe("UserController", () => {
     expect(res.json).toHaveBeenCalledWith(user);
   });
 
-  it("returns 404 when user is not found despite valid session (data inconsistency)", async () => {
+  it("returns 500 when user is not found despite valid session (data inconsistency)", async () => {
     mockExecute.mockResolvedValue(null);
     const res = makeRes();
 
     await controller.getUserMe(makeReq(), res);
 
-    expect(res.status).toHaveBeenCalledWith(404);
-    expect(res.json).toHaveBeenCalledWith({ error: "User not found", code: ErrorCodes.USER_NOT_FOUND });
+    expect(res.status).toHaveBeenCalledWith(500);
+    expect(res.json).toHaveBeenCalledWith({ error: "Internal Server Error", code: ErrorCodes.INTERNAL_ERROR });
   });
 
   it("returns 500 when use case throws", async () => {
