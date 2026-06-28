@@ -1,3 +1,5 @@
+import { withSentryConfig } from "@sentry/nextjs";
+
 /** @type {import('next').NextConfig} */
 const nextConfig = {
   transpilePackages: ["@workspace/ui"],
@@ -22,4 +24,7 @@ const nextConfig = {
   },
 };
 
-export default nextConfig;
+// 最小構成: ソースマップの自動アップロードは無効（org/project/authToken 不要）。
+export default withSentryConfig(nextConfig, {
+  silent: true,
+});
