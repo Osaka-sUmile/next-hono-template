@@ -1,7 +1,12 @@
 import { describe, expect, it, vi, beforeEach } from "vitest";
 import type { Request, Response, NextFunction } from "express";
+import * as Sentry from "@sentry/node";
 import { createErrorHandler } from "./error-handler.middleware";
 import { ErrorCodes } from "../error-codes";
+
+vi.mock("@sentry/node", () => ({
+  captureException: vi.fn(),
+}));
 
 const mockEnv = { NODE_ENV: "development" as "development" | "test" | "production" };
 
@@ -29,6 +34,16 @@ describe("createErrorHandler", () => {
 
   beforeEach(() => {
     mockEnv.NODE_ENV = "development";
+    vi.mocked(Sentry.captureException).mockClear();
+  });
+
+  it("captures the error in Sentry", () => {
+    const res = createMockRes();
+    const error = new Error("boom");
+
+    handler(error, req, res, next);
+
+    expect(Sentry.captureException).toHaveBeenCalledWith(error);
   });
 
   it("returns 500 with INTERNAL_ERROR code for an Error instance", () => {

@@ -1,4 +1,5 @@
 import type { ErrorRequestHandler } from "express";
+import * as Sentry from "@sentry/node";
 import { env, logger } from "../../infrastructure";
 import { ErrorCodes } from "../error-codes";
 
@@ -10,6 +11,8 @@ import { ErrorCodes } from "../error-codes";
 export function createErrorHandler(): ErrorRequestHandler {
   return (err, _req, res, _next) => {
     const message = err instanceof Error ? err.message : "Internal Server Error";
+    // Sentry へ送信（DSN 未設定なら init されていないため no-op）。
+    Sentry.captureException(err);
     logger.error({ err }, "[errorHandler] Unhandled error");
     res.status(500).json({
       error: env.NODE_ENV === "production" ? "Internal Server Error" : message,
