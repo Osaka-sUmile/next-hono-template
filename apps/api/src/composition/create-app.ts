@@ -4,8 +4,8 @@ import helmet from "helmet";
 import { createAuth, toNodeHandler } from "@workspace/auth/server";
 import { createPrismaClient, UserQueryService } from "@workspace/database";
 import { GetCurrentUserUseCase } from "../application";
-import { HealthController, UserController, createAuthLimiter, createRequireAuth, withAuth } from "../presentation";
-import { env, logger } from "../infrastructure";
+import { HealthController, UserController, createAuthLimiter, createErrorHandler, createRequireAuth, withAuth } from "../presentation";
+import { env } from "../infrastructure";
 
 type RouterDeps = {
   requireAuth: ReturnType<typeof createRequireAuth>;
@@ -59,14 +59,7 @@ export function createApp(): express.Express {
     }),
   );
 
-  app.use((err: unknown, _req: express.Request, res: express.Response, _next: express.NextFunction) => {
-    const message = err instanceof Error ? err.message : "Internal Server Error";
-    logger.error({ err }, "[createApp] Unhandled error");
-    res.status(500).json({
-      error: env.NODE_ENV === "production" ? "Internal Server Error" : message,
-      code: "INTERNAL_ERROR",
-    });
-  });
+  app.use(createErrorHandler());
 
   return app;
 }
