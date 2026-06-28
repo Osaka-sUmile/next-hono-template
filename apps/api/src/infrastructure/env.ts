@@ -11,7 +11,7 @@ const originUrlSchema = z
 
 const envSchema = z.object({
   PORT: z.coerce.number().int().positive().default(8080),
-  NODE_ENV: z.enum(["development", "test", "production"]).default("development"),
+  NODE_ENV: z.enum(["development", "test", "production"]),
   DATABASE_URL: z.string().min(1),
   OPENAPI_PATH: z.string().optional(),
   AUTH_SECRET: z.string().min(32),
