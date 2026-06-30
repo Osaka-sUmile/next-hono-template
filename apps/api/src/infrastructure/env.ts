@@ -23,6 +23,8 @@ const envSchema = z.object({
   GOOGLE_CLIENT_SECRET: z.string().min(1),
   APPLE_CLIENT_ID: z.string().min(1),
   APPLE_CLIENT_SECRET: z.string().min(1),
+  // Sentry DSN. 未設定ならエラー監視は無効（ローカル開発などでノイズを出さない）。
+  SENTRY_DSN: z.string().url().optional(),
 });
 
 export const env = envSchema.parse(process.env);

@@ -8,10 +8,6 @@ vi.mock("better-auth/node", () => ({
   fromNodeHeaders: (headers: unknown) => headers,
 }));
 
-vi.mock("../../infrastructure/logger", () => ({
-  logger: { error: vi.fn(), info: vi.fn(), debug: vi.fn() },
-}));
-
 describe("createRequireAuth", () => {
   const mockGetSession = vi.fn();
   const auth = {
@@ -53,8 +49,9 @@ describe("createRequireAuth", () => {
     expect(next).toHaveBeenCalled();
   });
 
-  it("returns 500 when getSession throws", async () => {
-    mockGetSession.mockRejectedValue(new Error("Server error"));
+  it("delegates an unexpected getSession error to next (central handler / Sentry)", async () => {
+    const error = new Error("Server error");
+    mockGetSession.mockRejectedValue(error);
     const req = { headers: {} } as Request;
     const res = {
       status: vi.fn().mockReturnThis(),
@@ -64,9 +61,9 @@ describe("createRequireAuth", () => {
 
     await requireAuth(req, res, next);
 
-    expect(res.status).toHaveBeenCalledWith(500);
-    expect(res.json).toHaveBeenCalledWith({ error: "Internal Server Error", code: ErrorCodes.SESSION_FETCH_FAILED });
-    expect(next).not.toHaveBeenCalled();
+    expect(next).toHaveBeenCalledWith(error);
+    expect(res.status).not.toHaveBeenCalled();
+    expect(res.json).not.toHaveBeenCalled();
   });
 
   it("returns 401 SESSION_EXPIRED when better-auth throws 401 with SESSION_EXPIRED code", async () => {
