@@ -1,7 +1,7 @@
 import { z } from "zod";
-import { Response } from "express";
+import type { Context } from "hono";
 import { GetCurrentUserUseCase } from "../../application";
-import { AuthenticatedRequest } from "../middleware/require-auth.middleware";
+import type { AuthVariables } from "../middleware/require-auth.middleware";
 
 const getUserMeRequestSchema = z.object({
   auth: z.object({
@@ -14,17 +14,16 @@ const getUserMeRequestSchema = z.object({
 export class UserController {
   constructor(private readonly getCurrentUserUseCase: GetCurrentUserUseCase) {}
 
-  getUserMe = async (req: AuthenticatedRequest, res: Response) => {
-    const dto = getUserMeRequestSchema.parse({ auth: req.auth });
+  getUserMe = async (c: Context<{ Variables: AuthVariables }>) => {
+    const dto = getUserMeRequestSchema.parse({ auth: c.get("auth") });
     const user = await this.getCurrentUserUseCase.execute({ userId: dto.auth.user.id });
     if (!user) {
       // セッションは有効なのにユーザーが存在しない = データ不整合（想定外）。
-      // 自前で 500 を返さず中央エラーハンドラに委譲し、ログ・Sentry 送信を一元化する。
+      // 自前で 500 を返さず中央エラーハンドラ (onError) に委譲し、ログ・Sentry 送信を一元化する。
       throw new Error(
         `user not found despite valid session (userId=${dto.auth.user.id}) — data inconsistency`,
       );
     }
-    res.json(user);
-    // 想定外エラーはここで握りつぶさず、withAuth の .catch(next) 経由で中央ハンドラへ伝播させる。
+    return c.json(user);
   };
 }

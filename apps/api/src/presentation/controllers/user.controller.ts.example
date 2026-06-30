@@ -1,5 +1,5 @@
 // import { z } from "zod";
-// import { Request, Response } from "express";
+// import type { Context } from "hono";
 // import { CreateUserCommand } from "../../application/commands/user.command.example";
 
 // export const createUserSchema = z.object({
@@ -16,23 +16,15 @@ export class UserController {
   constructor(private createUserCommand: CreateUserCommand) {}
 
   // POST /users のハンドラ
-  create = async (req: Request, res: Response) => {
-    try {
-      // 1. バリデーション (Zod)
-      const input = createUserSchema.parse(req.body);
+  create = async (c: Context) => {
+    // 1. バリデーション (Zod)。失敗時は throw され、中央エラーハンドラ (onError) に委譲される。
+    const input = createUserSchema.parse(await c.req.json());
 
-      // 2. ユースケース実行
-      const user = await this.createUserCommand.execute(input);
+    // 2. ユースケース実行
+    const user = await this.createUserCommand.execute(input);
 
-      // 3. レスポンス
-      res.status(201).json(user);
-    } catch (error) {
-      if (error instanceof z.ZodError) {
-        res.status(400).json({ error: error.errors });
-        return;
-      }
-      res.status(500).json({ error: "Internal Server Error" });
-    }
+    // 3. レスポンス
+    return c.json(user, 201);
   };
 }
 */

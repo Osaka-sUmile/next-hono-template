@@ -1,9 +1,8 @@
-import { Request, Response } from "express";
+import type { Context } from "hono";
 
 export class HealthController {
-  check = (_req: Request, res: Response) => {
-    res.set('Cache-Control', 'public, max-age=300');
-    res.json({ status: "ok" });
+  check = (c: Context) => {
+    c.header("Cache-Control", "public, max-age=300");
+    return c.json({ status: "ok" });
   };
 }
-
