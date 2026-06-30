@@ -4,6 +4,7 @@ import { useState } from "react";
 import Link from "next/link";
 import { Button } from "@workspace/ui/components/button";
 import { authClient } from "@/lib/auth-client";
+import { reportError } from "@/lib/report-error";
 
 type Step = "request" | "verify" | "done";
 
@@ -22,6 +23,7 @@ export default function ChangeEmailPage() {
       await authClient.emailOtp.requestEmailChange({ newEmail });
       setStep("verify");
     } catch (error) {
+      reportError(error);
       console.error("Failed to request email change:", error);
       setError("送信に失敗しました。ログイン済みか確認してください。");
     } finally {
@@ -37,6 +39,7 @@ export default function ChangeEmailPage() {
       await authClient.emailOtp.changeEmail({ newEmail, otp });
       setStep("done");
     } catch (error) {
+      reportError(error);
       console.error("Failed to change email:", error);
       setError("変更に失敗しました。コードが正しいか確認してください。");
     } finally {
