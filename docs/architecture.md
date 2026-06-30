@@ -25,7 +25,7 @@
 ```
 my-app/
 ├── apps/
-│   ├── api/                          # Express バックエンド
+│   ├── api/                          # Hono バックエンド
 │   │   ├── docs/                     # OpenAPI 定義 (YAML)
 │   │   │   ├── components/schemas/
 │   │   │   └── paths/
