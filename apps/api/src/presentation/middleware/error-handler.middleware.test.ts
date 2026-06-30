@@ -1,14 +1,16 @@
 import { describe, expect, it, vi, beforeEach } from "vitest";
-import type { Request, Response, NextFunction } from "express";
 import * as Sentry from "@sentry/node";
-import { createErrorHandler } from "./error-handler.middleware";
+import { createTestApp } from "../../test-utils";
 import { ErrorCodes } from "../error-codes";
 
 vi.mock("@sentry/node", () => ({
   captureException: vi.fn(),
 }));
 
-const mockEnv = { NODE_ENV: "development" as "development" | "test" | "production" };
+const mockEnv = {
+  NODE_ENV: "development" as "development" | "test" | "production",
+  WEB_BASE_URL: "http://localhost:3000",
+};
 
 vi.mock("../../infrastructure/env", () => ({
   get env() {
@@ -17,68 +19,52 @@ vi.mock("../../infrastructure/env", () => ({
 }));
 
 vi.mock("../../infrastructure/logger", () => ({
-  logger: { error: vi.fn(), info: vi.fn(), debug: vi.fn() },
+  logger: { error: vi.fn(), info: vi.fn(), debug: vi.fn(), warn: vi.fn() },
 }));
 
-function createMockRes(): Response {
-  return {
-    status: vi.fn().mockReturnThis(),
-    json: vi.fn().mockReturnThis(),
-  } as unknown as Response;
+const session = { user: { id: "user-1" }, session: { id: "sess-1" } };
+
+// GET /api/v1/me で use case を失敗させ、onError(createErrorHandler) を経由させる。
+function appThatThrows(message: string) {
+  return createTestApp({
+    getSession: vi.fn().mockResolvedValue(session),
+    execute: vi.fn().mockRejectedValue(new Error(message)),
+  }).app;
 }
 
-describe("createErrorHandler", () => {
-  const handler = createErrorHandler();
-  const req = { headers: {} } as Request;
-  const next = vi.fn() as unknown as NextFunction;
-
+describe("onError (createErrorHandler) via GET /api/v1/me", () => {
   beforeEach(() => {
     mockEnv.NODE_ENV = "development";
     vi.mocked(Sentry.captureException).mockClear();
   });
 
-  it("captures the error in Sentry", () => {
-    const res = createMockRes();
-    const error = new Error("boom");
+  it("captures the error in Sentry and returns 500 with INTERNAL_ERROR", async () => {
+    const res = await appThatThrows("boom").request("/api/v1/me");
 
-    handler(error, req, res, next);
-
-    expect(Sentry.captureException).toHaveBeenCalledWith(error);
+    expect(res.status).toBe(500);
+    expect(await res.json()).toEqual({ error: "boom", code: ErrorCodes.INTERNAL_ERROR });
+    expect(Sentry.captureException).toHaveBeenCalledOnce();
   });
 
-  it("returns 500 with INTERNAL_ERROR code for an Error instance", () => {
-    const res = createMockRes();
-
-    handler(new Error("boom"), req, res, next);
-
-    expect(res.status).toHaveBeenCalledWith(500);
-    expect(res.json).toHaveBeenCalledWith({ error: "boom", code: ErrorCodes.INTERNAL_ERROR });
-  });
-
-  it("exposes err.message in development", () => {
+  it("exposes err.message in development", async () => {
     mockEnv.NODE_ENV = "development";
-    const res = createMockRes();
 
-    handler(new Error("detailed dev message"), req, res, next);
+    const res = await appThatThrows("detailed dev message").request("/api/v1/me");
 
-    expect(res.json).toHaveBeenCalledWith({ error: "detailed dev message", code: ErrorCodes.INTERNAL_ERROR });
+    expect(await res.json()).toEqual({
+      error: "detailed dev message",
+      code: ErrorCodes.INTERNAL_ERROR,
+    });
   });
 
-  it("hides err.message in production", () => {
+  it("hides err.message in production", async () => {
     mockEnv.NODE_ENV = "production";
-    const res = createMockRes();
 
-    handler(new Error("detailed dev message"), req, res, next);
+    const res = await appThatThrows("detailed dev message").request("/api/v1/me");
 
-    expect(res.json).toHaveBeenCalledWith({ error: "Internal Server Error", code: ErrorCodes.INTERNAL_ERROR });
-  });
-
-  it("falls back to a generic message for non-Error values", () => {
-    const res = createMockRes();
-
-    handler("just a string", req, res, next);
-
-    expect(res.status).toHaveBeenCalledWith(500);
-    expect(res.json).toHaveBeenCalledWith({ error: "Internal Server Error", code: ErrorCodes.INTERNAL_ERROR });
+    expect(await res.json()).toEqual({
+      error: "Internal Server Error",
+      code: ErrorCodes.INTERNAL_ERROR,
+    });
   });
 });

@@ -1,108 +1,82 @@
-import { describe, expect, it, vi, beforeEach } from "vitest";
-import type { Request, Response, NextFunction } from "express";
-import { createRequireAuth } from "./require-auth.middleware";
-import type { AuthInstance } from "@workspace/auth/server";
+import { describe, expect, it, vi } from "vitest";
+import { createTestApp } from "../../test-utils";
 import { ErrorCodes } from "../error-codes";
 
-vi.mock("better-auth/node", () => ({
-  fromNodeHeaders: (headers: unknown) => headers,
+vi.mock("../../infrastructure/env", () => ({
+  env: { NODE_ENV: "test", WEB_BASE_URL: "http://localhost:3000" },
 }));
 
-describe("createRequireAuth", () => {
-  const mockGetSession = vi.fn();
-  const auth = {
-    api: { getSession: mockGetSession },
-  } as unknown as AuthInstance;
+vi.mock("../../infrastructure/logger", () => ({
+  logger: { error: vi.fn(), info: vi.fn(), debug: vi.fn(), warn: vi.fn() },
+}));
 
-  const requireAuth = createRequireAuth(auth);
+const validSession = { user: { id: "123" }, session: { id: "sess-1" } };
 
-  beforeEach(() => {
-    mockGetSession.mockReset();
+describe("requireAuth (via GET /api/v1/me)", () => {
+  it("returns 401 SESSION_INVALID when the session is null", async () => {
+    const { app } = createTestApp({ getSession: vi.fn().mockResolvedValue(null) });
+
+    const res = await app.request("/api/v1/me");
+
+    expect(res.status).toBe(401);
+    expect(await res.json()).toEqual({
+      error: "Unauthorized",
+      code: ErrorCodes.SESSION_INVALID,
+    });
   });
 
-  it("returns 401 when session is null", async () => {
-    mockGetSession.mockResolvedValue(null);
-    const req = { headers: {} } as Request;
-    const res = {
-      status: vi.fn().mockReturnThis(),
-      json: vi.fn().mockReturnThis(),
-    } as unknown as Response;
-    const next = vi.fn() as unknown as NextFunction;
+  it("passes auth through and returns the user when a session exists", async () => {
+    const { app } = createTestApp({
+      getSession: vi.fn().mockResolvedValue(validSession),
+      execute: vi.fn().mockResolvedValue({ id: "123" }),
+    });
 
-    await requireAuth(req, res, next);
+    const res = await app.request("/api/v1/me");
 
-    expect(res.status).toHaveBeenCalledWith(401);
-    expect(res.json).toHaveBeenCalledWith({ error: "Unauthorized", code: ErrorCodes.SESSION_INVALID });
-    expect(next).not.toHaveBeenCalled();
+    expect(res.status).toBe(200);
+    expect(await res.json()).toEqual({ id: "123" });
   });
 
-  it("sets req.auth and calls next when session exists", async () => {
-    const session = { user: { id: "123" }, session: { id: "sess-1" } };
-    mockGetSession.mockResolvedValue(session);
-    const req = { headers: {} } as Request;
-    const res = {} as Response;
-    const next = vi.fn() as unknown as NextFunction;
+  it("delegates an unexpected getSession error to onError (500)", async () => {
+    const { app } = createTestApp({
+      getSession: vi.fn().mockRejectedValue(new Error("Server error")),
+    });
 
-    await requireAuth(req, res, next);
+    const res = await app.request("/api/v1/me");
 
-    expect((req as unknown as Record<string, unknown>)["auth"]).toEqual(session);
-    expect(next).toHaveBeenCalled();
+    expect(res.status).toBe(500);
+    expect((await res.json()).code).toBe(ErrorCodes.INTERNAL_ERROR);
   });
 
-  it("delegates an unexpected getSession error to next (central handler / Sentry)", async () => {
-    const error = new Error("Server error");
-    mockGetSession.mockRejectedValue(error);
-    const req = { headers: {} } as Request;
-    const res = {
-      status: vi.fn().mockReturnThis(),
-      json: vi.fn().mockReturnThis(),
-    } as unknown as Response;
-    const next = vi.fn() as unknown as NextFunction;
-
-    await requireAuth(req, res, next);
-
-    expect(next).toHaveBeenCalledWith(error);
-    expect(res.status).not.toHaveBeenCalled();
-    expect(res.json).not.toHaveBeenCalled();
-  });
-
-  it("returns 401 SESSION_EXPIRED when better-auth throws 401 with SESSION_EXPIRED code", async () => {
+  it("returns 401 SESSION_EXPIRED when better-auth throws 401 with SESSION_EXPIRED", async () => {
     const err = Object.assign(new Error("session expired"), {
       statusCode: 401,
       body: { code: "SESSION_EXPIRED" },
     });
-    mockGetSession.mockRejectedValue(err);
-    const req = { headers: {} } as Request;
-    const res = {
-      status: vi.fn().mockReturnThis(),
-      json: vi.fn().mockReturnThis(),
-    } as unknown as Response;
-    const next = vi.fn() as unknown as NextFunction;
+    const { app } = createTestApp({ getSession: vi.fn().mockRejectedValue(err) });
 
-    await requireAuth(req, res, next);
+    const res = await app.request("/api/v1/me");
 
-    expect(res.status).toHaveBeenCalledWith(401);
-    expect(res.json).toHaveBeenCalledWith({ error: "Session expired", code: ErrorCodes.SESSION_EXPIRED });
-    expect(next).not.toHaveBeenCalled();
+    expect(res.status).toBe(401);
+    expect(await res.json()).toEqual({
+      error: "Session expired",
+      code: ErrorCodes.SESSION_EXPIRED,
+    });
   });
 
-  it("returns 401 SESSION_INVALID when better-auth throws 401 without SESSION_EXPIRED code", async () => {
+  it("returns 401 SESSION_INVALID when better-auth throws 401 without SESSION_EXPIRED", async () => {
     const err = Object.assign(new Error("invalid token"), {
       statusCode: 401,
       body: { code: "INVALID_TOKEN" },
     });
-    mockGetSession.mockRejectedValue(err);
-    const req = { headers: {} } as Request;
-    const res = {
-      status: vi.fn().mockReturnThis(),
-      json: vi.fn().mockReturnThis(),
-    } as unknown as Response;
-    const next = vi.fn() as unknown as NextFunction;
+    const { app } = createTestApp({ getSession: vi.fn().mockRejectedValue(err) });
 
-    await requireAuth(req, res, next);
+    const res = await app.request("/api/v1/me");
 
-    expect(res.status).toHaveBeenCalledWith(401);
-    expect(res.json).toHaveBeenCalledWith({ error: "Unauthorized", code: ErrorCodes.SESSION_INVALID });
-    expect(next).not.toHaveBeenCalled();
+    expect(res.status).toBe(401);
+    expect(await res.json()).toEqual({
+      error: "Unauthorized",
+      code: ErrorCodes.SESSION_INVALID,
+    });
   });
 });

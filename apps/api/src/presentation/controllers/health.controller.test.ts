@@ -1,15 +1,19 @@
-import { describe, expect, it } from "vitest";
-import { HealthController } from "./health.controller";
-import { mockRequest, mockResponse } from "../../test-utils";
+import { describe, expect, it, vi } from "vitest";
+import { createTestApp } from "../../test-utils";
 
-describe("HealthController", () => {
-  it("returns ok status", () => {
-    const controller = new HealthController();
-    const req = mockRequest();
-    const res = mockResponse();
+vi.mock("../../infrastructure/env", () => ({
+  env: { NODE_ENV: "test", WEB_BASE_URL: "http://localhost:3000" },
+}));
 
-    controller.check(req, res);
+describe("GET /api/v1/health", () => {
+  it("returns ok status with a public cache header", async () => {
+    const { app } = createTestApp();
 
-    expect(res.json).toHaveBeenCalledWith({ status: "ok" });
+    const res = await app.request("/api/v1/health");
+
+    expect(res.status).toBe(200);
+    expect(await res.json()).toEqual({ status: "ok" });
+    // ヘルスチェックは v1 デフォルトのキャッシュ方針を上書きする。
+    expect(res.headers.get("Cache-Control")).toBe("public, max-age=300");
   });
 });
