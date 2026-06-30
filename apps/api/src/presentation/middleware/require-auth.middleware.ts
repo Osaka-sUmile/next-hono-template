@@ -1,7 +1,6 @@
 import { Request, Response, NextFunction, type RequestHandler } from "express";
 import { fromNodeHeaders } from "@workspace/auth/server";
 import type { AuthInstance } from "@workspace/auth/server";
-import { logger } from "../../infrastructure";
 import { ErrorCodes } from "../error-codes";
 
 export type AuthSession = NonNullable<Awaited<ReturnType<AuthInstance["api"]["getSession"]>>>;
@@ -48,6 +47,7 @@ export function createRequireAuth(auth: AuthInstance) {
       (req as AuthenticatedRequest).auth = session;
       next();
     } catch (err) {
+      // 想定内: better-auth が 401 を返すケースはここでレスポンスを返す（Sentry 送信対象外）。
       if (isBetterAuthAPIError(err) && err.statusCode === 401) {
         const isExpired = err.body?.code === "SESSION_EXPIRED";
         return res.status(401).json({
@@ -55,8 +55,8 @@ export function createRequireAuth(auth: AuthInstance) {
           code: isExpired ? ErrorCodes.SESSION_EXPIRED : ErrorCodes.SESSION_INVALID,
         });
       }
-      logger.error({ err }, "[requireAuth] getSession failed");
-      return res.status(500).json({ error: "Internal Server Error", code: ErrorCodes.SESSION_FETCH_FAILED });
+      // 想定外エラーは中央エラーハンドラに委譲（ログ・Sentry 送信はそこで一元化）。
+      return next(err);
     }
   };
 }
