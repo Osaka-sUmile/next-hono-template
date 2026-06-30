@@ -27,4 +27,5 @@ const nextConfig = {
 // 最小構成: ソースマップの自動アップロードは無効（org/project/authToken 不要）。
 export default withSentryConfig(nextConfig, {
   silent: true,
+  sourcemaps: { disable: true },
 });
