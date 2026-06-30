@@ -13,7 +13,15 @@ export function createAuthLimiter(): MiddlewareHandler {
     limit: 20,
     standardHeaders: "draft-6",
     // クライアント IP をキーにする。Node ランタイムでは getConnInfo で取得する。
-    keyGenerator: (c) => getConnInfo(c).remote.address ?? "unknown",
+    // app.request() 経由など接続情報が無い文脈では getConnInfo が throw しうるため、
+    // その場合は "unknown" に退避して 500 を出さない。
+    keyGenerator: (c) => {
+      try {
+        return getConnInfo(c).remote.address ?? "unknown";
+      } catch {
+        return "unknown";
+      }
+    },
     handler: (c) =>
       c.json({ error: "Too many requests", code: ErrorCodes.RATE_LIMIT_EXCEEDED }, 429),
   });
