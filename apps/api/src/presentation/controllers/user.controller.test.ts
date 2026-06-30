@@ -3,11 +3,6 @@ import type { Response } from "express";
 import { UserController } from "./user.controller";
 import type { GetCurrentUserUseCase, UserResponseDto } from "../../application";
 import type { AuthenticatedRequest } from "../middleware/require-auth.middleware";
-import { ErrorCodes } from "../error-codes";
-
-vi.mock("../../infrastructure/logger", () => ({
-  logger: { error: vi.fn(), info: vi.fn(), debug: vi.fn() },
-}));
 
 describe("UserController", () => {
   const mockExecute = vi.fn();
@@ -49,23 +44,22 @@ describe("UserController", () => {
     expect(res.json).toHaveBeenCalledWith(user);
   });
 
-  it("returns 500 when user is not found despite valid session (data inconsistency)", async () => {
+  it("propagates an error when user is not found despite valid session (data inconsistency)", async () => {
+    // 自前で 500 を返さず例外を伝播し、中央ハンドラ→Sentry に乗せる。
     mockExecute.mockResolvedValue(null);
     const res = makeRes();
 
-    await controller.getUserMe(makeReq(), res);
-
-    expect(res.status).toHaveBeenCalledWith(500);
-    expect(res.json).toHaveBeenCalledWith({ error: "Internal Server Error", code: ErrorCodes.INTERNAL_ERROR });
+    await expect(controller.getUserMe(makeReq(), res)).rejects.toThrow();
+    expect(res.json).not.toHaveBeenCalled();
   });
 
-  it("returns 500 when use case throws", async () => {
-    mockExecute.mockRejectedValue(new Error("Unexpected error"));
+  it("propagates the error when the use case throws", async () => {
+    // catch で握りつぶさず例外をそのまま伝播させる。
+    const error = new Error("Unexpected error");
+    mockExecute.mockRejectedValue(error);
     const res = makeRes();
 
-    await controller.getUserMe(makeReq(), res);
-
-    expect(res.status).toHaveBeenCalledWith(500);
-    expect(res.json).toHaveBeenCalledWith({ error: "Internal Server Error", code: ErrorCodes.INTERNAL_ERROR });
+    await expect(controller.getUserMe(makeReq(), res)).rejects.toThrow(error);
+    expect(res.json).not.toHaveBeenCalled();
   });
 });
