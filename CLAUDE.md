@@ -62,6 +62,13 @@ develop
 ## apps/web のルール
 - フロントエンドの詳細ガイドライン（フォルダ構成・コンポーネント追加・スタイリング・Server/Client Components・API 呼び出し）は `docs/frontend-guidelines.md` を参照すること。
 
+## クライアントエラーと Sentry
+- catch 節では必ず `reportError(error)`（`apps/web/lib/report-error.ts`）を呼ぶ。
+- ユーザー操作で当然起きうる想定内エラーのみ `throw new ExpectedError(...)` で印を付け、Sentry 送信を抑制する。
+- 判断に迷うものは「送る」側（= 印を付けない）に倒す。
+- better-auth クライアントが返す `{ error }`（コード不一致等）は想定内なので UI 通知のみで可。
+- 詳細は `docs/frontend-guidelines.md` の「エラーハンドリング・Sentry」セクションを参照すること。
+
 ## バリデーション境界
 - **入力 (Presentation)**: Zodで型と形式を検証。
 - **ビジネス (Domain)**: エンティティメソッド内で整合性を検証。

@@ -57,3 +57,10 @@ path_instructions:
     instructions: |
       ルートの CLAUDE.md「テスト配置」のルールに従っているか確認してください。
       テストファイルは実装ファイルと同じ階層に配置されているか（__tests__/ は不可）。
+
+  - path: "apps/web/**/*.{ts,tsx}"
+    instructions: |
+      catch 節では reportError(error)（apps/web/lib/report-error.ts）を呼んでいるか確認してください。
+      想定内エラーのみ ExpectedError で抑制し、それ以外は Sentry に送る（fail-loud）方針です。
+      判断に迷うものは送信側に倒すこと。
+      better-auth クライアントが返す { error } は想定内扱いのため reportError 不要です。
