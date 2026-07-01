@@ -1,4 +1,4 @@
-# Next.js, Express.js テンプレートリポジトリ
+# Next.js, Hono テンプレートリポジトリ
 
 ## 概要
 本プロジェクトは、フロントエンドおよびバックエンド、インフラ層を含むモノレポ (Turborepo) プロジェクトです。
@@ -49,7 +49,7 @@
 高速なテストランナーである **[Vitest](https://vitest.dev/)** を採用しています。
 
 - **Frontend (`apps/web`)**: `jsdom` および `React Testing Library` を用いて、`app/*.test.tsx` や `components/**/*.test.tsx` のように co-located でテストを置きます。
-- **Backend (`apps/api`)**: `supertest` を用いて、APIエンドポイントのテストを行います。
+- **Backend (`apps/api`)**: Hono の `app.request()` を用いて、APIエンドポイントの統合テストを行います。
 
 **💡 主なコマンド:**
 
