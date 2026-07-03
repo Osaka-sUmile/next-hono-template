@@ -58,7 +58,10 @@ export function buildApp(deps: AppDeps): Hono<AppEnv> {
 }
 
 export function createApp(): Hono<AppEnv> {
-  const prisma = createPrismaClient(env.DATABASE_URL, env.NODE_ENV === "development");
+  const prisma = createPrismaClient(env.DATABASE_URL, {
+    queryLogging: env.NODE_ENV === "development",
+    localProxy: env.NODE_ENV === "development",
+  });
   const auth = createAuth({
     prisma,
     secret: env.AUTH_SECRET,
