@@ -1,0 +1,13 @@
+# Cloudflare Workers ローカル実行 (wrangler dev / opennextjs-cloudflare preview) 用の環境変数。
+# 実際に使う場合は `.dev.vars` にコピーして値を設定する（.dev.vars は git 管理対象外）。
+#
+# 注意: NEXT_PUBLIC_* はクライアントバンドルにビルド時インラインされるため、
+# ここに書いても Cloudflare へのデプロイ後の値には反映されない。
+# クライアントに公開する値は apps/web/.env.local や CI の環境変数として
+# `pnpm build` (= opennextjs-cloudflare build) 実行前に供給すること。
+
+NEXTJS_ENV=development
+
+# --- サーバー側 (Node.js ランタイム) から参照する変数の例 ---
+NEXT_PUBLIC_API_URL="http://localhost:8080"
+NEXT_PUBLIC_SENTRY_DSN=""

@@ -1,0 +1,26 @@
+{
+  "$schema": "node_modules/wrangler/config-schema.json",
+  "name": "web",
+  "main": ".open-next/worker.js",
+  "compatibility_date": "2026-06-01",
+  "compatibility_flags": ["nodejs_compat", "global_fetch_strictly_public"],
+  "assets": {
+    "directory": ".open-next/assets",
+    "binding": "ASSETS"
+  },
+  // Next.js の ISR/リバリデーション等が自身に fetch するためのセルフバインディング。
+  "services": [
+    {
+      "binding": "WORKER_SELF_REFERENCE",
+      "service": "web"
+    }
+  ],
+  // サーバー側 (Node.js ランタイム) から参照する環境変数のプレースホルダ。
+  // NEXT_PUBLIC_* はここに置いてもクライアントバンドルには反映されない。
+  // クライアントに公開する値はビルド時に .env.local / CI の環境変数として
+  // `pnpm build` (= opennextjs-cloudflare build) に渡す必要がある。
+  "vars": {
+    "NEXT_PUBLIC_API_URL": "https://api.example.com",
+    "NEXT_PUBLIC_SENTRY_DSN": ""
+  }
+}
