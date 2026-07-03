@@ -1,30 +1,63 @@
-import express from "express";
-import cors from "cors";
-import helmet from "helmet";
-import { createAuth, toNodeHandler } from "@workspace/auth/server";
+import { Hono } from "hono";
+import { cors } from "hono/cors";
+import { secureHeaders } from "hono/secure-headers";
+import { createAuth } from "@workspace/auth/server";
+import type { AuthInstance } from "@workspace/auth/server";
 import { createPrismaClient, UserQueryService } from "@workspace/database";
 import { GetCurrentUserUseCase } from "../application";
-import { HealthController, UserController, createAuthLimiter, createErrorHandler, createRequireAuth, withAuth } from "../presentation";
+import {
+  HealthController,
+  UserController,
+  createAuthLimiter,
+  createErrorHandler,
+  createRequireAuth,
+  type AuthVariables,
+} from "../presentation";
 import { env } from "../infrastructure";
 
-type RouterDeps = {
-  requireAuth: ReturnType<typeof createRequireAuth>;
+export type AppEnv = { Variables: AuthVariables };
+
+export type AppDeps = {
+  auth: AuthInstance;
   healthController: HealthController;
   userController: UserController;
 };
 
-function buildV1Router(deps: RouterDeps): express.Router {
-  const router = express.Router();
-  router.use((_req, res, next) => {
-    res.set('Cache-Control', 'private, no-cache, no-store, must-revalidate');
-    next();
+/**
+ * 依存を受け取り Hono アプリを組み立てる。
+ * 実依存の構築は createApp() が担い、テストではモック依存を渡して app.request() で検証する。
+ */
+export function buildApp(deps: AppDeps): Hono<AppEnv> {
+  const app = new Hono<AppEnv>();
+
+  // 未処理エラーは onError で一元的に捕捉する（Sentry 送信・ログもここで実施）。
+  app.onError(createErrorHandler());
+
+  app.use(secureHeaders());
+  // cors はすべてのルートに適用するため先行させる
+  app.use(cors({ origin: env.WEB_BASE_URL, credentials: true }));
+
+  // better-auth ハンドラ。レート制限を先行適用し、Web 標準の Request をそのまま渡す。
+  app.use("/api/auth/*", createAuthLimiter());
+  app.on(["GET", "POST"], "/api/auth/*", (c) => deps.auth.handler(c.req.raw));
+
+  const requireAuth = createRequireAuth(deps.auth);
+
+  const v1 = new Hono<AppEnv>();
+  // v1 配下のデフォルトキャッシュ方針。個別ハンドラが上書き可能なよう next() より前に設定する。
+  v1.use(async (c, next) => {
+    c.header("Cache-Control", "private, no-cache, no-store, must-revalidate");
+    await next();
   });
-  router.get("/health", deps.healthController.check);
-  router.get("/me", deps.requireAuth, withAuth(deps.userController.getUserMe));
-  return router;
+  v1.get("/health", deps.healthController.check);
+  v1.get("/me", requireAuth, deps.userController.getUserMe);
+
+  app.route("/api/v1", v1);
+
+  return app;
 }
 
-export function createApp(): express.Express {
+export function createApp(): Hono<AppEnv> {
   const prisma = createPrismaClient(env.DATABASE_URL, env.NODE_ENV === "development");
   const auth = createAuth({
     prisma,
@@ -37,29 +70,12 @@ export function createApp(): express.Express {
     apple: { clientId: env.APPLE_CLIENT_ID, clientSecret: env.APPLE_CLIENT_SECRET },
   });
 
-  const app = express();
-
-  app.use(helmet());
-  // cors はすべてのルートに適用するため先行させる
-  app.use(cors({ origin: env.WEB_BASE_URL, credentials: true }));
-  // toNodeHandler はボディストリームを直接読むため express.json() より前に配置する
-  app.use("/api/auth", createAuthLimiter(), toNodeHandler(auth));
-  app.use(express.json());
-
-  const requireAuth = createRequireAuth(auth);
   const userQueryService = new UserQueryService(prisma);
   const getCurrentUserUseCase = new GetCurrentUserUseCase(userQueryService);
 
-  app.use(
-    "/api/v1",
-    buildV1Router({
-      requireAuth,
-      healthController: new HealthController(),
-      userController: new UserController(getCurrentUserUseCase),
-    }),
-  );
-
-  app.use(createErrorHandler());
-
-  return app;
+  return buildApp({
+    auth,
+    healthController: new HealthController(),
+    userController: new UserController(getCurrentUserUseCase),
+  });
 }

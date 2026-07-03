@@ -1,31 +1,20 @@
-import { describe, expect, it, vi, beforeEach } from "vitest";
-import type { Response } from "express";
-import { UserController } from "./user.controller";
-import type { GetCurrentUserUseCase, UserResponseDto } from "../../application";
-import type { AuthenticatedRequest } from "../middleware/require-auth.middleware";
+import { describe, expect, it, vi } from "vitest";
+import type { UserResponseDto } from "../../application";
+import { createTestApp } from "../../test-utils";
+import { ErrorCodes } from "../error-codes";
 
-describe("UserController", () => {
-  const mockExecute = vi.fn();
-  const useCase = { execute: mockExecute } as unknown as GetCurrentUserUseCase;
-  const controller = new UserController(useCase);
+vi.mock("../../infrastructure/env", () => ({
+  env: { NODE_ENV: "test", WEB_BASE_URL: "http://localhost:3000" },
+}));
 
-  beforeEach(() => {
-    mockExecute.mockReset();
-  });
+vi.mock("../../infrastructure/logger", () => ({
+  logger: { error: vi.fn(), info: vi.fn(), debug: vi.fn(), warn: vi.fn() },
+}));
 
-  const makeReq = (userId = "user-1") =>
-    ({ auth: { user: { id: userId } } }) as unknown as AuthenticatedRequest;
+const session = { user: { id: "user-1" }, session: { id: "sess-1" } };
 
-  const makeRes = () =>
-    ({
-      json: vi.fn().mockReturnThis(),
-      status: vi.fn().mockReturnThis(),
-    }) as unknown as Response & {
-      json: ReturnType<typeof vi.fn>;
-      status: ReturnType<typeof vi.fn>;
-    };
-
-  it("returns 200 with user data when found", async () => {
+describe("GET /api/v1/me", () => {
+  it("returns 200 with user data and the v1 private cache header", async () => {
     const user: UserResponseDto = {
       id: "user-1",
       email: "test@example.com",
@@ -36,30 +25,43 @@ describe("UserController", () => {
       emailVerified: false,
       createdAt: new Date("2024-01-01"),
     };
-    mockExecute.mockResolvedValue(user);
-    const res = makeRes();
+    const { app } = createTestApp({
+      getSession: vi.fn().mockResolvedValue(session),
+      execute: vi.fn().mockResolvedValue(user),
+    });
 
-    await controller.getUserMe(makeReq(), res);
+    const res = await app.request("/api/v1/me");
 
-    expect(res.json).toHaveBeenCalledWith(user);
+    expect(res.status).toBe(200);
+    // Date は JSON 化で ISO 文字列になるため、シリアライズ後の形と比較する。
+    expect(await res.json()).toEqual(JSON.parse(JSON.stringify(user)));
+    expect(res.headers.get("Cache-Control")).toBe(
+      "private, no-cache, no-store, must-revalidate",
+    );
   });
 
-  it("propagates an error when user is not found despite valid session (data inconsistency)", async () => {
+  it("returns 500 via onError when user is not found despite a valid session", async () => {
     // 自前で 500 を返さず例外を伝播し、中央ハンドラ→Sentry に乗せる。
-    mockExecute.mockResolvedValue(null);
-    const res = makeRes();
+    const { app } = createTestApp({
+      getSession: vi.fn().mockResolvedValue(session),
+      execute: vi.fn().mockResolvedValue(null),
+    });
 
-    await expect(controller.getUserMe(makeReq(), res)).rejects.toThrow();
-    expect(res.json).not.toHaveBeenCalled();
+    const res = await app.request("/api/v1/me");
+
+    expect(res.status).toBe(500);
+    expect((await res.json()).code).toBe(ErrorCodes.INTERNAL_ERROR);
   });
 
-  it("propagates the error when the use case throws", async () => {
-    // catch で握りつぶさず例外をそのまま伝播させる。
-    const error = new Error("Unexpected error");
-    mockExecute.mockRejectedValue(error);
-    const res = makeRes();
+  it("returns 500 via onError when the use case throws", async () => {
+    const { app } = createTestApp({
+      getSession: vi.fn().mockResolvedValue(session),
+      execute: vi.fn().mockRejectedValue(new Error("Unexpected error")),
+    });
 
-    await expect(controller.getUserMe(makeReq(), res)).rejects.toThrow(error);
-    expect(res.json).not.toHaveBeenCalled();
+    const res = await app.request("/api/v1/me");
+
+    expect(res.status).toBe(500);
+    expect((await res.json()).code).toBe(ErrorCodes.INTERNAL_ERROR);
   });
 });
