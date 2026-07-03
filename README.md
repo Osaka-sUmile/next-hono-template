@@ -18,9 +18,10 @@
    ```
 
 3. **データベースの起動 (Docker)**
-   Docker を使ってローカルの PostgreSQL を起動します。
+   Docker を使ってローカルの PostgreSQL と、Neon serverless driver 用の wsproxy を起動します。
+   apps/api (Cloudflare Workers ランタイム) はこの wsproxy 経由でローカル Postgres に接続します。
    ```bash
-   docker compose -f docker-compose.yml up -d
+   docker compose -f docker-compose.yml up -d db neon-wsproxy
    ```
 
 4. **Prisma スキーマの反映・クライアント生成**
@@ -30,11 +31,17 @@
    # pnpm --filter @workspace/database exec prisma db push
    ```
 
-5. **開発サーバーの起動**
+5. **API のローカル環境変数を用意**
+   `apps/api/.dev.vars.example` をコピーして `apps/api/.dev.vars` を作成し、値を埋めます（`.dev.vars` は gitignore 対象）。
+   ```bash
+   cp apps/api/.dev.vars.example apps/api/.dev.vars
+   ```
+
+6. **開発サーバーの起動**
    ```bash
    pnpm dev
    ```
-   - API: `http://localhost:8080/api-docs` (Swagger UI)
+   - API: `wrangler dev` の起動ログに表示されるポートで `/api-docs` (Swagger UI) にアクセスできます
    - Web: `http://localhost:3000` (Next.js)
 
 ## 開発ガイドライン
