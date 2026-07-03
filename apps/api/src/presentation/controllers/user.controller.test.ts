@@ -3,10 +3,6 @@ import type { UserResponseDto } from "../../application";
 import { createTestApp } from "../../test-utils";
 import { ErrorCodes } from "../error-codes";
 
-vi.mock("../../infrastructure/env", () => ({
-  env: { NODE_ENV: "test", WEB_BASE_URL: "http://localhost:3000" },
-}));
-
 vi.mock("../../infrastructure/logger", () => ({
   logger: { error: vi.fn(), info: vi.fn(), debug: vi.fn(), warn: vi.fn() },
 }));
@@ -50,7 +46,7 @@ describe("GET /api/v1/me", () => {
     const res = await app.request("/api/v1/me");
 
     expect(res.status).toBe(500);
-    expect((await res.json()).code).toBe(ErrorCodes.INTERNAL_ERROR);
+    expect((await res.json<{ code: string }>()).code).toBe(ErrorCodes.INTERNAL_ERROR);
   });
 
   it("returns 500 via onError when the use case throws", async () => {
@@ -62,6 +58,6 @@ describe("GET /api/v1/me", () => {
     const res = await app.request("/api/v1/me");
 
     expect(res.status).toBe(500);
-    expect((await res.json()).code).toBe(ErrorCodes.INTERNAL_ERROR);
+    expect((await res.json<{ code: string }>()).code).toBe(ErrorCodes.INTERNAL_ERROR);
   });
 });

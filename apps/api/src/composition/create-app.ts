@@ -13,11 +13,12 @@ import {
   createRequireAuth,
   type AuthVariables,
 } from "../presentation";
-import { env } from "../infrastructure";
+import { setupSwagger, type Env } from "../infrastructure";
 
 export type AppEnv = { Variables: AuthVariables };
 
 export type AppDeps = {
+  env: Env;
   auth: AuthInstance;
   healthController: HealthController;
   userController: UserController;
@@ -31,11 +32,11 @@ export function buildApp(deps: AppDeps): Hono<AppEnv> {
   const app = new Hono<AppEnv>();
 
   // 未処理エラーは onError で一元的に捕捉する（Sentry 送信・ログもここで実施）。
-  app.onError(createErrorHandler());
+  app.onError(createErrorHandler(deps.env.NODE_ENV));
 
   app.use(secureHeaders());
   // cors はすべてのルートに適用するため先行させる
-  app.use(cors({ origin: env.WEB_BASE_URL, credentials: true }));
+  app.use(cors({ origin: deps.env.WEB_BASE_URL, credentials: true }));
 
   // better-auth ハンドラ。レート制限を先行適用し、Web 標準の Request をそのまま渡す。
   app.use("/api/auth/*", createAuthLimiter());
@@ -54,10 +55,12 @@ export function buildApp(deps: AppDeps): Hono<AppEnv> {
 
   app.route("/api/v1", v1);
 
+  setupSwagger(app);
+
   return app;
 }
 
-export function createApp(): Hono<AppEnv> {
+export function createApp(env: Env): Hono<AppEnv> {
   const prisma = createPrismaClient(env.DATABASE_URL, {
     queryLogging: env.NODE_ENV === "development",
     localProxy: env.NODE_ENV === "development",
@@ -77,6 +80,7 @@ export function createApp(): Hono<AppEnv> {
   const getCurrentUserUseCase = new GetCurrentUserUseCase(userQueryService);
 
   return buildApp({
+    env,
     auth,
     healthController: new HealthController(),
     userController: new UserController(getCurrentUserUseCase),
