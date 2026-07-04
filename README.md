@@ -12,10 +12,21 @@
    ```
 
 2. **環境変数の設定**
-   ルートディレクトリ（および必要に応じて `apps/api/`, `apps/web/` 等）に `.env` を作成します。
-   ```bash
-   cp .env.example .env
-   ```
+   環境変数は用途ごとにファイルが分かれています。それぞれ用意します。
+
+   - ルートの `.env`（docker compose の Postgres 資格情報専用）
+     ```bash
+     cp .env.example .env
+     ```
+   - `packages/database/.env`（prisma CLI が読む DB 接続文字列）
+     ```bash
+     cp packages/database/.env.example packages/database/.env
+     ```
+   - `apps/api/.dev.vars`（API ローカル実行時の環境変数。`.dev.vars` は gitignore 対象）
+     ```bash
+     cp apps/api/.dev.vars.example apps/api/.dev.vars
+     ```
+   - `apps/web/.env.local`（Web ローカル実行時の環境変数）
 
 3. **データベースの起動 (Docker)**
    Docker を使ってローカルの PostgreSQL と、Neon serverless driver 用の wsproxy を起動します。
@@ -31,13 +42,7 @@
    # pnpm --filter @workspace/database exec prisma db push
    ```
 
-5. **API のローカル環境変数を用意**
-   `apps/api/.dev.vars.example` をコピーして `apps/api/.dev.vars` を作成し、値を埋めます（`.dev.vars` は gitignore 対象）。
-   ```bash
-   cp apps/api/.dev.vars.example apps/api/.dev.vars
-   ```
-
-6. **開発サーバーの起動**
+5. **開発サーバーの起動**
    ```bash
    pnpm dev
    ```
