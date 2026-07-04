@@ -55,6 +55,7 @@
 | `pnpm cf-typegen`| `wrangler.jsonc` の bindings から `cloudflare-env.d.ts` を再生成 |
 
 **環境変数について:**
+- ローカル開発では `apps/web/.env.local.example` を `.env.local` としてコピーしてください（`.env.local` は Git 管理対象外）。
 - `NEXT_PUBLIC_*` はビルド時にクライアントバンドルへインライン展開されるため、`wrangler.jsonc` の `vars` に設定するだけではブラウザ側に反映されません。`pnpm build` (= `opennextjs-cloudflare build`) の実行前に、`apps/web/.env.local` や CI のシークレット経由で値を供給してください。
 - サーバー側 (Node.js ランタイム) から参照する値は `wrangler.jsonc` の `vars` で管理します。
 - ローカルで `wrangler dev` / `opennextjs-cloudflare preview` 用の変数を使う場合は `apps/web/.dev.vars.example` を `.dev.vars` としてコピーしてください（`.dev.vars` は Git 管理対象外）。
