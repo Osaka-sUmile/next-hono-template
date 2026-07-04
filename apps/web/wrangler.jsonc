@@ -19,6 +19,7 @@
   // NEXT_PUBLIC_* はここに置いてもクライアントバンドルには反映されない。
   // クライアントに公開する値はビルド時に .env.local / CI の環境変数として
   // `pnpm build` (= opennextjs-cloudflare build) に渡す必要がある。
+  // 下記の値は実際の URL ではなくプレースホルダ。デプロイ先の環境に合わせて変更すること。
   "vars": {
     "NEXT_PUBLIC_API_URL": "https://api.example.com",
     "NEXT_PUBLIC_SENTRY_DSN": ""

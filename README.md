@@ -49,6 +49,7 @@
 
 | コマンド | 説明 |
 |------------------|--------------------------------------------------------------------|
+| `pnpm build`     | 既存の `next build`（Next.js アプリのビルド） |
 | `pnpm preview`   | OpenNext でビルドし、ローカルの workerd 上でプレビュー起動 |
 | `pnpm deploy`    | OpenNext でビルドし、Cloudflare Workers へデプロイ |
 | `pnpm cf-typegen`| `wrangler.jsonc` の bindings から `cloudflare-env.d.ts` を再生成 |
