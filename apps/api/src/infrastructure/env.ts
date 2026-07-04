@@ -28,10 +28,17 @@ export const envSchema = z.object({
 export type Env = z.infer<typeof envSchema>;
 
 /**
+ * Cloudflare Workers から渡される検証前の生の bindings。
+ * `parseEnv` を通すまでは値の型・存在は保証されないため、
+ * 検証済みの `Env` とは区別して扱う。
+ */
+export type WorkerBindings = Record<string, unknown>;
+
+/**
  * Cloudflare Workers の fetch handler が受け取る env オブジェクトを検証する。
  * Node の process.env と異なり isolate ごとに注入されるため、
  * モジュールレベルの singleton は持たず、呼び出し側で都度 parse する。
  */
-export function parseEnv(source: Record<string, unknown>): Env {
+export function parseEnv(source: WorkerBindings): Env {
   return envSchema.parse(source);
 }
