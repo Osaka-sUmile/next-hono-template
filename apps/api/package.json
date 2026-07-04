@@ -9,9 +9,9 @@
     "deploy": "pnpm bundle:openapi && wrangler deploy",
     "typecheck": "pnpm bundle:openapi && tsc --noEmit",
     "bundle:openapi": "tsx scripts/bundle-openapi.ts",
-    "test": "vitest run",
-    "test:watch": "vitest",
-    "test:coverage": "vitest run --coverage",
+    "test": "pnpm bundle:openapi && vitest run",
+    "test:watch": "pnpm bundle:openapi && vitest",
+    "test:coverage": "pnpm bundle:openapi && vitest run --coverage",
     "lint": "eslint ."
   },
   "keywords": [],
