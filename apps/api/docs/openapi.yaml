@@ -1,7 +1,7 @@
 openapi: 3.0.3
 info:
-  title: Yomutan API
-  description: Yomutan backend API specification
+  title: API
+  description: Backend API specification
   version: 1.0.0
 servers:
   - url: http://localhost:8787/api/v1
