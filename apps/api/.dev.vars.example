@@ -1,0 +1,25 @@
+# wrangler dev 用のローカル環境変数。`.dev.vars` にコピーして実値を埋めること（.dev.vars は gitignore 対象）。
+NODE_ENV=development
+
+# Database connection string (Neon serverless driver + docker wsproxy 経由でローカル Postgres に接続)
+DATABASE_URL="postgresql://user:password@db:5432/app"
+
+# Auth (better-auth)
+AUTH_SECRET="your-secret-key-at-least-32-characters-long"
+API_BASE_URL="http://localhost:8080"
+WEB_BASE_URL="http://localhost:3001"
+
+# Resend (Email OTP)
+RESEND_API_KEY="re_xxxxxxxxxxxxxxxxxxxx"
+RESEND_FROM_EMAIL=noreply@example.com
+
+# Google OAuth
+GOOGLE_CLIENT_ID="your-google-client-id"
+GOOGLE_CLIENT_SECRET="your-google-client-secret"
+
+# Apple OAuth
+APPLE_CLIENT_ID="your-apple-client-id"
+APPLE_CLIENT_SECRET="your-apple-private-key-pem"
+
+# Sentry (BE error monitoring). 未設定ならエラー監視は無効。
+SENTRY_DSN=""

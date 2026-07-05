@@ -21,13 +21,12 @@
     "db:studio": "prisma studio"
   },
   "dependencies": {
-    "@prisma/adapter-pg": "^7.8.0",
+    "@neondatabase/serverless": "^1.1.0",
+    "@prisma/adapter-neon": "^7.8.0",
     "@prisma/client": "^7.8.0",
-    "@workspace/domain": "workspace:*",
-    "pg": "^8.20.0"
+    "@workspace/domain": "workspace:*"
   },
   "devDependencies": {
-    "@types/pg": "^8.20.0",
     "@workspace/eslint-config": "workspace:*",
     "@workspace/typescript-config": "workspace:*",
     "dotenv": "^17.4.2",

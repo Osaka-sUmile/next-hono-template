@@ -40,3 +40,4 @@ npm-debug.log*
 .cursor/
 .claude/settings.local.json
 .claude/memory/
+.claude/worktrees/

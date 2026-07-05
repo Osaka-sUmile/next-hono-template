@@ -11,8 +11,15 @@
 - `apps/api/src/composition/`: Application / Presentation / Infrastructure を束ねる起動配線。
 
 ## 起動シーケンスのポリシー
-- Swagger (`setupSwagger`) は **fail-fast**。OpenAPI YAML の読み込みに失敗した場合はサーバを起動しない（`process.exit(1)`）。
-- 配布時の OpenAPI YAML パスは `OPENAPI_PATH` で上書き可能。未指定時は `apps/api/docs/openapi.yaml` を実行ファイル相対で解決する（Docker 配布では `OPENAPI_PATH` を明示推奨）。
+- apps/api は Cloudflare Workers ランタイムで動作する。エントリーポイント (`src/index.ts`) は
+  `ExportedHandler.fetch(req, env, ctx)` を実装し、isolate ごとに最初のリクエストで
+  `createApp(parseEnv(env))` を一度だけ呼び出してアプリを構築・キャッシュする（Workers の FS 非対応・
+  isolate 再利用という制約に合わせた lazy 初期化）。
+- Swagger の **fail-fast** はビルド時に移動した。`bundle-openapi` スクリプトが OpenAPI YAML を
+  dereference して `src/generated/openapi.json` に書き出し、失敗時は非0終了でビルドを止める。
+  実行時は Cloudflare Workers に FS が無いため、この JSON を静的 import して同期的に配信するのみ。
+- Sentry は `@sentry/cloudflare` の `withSentry` でエントリーポイントをラップする方式に変更した。
+  `SENTRY_DSN` が未設定の場合は無効のままにする（ローカル開発などでノイズを出さない）。
 
 ## バリデーションの境界
 | 種類 | 実行場所 | 目的 |

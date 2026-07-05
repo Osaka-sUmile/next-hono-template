@@ -1,0 +1,17 @@
+{
+  "$schema": "node_modules/wrangler/config-schema.json",
+  "name": "api",
+  "main": "src/index.ts",
+  "compatibility_date": "2026-06-01",
+  "compatibility_flags": ["nodejs_compat"],
+  // 秘密情報は含めない。以下は `wrangler secret put <NAME>` で個別に登録すること:
+  //   DATABASE_URL, AUTH_SECRET, RESEND_API_KEY,
+  //   GOOGLE_CLIENT_ID, GOOGLE_CLIENT_SECRET,
+  //   APPLE_CLIENT_ID, APPLE_CLIENT_SECRET, SENTRY_DSN
+  "vars": {
+    "NODE_ENV": "production",
+    "API_BASE_URL": "https://api.example.com",
+    "WEB_BASE_URL": "https://example.com",
+    "RESEND_FROM_EMAIL": "noreply@example.com"
+  }
+}
