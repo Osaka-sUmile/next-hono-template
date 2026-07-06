@@ -4,37 +4,36 @@
   "description": "",
   "main": "index.js",
   "scripts": {
-    "dev": "tsx watch --env-file ../../.env src/index.ts",
-    "build": "tsc",
-    "typecheck": "tsc --noEmit",
-    "start": "node dist/index.js",
-    "test": "vitest run",
-    "test:watch": "vitest",
-    "test:coverage": "vitest run --coverage",
+    "dev": "pnpm bundle:openapi && wrangler dev",
+    "build": "pnpm bundle:openapi && wrangler deploy --dry-run --outdir=dist",
+    "deploy": "pnpm bundle:openapi && wrangler deploy",
+    "typecheck": "pnpm bundle:openapi && tsc --noEmit",
+    "bundle:openapi": "tsx scripts/bundle-openapi.ts",
+    "test": "pnpm bundle:openapi && vitest run",
+    "test:watch": "pnpm bundle:openapi && vitest",
+    "test:coverage": "pnpm bundle:openapi && vitest run --coverage",
     "lint": "eslint ."
   },
   "keywords": [],
   "author": "",
   "license": "ISC",
   "dependencies": {
-    "@apidevtools/swagger-parser": "^12.1.0",
-    "@hono/node-server": "^2.0.6",
     "@hono/swagger-ui": "^0.6.1",
     "@prisma/client": "^7.8.0",
-    "@sentry/node": "^10.62.0",
+    "@sentry/cloudflare": "^10.63.0",
     "@workspace/auth": "workspace:^",
     "@workspace/database": "workspace:^",
     "@workspace/domain": "workspace:^",
-    "dotenv": "^17.4.2",
     "hono": "^4.12.27",
     "hono-rate-limiter": "^0.5.3",
-    "pino": "^9.6.0",
-    "pino-pretty": "^12.0.1",
     "zod": "^3.25.76"
   },
   "devDependencies": {
+    "@apidevtools/swagger-parser": "^12.1.0",
+    "@cloudflare/workers-types": "^4.20260702.1",
     "tsx": "^4.21.0",
     "typescript": "5.9.3",
-    "vitest": "^4.1.5"
+    "vitest": "^4.1.5",
+    "wrangler": "^4.107.0"
   }
 }

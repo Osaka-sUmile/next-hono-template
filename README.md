@@ -12,15 +12,27 @@
    ```
 
 2. **環境変数の設定**
-   ルートディレクトリ（および必要に応じて `apps/api/`, `apps/web/` 等）に `.env` を作成します。
-   ```bash
-   cp .env.example .env
-   ```
+   環境変数は用途ごとにファイルが分かれています。それぞれ用意します。
+
+   - ルートの `.env`（docker compose の Postgres 資格情報専用）
+     ```bash
+     cp .env.example .env
+     ```
+   - `packages/database/.env`（prisma CLI が読む DB 接続文字列）
+     ```bash
+     cp packages/database/.env.example packages/database/.env
+     ```
+   - `apps/api/.dev.vars`（API ローカル実行時の環境変数。`.dev.vars` は gitignore 対象）
+     ```bash
+     cp apps/api/.dev.vars.example apps/api/.dev.vars
+     ```
+   - `apps/web/.env.local`（Web ローカル実行時の環境変数）
 
 3. **データベースの起動 (Docker)**
-   Docker を使ってローカルの PostgreSQL を起動します。
+   Docker を使ってローカルの PostgreSQL と、Neon serverless driver 用の wsproxy を起動します。
+   apps/api (Cloudflare Workers ランタイム) はこの wsproxy 経由でローカル Postgres に接続します。
    ```bash
-   docker compose -f docker-compose.yml up -d
+   docker compose -f docker-compose.yml up -d db neon-wsproxy
    ```
 
 4. **Prisma スキーマの反映・クライアント生成**
@@ -34,7 +46,7 @@
    ```bash
    pnpm dev
    ```
-   - API: `http://localhost:8080/api-docs` (Swagger UI)
+   - API: `wrangler dev` の起動ログに表示されるポートで `/api-docs` (Swagger UI) にアクセスできます
    - Web: `http://localhost:3000` (Next.js)
 
 ## 開発ガイドライン
