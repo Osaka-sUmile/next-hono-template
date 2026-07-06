@@ -51,8 +51,10 @@
 |------------------|--------------------------------------------------------------------|
 | `pnpm build`     | 既存の `next build`（Next.js アプリのビルド） |
 | `pnpm preview`   | OpenNext でビルドし、ローカルの workerd 上でプレビュー起動 |
-| `pnpm deploy`    | OpenNext でビルドし、Cloudflare Workers へデプロイ |
+| `pnpm run deploy`| OpenNext でビルドし、Cloudflare Workers へデプロイ |
 | `pnpm cf-typegen`| `wrangler.jsonc` の bindings から `cloudflare-env.d.ts` を再生成 |
+
+> ⚠️ `deploy` は `pnpm` 自身の予約コマンド(workspace デプロイ機能)と名前が衝突するため、`pnpm deploy` ではなく `pnpm run deploy` と実行してください。
 
 **環境変数について:**
 - ローカル開発では `apps/web/.env.local.example` を `.env.local` としてコピーしてください（`.env.local` は Git 管理対象外）。
