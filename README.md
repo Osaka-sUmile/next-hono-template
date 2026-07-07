@@ -74,6 +74,8 @@
 - サーバー側 (Node.js ランタイム) から参照する値は `wrangler.jsonc` の `vars` で管理します。
 - ローカルで `wrangler dev` / `opennextjs-cloudflare preview` 用の変数を使う場合は `apps/web/.dev.vars.example` を `.dev.vars` としてコピーしてください（`.dev.vars` は Git 管理対象外）。
 
+本番の Neon 接続・シークレット設定・マイグレーション運用については `docs/deployment.md` を参照してください。
+
 ## Testing & CI/CD
 
 このリポジトリでは品質保証のため、ユニットテストからE2Eテスト、CI/CD環境までを整備しています。
