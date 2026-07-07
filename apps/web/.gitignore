@@ -6,3 +6,9 @@ node_modules/
 /blob-report/
 /playwright/.cache/
 /playwright/.auth/
+
+# Cloudflare (OpenNext)
+.open-next/
+.wrangler/
+.dev.vars
+cloudflare-env.d.ts

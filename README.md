@@ -53,6 +53,27 @@
 - `CLAUDE.md`: 新機能追加のフローや命名・バリデーション規則
 - `docs/architecture.md`: 依存関係のルールやアーキテクチャ概要
 
+## Web (apps/web) のデプロイ
+
+`apps/web` は [OpenNext](https://opennext.js.org/cloudflare) を用いて **Cloudflare Workers** にデプロイします（Docker ではなく Cloudflare を利用します）。
+
+**💡 主なコマンド (apps/web 配下で実行):**
+
+| コマンド | 説明 |
+|------------------|--------------------------------------------------------------------|
+| `pnpm build`     | 既存の `next build`（Next.js アプリのビルド） |
+| `pnpm preview`   | OpenNext でビルドし、ローカルの workerd 上でプレビュー起動 |
+| `pnpm run deploy`| OpenNext でビルドし、Cloudflare Workers へデプロイ |
+| `pnpm cf-typegen`| `wrangler.jsonc` の bindings から `cloudflare-env.d.ts` を再生成 |
+
+> ⚠️ `deploy` は `pnpm` 自身の予約コマンド(workspace デプロイ機能)と名前が衝突するため、`pnpm deploy` ではなく `pnpm run deploy` と実行してください。
+
+**環境変数について:**
+- ローカル開発では `apps/web/.env.local.example` を `.env.local` としてコピーしてください（`.env.local` は Git 管理対象外）。
+- `NEXT_PUBLIC_*` はビルド時にクライアントバンドルへインライン展開されるため、`wrangler.jsonc` の `vars` に設定するだけではブラウザ側に反映されません。`pnpm build` (= `opennextjs-cloudflare build`) の実行前に、`apps/web/.env.local` や CI のシークレット経由で値を供給してください。
+- サーバー側 (Node.js ランタイム) から参照する値は `wrangler.jsonc` の `vars` で管理します。
+- ローカルで `wrangler dev` / `opennextjs-cloudflare preview` 用の変数を使う場合は `apps/web/.dev.vars.example` を `.dev.vars` としてコピーしてください（`.dev.vars` は Git 管理対象外）。
+
 ## Testing & CI/CD
 
 このリポジトリでは品質保証のため、ユニットテストからE2Eテスト、CI/CD環境までを整備しています。
