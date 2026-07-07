@@ -1,0 +1,162 @@
+name: Deploy
+
+# develop への push → preview 環境、main への push → production 環境へデプロイする。
+# workflow_dispatch で任意の環境を手動デプロイすることもできる。
+# セットアップ手順 (GitHub Environments / Secrets / Variables / wrangler secret) は
+# docs/deployment.md の「CI からの自動デプロイ」を参照。
+on:
+  push:
+    branches: [develop, main]
+  workflow_dispatch:
+    inputs:
+      environment:
+        description: "Deploy target"
+        type: choice
+        options: [preview, production]
+        required: true
+
+# 同一環境へのデプロイは直列化する。デプロイ途中のキャンセルは中途半端な状態を生むため
+# cancel-in-progress は無効にし、キューイングで処理する。
+concurrency:
+  group: deploy-${{ github.event_name == 'workflow_dispatch' && inputs.environment || (github.ref_name == 'main' && 'production' || 'preview') }}
+  cancel-in-progress: false
+
+jobs:
+  # ブランチ / 手動入力から環境名を解決する。
+  # jobs.<id>.environment は env コンテキストを参照できないため outputs で受け渡す。
+  resolve:
+    runs-on: ubuntu-latest
+    outputs:
+      environment: ${{ steps.env.outputs.environment }}
+    steps:
+      - id: env
+        run: |
+          if [ "${{ github.event_name }}" = "workflow_dispatch" ]; then
+            echo "environment=${{ inputs.environment }}" >> "$GITHUB_OUTPUT"
+          elif [ "${{ github.ref_name }}" = "main" ]; then
+            echo "environment=production" >> "$GITHUB_OUTPUT"
+          else
+            echo "environment=preview" >> "$GITHUB_OUTPUT"
+          fi
+
+  # デプロイ前チェック: typecheck / test / api の dry-run ビルド (バンドルサイズ確認)
+  checks:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install pnpm
+        uses: pnpm/action-setup@v4
+        with:
+          version: 9.15.9
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'pnpm'
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Run Typecheck
+        run: pnpm run typecheck
+
+      - name: Run Tests
+        run: pnpm run test
+
+      - name: API dry-run build
+        run: pnpm --filter api run build
+
+  # DB マイグレーション。DATABASE_URL は Environment Secret で、Neon の direct (non-pooled)
+  # 接続文字列を設定すること (prisma CLI は TCP 直結のため。docs/deployment.md 参照)。
+  # prisma.config.ts の dotenv は既存の process.env を上書きしないため、ここで渡した値が優先される。
+  migrate:
+    needs: [resolve, checks]
+    runs-on: ubuntu-latest
+    environment: ${{ needs.resolve.outputs.environment }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install pnpm
+        uses: pnpm/action-setup@v4
+        with:
+          version: 9.15.9
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'pnpm'
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Run Prisma migrations
+        run: pnpm --filter @workspace/database db:migrate:deploy
+        env:
+          DATABASE_URL: ${{ secrets.DATABASE_URL }}
+
+  # API のデプロイ。CLOUDFLARE_ENV は wrangler が --env 未指定時に参照するフォールバックで、
+  # wrangler.jsonc の env.preview / env.production を選択する。
+  deploy-api:
+    needs: [resolve, migrate]
+    runs-on: ubuntu-latest
+    environment: ${{ needs.resolve.outputs.environment }}
+    env:
+      CLOUDFLARE_ENV: ${{ needs.resolve.outputs.environment }}
+      CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+      CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install pnpm
+        uses: pnpm/action-setup@v4
+        with:
+          version: 9.15.9
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'pnpm'
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Deploy API to Cloudflare Workers
+        run: pnpm --filter api run deploy
+
+  # Web のデプロイ。新しい web が新しい API に依存するケースを安全側に倒すため API の後に実行する。
+  # NEXT_PUBLIC_* はビルド時にクライアントバンドルへインラインされるため、GitHub Environment
+  # Variables からビルドプロセスの環境変数として注入する (wrangler.jsonc の vars では不足)。
+  # CLOUDFLARE_ENV は OpenNext が spawn する wrangler にそのまま伝播する。
+  deploy-web:
+    needs: [resolve, deploy-api]
+    runs-on: ubuntu-latest
+    environment: ${{ needs.resolve.outputs.environment }}
+    env:
+      CLOUDFLARE_ENV: ${{ needs.resolve.outputs.environment }}
+      CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+      CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+      NEXT_PUBLIC_API_URL: ${{ vars.NEXT_PUBLIC_API_URL }}
+      NEXT_PUBLIC_SENTRY_DSN: ${{ vars.NEXT_PUBLIC_SENTRY_DSN }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install pnpm
+        uses: pnpm/action-setup@v4
+        with:
+          version: 9.15.9
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'pnpm'
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Deploy Web to Cloudflare Workers
+        run: pnpm --filter web run deploy

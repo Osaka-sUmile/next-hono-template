@@ -64,3 +64,42 @@ DATABASE_URL="<Neon の direct 接続文字列>" \
 ## ステージング/プレビュー環境での Neon ブランチ活用(任意)
 
 プレビュー環境を用意する場合、Neon のブランチ機能を使うと本番データのコピーオンライトブランチを低コストで作成できる。プレビュー用の Cloudflare Worker(例: `api-preview`)に対して、そのブランチの pooled 接続文字列を `wrangler secret put --env preview` で登録し、マイグレーションもブランチの direct 接続文字列を使って実行する。ブランチは検証後に削除して問題ない。
+
+## CI からの自動デプロイ
+
+`.github/workflows/deploy.yml` により、develop への push で `preview` 環境、main への push で `production` 環境へ自動デプロイされる(workflow_dispatch による手動実行も可能)。ジョブは checks(typecheck / test / api dry-run)→ migrate → deploy-api → deploy-web の順に直列実行される。
+
+wrangler の環境は `apps/api/wrangler.jsonc` / `apps/web/wrangler.jsonc` の `env.preview` / `env.production` で定義しており、CI はジョブ環境変数 `CLOUDFLARE_ENV` で環境を選択する(wrangler は `--env` 未指定時にこの変数を参照する)。
+
+### 事前セットアップ
+
+1. **GitHub Environments の作成**: リポジトリの Settings → Environments で `preview` と `production` を作成する。`production` には必要に応じて required reviewers(デプロイ承認)を設定できる。
+2. **GitHub Secrets / Variables の登録**:
+
+   | 名前 | 種別 | スコープ | 内容 |
+   | :--- | :--- | :--- | :--- |
+   | `CLOUDFLARE_API_TOKEN` | Secret | リポジトリ | Workers Scripts:Edit 権限を持つ API トークン |
+   | `CLOUDFLARE_ACCOUNT_ID` | Secret | リポジトリ | デプロイ先の Cloudflare アカウント ID |
+   | `DATABASE_URL` | Secret | Environment(preview / production 各々) | マイグレーション用の Neon **direct** 接続文字列 |
+   | `NEXT_PUBLIC_API_URL` | Variable | Environment 各々 | web のビルド時にクライアントへインラインされる API URL |
+   | `NEXT_PUBLIC_SENTRY_DSN` | Variable | Environment 各々 | 同上(未使用なら空文字) |
+
+3. **Cloudflare 側のランタイムシークレット登録**: env 付き worker(`api-preview` / `api-production`)は top-level の `api` とは別 worker でシークレットも独立している。環境ごとに登録すること。
+
+   ```bash
+   cd apps/api
+   wrangler secret put DATABASE_URL --env preview      # Neon の pooled 接続文字列
+   wrangler secret put AUTH_SECRET --env preview
+   # ... 残りのシークレットも同様。production も --env production で繰り返す
+   ```
+
+### 役割分担の原則
+
+- **GitHub Secrets**: CI がデプロイ・マイグレーションを実行するための資格情報のみ(`CLOUDFLARE_API_TOKEN` / `CLOUDFLARE_ACCOUNT_ID` / migrate 用 `DATABASE_URL`)。
+- **wrangler secret**: アプリのランタイムシークレットはすべてこちらで完結させ、CI を経由させない。
+
+### 初回デプロイ時の注意
+
+- workers.dev サブドメインが未登録のアカウントでは、非対話の CI からの初回デプロイが失敗することがある。事前にダッシュボードで登録するか、初回のみローカルから手動デプロイする。
+- web の `WORKER_SELF_REFERENCE` は自分自身への service binding のため、worker が存在しない初回デプロイで失敗する場合がある。その場合はワークフローを再実行する。
+- 初回デプロイで workers.dev URL が確定したら、`wrangler.jsonc` の `vars`(`API_BASE_URL` / `WEB_BASE_URL` / `NEXT_PUBLIC_API_URL`)と GitHub Environment Variables を実際の URL に更新し、再デプロイする(`NEXT_PUBLIC_*` はビルド時インラインのため再ビルドが必須)。

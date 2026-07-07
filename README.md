@@ -111,6 +111,7 @@
 | **Git Hooks** | `.husky/pre-commit` | コミット前に自動的に `pnpm run typecheck` → `pnpm run lint` → `pnpm run test` を実行し、問題があれば中断 |
 | **CI (Lint)** | `.github/workflows/lint.yml` | PR時に変更されたフロント・バックエンドファイルに対して `eslint` を実行 |
 | **CI (E2Eテスト)** | `.github/workflows/e2e.yml` | Playwright を用いたフロントエンドのE2Eテストを実行 |
+| **CD (デプロイ)** | `.github/workflows/deploy.yml` | develop → preview / main → production へ Cloudflare Workers に自動デプロイ（詳細は `docs/deployment.md`） |
 
 ※ **注意:** GitHub Actions の実行時間（制限・コスト）を節約するため、**CI 上での単体テスト自動実行は行わない方針** としています。コードの品質保証に関する単体テストは、コミット時の Git Hooks (`pre-commit`) で自己検証される前提です。
 

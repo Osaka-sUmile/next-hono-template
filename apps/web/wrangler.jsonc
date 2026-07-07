@@ -1,9 +1,11 @@
 {
   "$schema": "node_modules/wrangler/config-schema.json",
+  // top-level はローカル開発 (`wrangler dev` / `pnpm preview`) 用。デプロイは env.preview / env.production を使う。
   "name": "web",
   "main": ".open-next/worker.js",
   "compatibility_date": "2026-06-01",
   "compatibility_flags": ["nodejs_compat", "global_fetch_strictly_public"],
+  // assets は env に継承される (inheritable) ため top-level の定義のみでよい。
   "assets": {
     "directory": ".open-next/assets",
     "binding": "ASSETS"
@@ -23,5 +25,37 @@
   "vars": {
     "NEXT_PUBLIC_API_URL": "https://api.example.com",
     "NEXT_PUBLIC_SENTRY_DSN": ""
+  },
+  // vars / services は env に継承されない (non-inheritable) ため、各 env で再定義する。
+  // WORKER_SELF_REFERENCE は自 env の worker 名に向けること (web-preview は web-preview を参照)。
+  // vars の NEXT_PUBLIC_* はサーバー側 process.env 用の写し。クライアント反映はビルド時 env
+  // (CI の GitHub Environment Variables) で行うため、両者の値は一致させて運用する。
+  "env": {
+    "preview": {
+      "name": "web-preview",
+      "services": [
+        {
+          "binding": "WORKER_SELF_REFERENCE",
+          "service": "web-preview"
+        }
+      ],
+      "vars": {
+        "NEXT_PUBLIC_API_URL": "https://api-preview.example.com",
+        "NEXT_PUBLIC_SENTRY_DSN": ""
+      }
+    },
+    "production": {
+      "name": "web-production",
+      "services": [
+        {
+          "binding": "WORKER_SELF_REFERENCE",
+          "service": "web-production"
+        }
+      ],
+      "vars": {
+        "NEXT_PUBLIC_API_URL": "https://api.example.com",
+        "NEXT_PUBLIC_SENTRY_DSN": ""
+      }
+    }
   }
 }
