@@ -36,14 +36,14 @@ Neon はプールされた接続とプールされていない接続の 2 種類
 
 ```bash
 cd apps/api
-wrangler secret put DATABASE_URL          # Neon の pooled 接続文字列
-wrangler secret put AUTH_SECRET
-wrangler secret put RESEND_API_KEY
-wrangler secret put GOOGLE_CLIENT_ID
-wrangler secret put GOOGLE_CLIENT_SECRET
-wrangler secret put APPLE_CLIENT_ID
-wrangler secret put APPLE_CLIENT_SECRET
-wrangler secret put SENTRY_DSN
+pnpm exec wrangler secret put DATABASE_URL          # Neon の pooled 接続文字列
+pnpm exec wrangler secret put AUTH_SECRET
+pnpm exec wrangler secret put RESEND_API_KEY
+pnpm exec wrangler secret put GOOGLE_CLIENT_ID
+pnpm exec wrangler secret put GOOGLE_CLIENT_SECRET
+pnpm exec wrangler secret put APPLE_CLIENT_ID
+pnpm exec wrangler secret put APPLE_CLIENT_SECRET
+pnpm exec wrangler secret put SENTRY_DSN
 ```
 
 非シークレットの値(`NODE_ENV`、`API_BASE_URL`、`WEB_BASE_URL`、`RESEND_FROM_EMAIL`)は `apps/api/wrangler.jsonc` の `vars` で管理する。デプロイ先の実際の URL に応じてプレースホルダ(`https://api.example.com` 等)を更新すること。
@@ -88,8 +88,8 @@ wrangler の環境は `apps/api/wrangler.jsonc` / `apps/web/wrangler.jsonc` の 
 
    ```bash
    cd apps/api
-   wrangler secret put DATABASE_URL --env preview      # Neon の pooled 接続文字列
-   wrangler secret put AUTH_SECRET --env preview
+   pnpm exec wrangler secret put DATABASE_URL --env preview      # Neon の pooled 接続文字列
+   pnpm exec wrangler secret put AUTH_SECRET --env preview
    # ... 残りのシークレットも同様。production も --env production で繰り返す
    ```
 
