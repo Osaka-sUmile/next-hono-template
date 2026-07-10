@@ -1,6 +1,9 @@
 {
   "$schema": "node_modules/wrangler/config-schema.json",
-  // top-level はローカル開発 (`wrangler dev`) 用。デプロイは env.preview / env.production を使う。
+  // top-level (name/main/compatibility_*) は `wrangler dev` に必須のため残している。
+  // ここの vars は `.dev.vars` (ローカルの実値。apps/api/.dev.vars.example 参照) が同名キーを
+  // 上書きするためローカルでは実質使われず、`--env` を付けずに誤って `wrangler deploy` された場合の
+  // フォールバックとして production 相当の値を置いている。デプロイは通常 env.preview / env.production を使う。
   "name": "api",
   "main": "src/index.ts",
   "compatibility_date": "2026-06-01",
