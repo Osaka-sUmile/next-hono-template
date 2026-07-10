@@ -88,9 +88,26 @@ wrangler の環境は `apps/api/wrangler.jsonc` / `apps/web/wrangler.jsonc` の 
 
    ```bash
    cd apps/api
-   pnpm exec wrangler secret put DATABASE_URL --env preview      # Neon の pooled 接続文字列
+
+   # preview
+   pnpm exec wrangler secret put DATABASE_URL --env preview          # Neon の pooled 接続文字列
    pnpm exec wrangler secret put AUTH_SECRET --env preview
-   # ... 残りのシークレットも同様。production も --env production で繰り返す
+   pnpm exec wrangler secret put RESEND_API_KEY --env preview
+   pnpm exec wrangler secret put GOOGLE_CLIENT_ID --env preview
+   pnpm exec wrangler secret put GOOGLE_CLIENT_SECRET --env preview
+   pnpm exec wrangler secret put APPLE_CLIENT_ID --env preview
+   pnpm exec wrangler secret put APPLE_CLIENT_SECRET --env preview
+   pnpm exec wrangler secret put SENTRY_DSN --env preview
+
+   # production
+   pnpm exec wrangler secret put DATABASE_URL --env production      # Neon の pooled 接続文字列
+   pnpm exec wrangler secret put AUTH_SECRET --env production
+   pnpm exec wrangler secret put RESEND_API_KEY --env production
+   pnpm exec wrangler secret put GOOGLE_CLIENT_ID --env production
+   pnpm exec wrangler secret put GOOGLE_CLIENT_SECRET --env production
+   pnpm exec wrangler secret put APPLE_CLIENT_ID --env production
+   pnpm exec wrangler secret put APPLE_CLIENT_SECRET --env production
+   pnpm exec wrangler secret put SENTRY_DSN --env production
    ```
 
 ### 役割分担の原則
