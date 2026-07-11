@@ -5,9 +5,10 @@ import * as Sentry from "@sentry/nextjs";
 // environment は NEXT_PUBLIC_SENTRY_ENVIRONMENT を優先する。preview / production は
 // どちらも NODE_ENV=production でビルドされるため、環境の識別はこの変数で行う
 // (CI がデプロイ先環境名をビルド時に注入する。未設定時は NODE_ENV にフォールバック)。
+// `||` で空文字も NODE_ENV へフォールバックさせる (API 側の実装と挙動を揃える)。
 Sentry.init({
   dsn: process.env.NEXT_PUBLIC_SENTRY_DSN,
-  environment: process.env.NEXT_PUBLIC_SENTRY_ENVIRONMENT ?? process.env.NODE_ENV,
+  environment: process.env.NEXT_PUBLIC_SENTRY_ENVIRONMENT || process.env.NODE_ENV,
 });
 
 // App Router のクライアントサイドナビゲーションを計測する。
