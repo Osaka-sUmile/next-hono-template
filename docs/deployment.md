@@ -34,17 +34,15 @@ Neon はプールされた接続とプールされていない接続の 2 種類
 
 本番の `apps/api` はシークレットを `wrangler.jsonc` に書かず、`wrangler secret put` で個別に登録する(`apps/api/wrangler.jsonc` のコメントに一覧あり)。
 
+デプロイ対象の Worker は `wrangler.jsonc` の `env` で環境ごとに分かれており(`api-preview` / `api-production`)、シークレットの保存領域も Worker ごとに独立している。登録時は必ず `--env` で対象環境を指定すること。**`--env` を省略すると top-level の Worker `api` に登録され、デプロイされる `api-preview` / `api-production` からは一切参照されない**(top-level はローカル開発 `wrangler dev` 用で、ローカルはリモートのシークレットではなく `apps/api/.dev.vars` を読む)。
+
 ```bash
 cd apps/api
-pnpm exec wrangler secret put DATABASE_URL          # Neon の pooled 接続文字列
-pnpm exec wrangler secret put AUTH_SECRET
-pnpm exec wrangler secret put RESEND_API_KEY
-pnpm exec wrangler secret put GOOGLE_CLIENT_ID
-pnpm exec wrangler secret put GOOGLE_CLIENT_SECRET
-pnpm exec wrangler secret put APPLE_CLIENT_ID
-pnpm exec wrangler secret put APPLE_CLIENT_SECRET
-pnpm exec wrangler secret put SENTRY_DSN
+pnpm exec wrangler secret put <NAME> --env preview      # preview 環境へ登録
+pnpm exec wrangler secret put <NAME> --env production   # production 環境へ登録
 ```
+
+全シークレットの具体的なコマンド一覧は後述の「CI からの自動デプロイ > 事前セットアップ」を参照。
 
 非シークレットの値(`NODE_ENV`、`API_BASE_URL`、`WEB_BASE_URL`、`RESEND_FROM_EMAIL`)は `apps/api/wrangler.jsonc` の `vars` で管理する。デプロイ先の実際の URL に応じてプレースホルダ(`https://api.example.com` 等)を更新すること。
 
