@@ -71,6 +71,8 @@ DATABASE_URL="<Neon の direct 接続文字列>" \
 
 wrangler の環境は `apps/api/wrangler.jsonc` / `apps/web/wrangler.jsonc` の `env.preview` / `env.production` で定義しており、CI はジョブ環境変数 `CLOUDFLARE_ENV` で環境を選択する(wrangler は `--env` 未指定時にこの変数を参照する)。
 
+Sentry の `environment` タグは `NODE_ENV` ではなく環境名(`preview` / `production`)で付与される。preview / production はどちらも `NODE_ENV=production` のため、api は `wrangler.jsonc` の各 env の `SENTRY_ENVIRONMENT`、web は CI がビルド時に注入する `NEXT_PUBLIC_SENTRY_ENVIRONMENT`(deploy.yml がデプロイ先環境名を自動で渡すため手動設定は不要)で識別する。これにより、Sentry 側のアラートルールを `environment:production` に絞れば preview のイベントは収集しつつ通知だけを本番に限定できる。
+
 ### 事前セットアップ
 
 1. **GitHub Environments の作成**: リポジトリの Settings → Environments で `preview` と `production` を作成する。`production` には必要に応じて required reviewers(デプロイ承認)を設定できる。

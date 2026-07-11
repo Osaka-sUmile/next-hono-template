@@ -25,6 +25,9 @@
       "name": "api-preview",
       "vars": {
         "NODE_ENV": "production",
+        // Sentry の environment タグ用。preview も NODE_ENV は production のため、
+        // 環境の識別はこの変数で行う (未設定時は NODE_ENV にフォールバック)。
+        "SENTRY_ENVIRONMENT": "preview",
         "API_BASE_URL": "https://api-preview.example.com",
         "WEB_BASE_URL": "https://preview.example.com",
         "RESEND_FROM_EMAIL": "noreply@example.com"
@@ -34,6 +37,7 @@
       "name": "api-production",
       "vars": {
         "NODE_ENV": "production",
+        "SENTRY_ENVIRONMENT": "production",
         "API_BASE_URL": "https://api.example.com",
         "WEB_BASE_URL": "https://example.com",
         "RESEND_FROM_EMAIL": "noreply@example.com"

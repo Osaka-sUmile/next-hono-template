@@ -141,6 +141,9 @@ jobs:
       CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
       NEXT_PUBLIC_API_URL: ${{ vars.NEXT_PUBLIC_API_URL }}
       NEXT_PUBLIC_SENTRY_DSN: ${{ vars.NEXT_PUBLIC_SENTRY_DSN }}
+      # Sentry の environment タグ用。preview / production はどちらも NODE_ENV=production で
+      # ビルドされるため、デプロイ先環境名をビルド時に注入して区別する (GitHub Variables 不要)。
+      NEXT_PUBLIC_SENTRY_ENVIRONMENT: ${{ needs.resolve.outputs.environment }}
     steps:
       - uses: actions/checkout@v4
 
