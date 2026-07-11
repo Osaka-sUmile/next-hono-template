@@ -115,8 +115,16 @@ Sentry の `environment` タグは `NODE_ENV` ではなく環境名(`preview` / 
 - **GitHub Secrets**: CI がデプロイ・マイグレーションを実行するための資格情報のみ(`CLOUDFLARE_API_TOKEN` / `CLOUDFLARE_ACCOUNT_ID` / migrate 用 `DATABASE_URL`)。
 - **wrangler secret**: アプリのランタイムシークレットはすべてこちらで完結させ、CI を経由させない。
 
+### ローカルからのデプロイはデフォルトでブロックされる
+
+`pnpm run deploy`(api / web とも)は誤実行ガード(`scripts/ensure-ci-deploy.mjs`)により、CI 以外での実行をデフォルトで拒否する。checks / migrate を経ない野良デプロイ(例: シェルに `CLOUDFLARE_ENV=production` が残ったまま実行して本番を直接上書きする事故)を防ぐため。初回セットアップ等で意図的にローカルから実行する場合は `ALLOW_LOCAL_DEPLOY=1` を付ける:
+
+```bash
+ALLOW_LOCAL_DEPLOY=1 CLOUDFLARE_ENV=preview pnpm run deploy
+```
+
 ### 初回デプロイ時の注意
 
-- workers.dev サブドメインが未登録のアカウントでは、非対話の CI からの初回デプロイが失敗することがある。事前にダッシュボードで登録するか、初回のみローカルから手動デプロイする。
+- workers.dev サブドメインが未登録のアカウントでは、非対話の CI からの初回デプロイが失敗することがある。事前にダッシュボードで登録するか、初回のみローカルから手動デプロイする(上記の `ALLOW_LOCAL_DEPLOY=1` が必要)。
 - web の `WORKER_SELF_REFERENCE` は自分自身への service binding のため、worker が存在しない初回デプロイで失敗する場合がある。その場合はワークフローを再実行する。
 - 初回デプロイで workers.dev URL が確定したら、`wrangler.jsonc` の `vars`(`API_BASE_URL` / `WEB_BASE_URL` / `NEXT_PUBLIC_API_URL`)と GitHub Environment Variables を実際の URL に更新し、再デプロイする(`NEXT_PUBLIC_*` はビルド時インラインのため再ビルドが必須)。

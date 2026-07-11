@@ -67,6 +67,7 @@
 | `pnpm cf-typegen`| `wrangler.jsonc` の bindings から `cloudflare-env.d.ts` を再生成 |
 
 > ⚠️ `deploy` は `pnpm` 自身の予約コマンド(workspace デプロイ機能)と名前が衝突するため、`pnpm deploy` ではなく `pnpm run deploy` と実行してください。
+> なお `pnpm run deploy` は誤実行防止のため CI 以外ではデフォルトでブロックされます（意図的にローカルから実行する場合は `ALLOW_LOCAL_DEPLOY=1` を付与。詳細は `docs/deployment.md`）。
 
 **環境変数について:**
 - ローカル開発では `apps/web/.env.local.example` を `.env.local` としてコピーしてください（`.env.local` は Git 管理対象外）。
