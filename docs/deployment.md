@@ -62,6 +62,8 @@ Cloudflare ダッシュボード → Workers & Pages で workers.dev サブド�
 
 リポジトリの Settings → Environments で `preview` と `production` を作成する。`production` には必要に応じて required reviewers(デプロイ承認)を設定できる。
 
+`production` には **Deployment branches ルールを設定し、デプロイ元を `main` のみに制限すること**(Settings → Environments → `production` → Deployment branches and tags → Selected branches and tags → `main` を追加)。これにより、workflow_dispatch で他ブランチから production を選んで未マージのコードが本番へ出る事故を GitHub 側でブロックできる。deploy.yml の `resolve` ジョブでも同じ組み合わせを拒否しており、二段構えの防御になっている。
+
 ### 3. GitHub リポジトリ Secrets の登録
 
 Settings → Secrets and variables → Actions → Secrets(リポジトリスコープ)に以下を登録する。環境共通の値なので Environment ではなくリポジトリ直下でよい。
@@ -222,6 +224,7 @@ DATABASE_URL="<Neon の direct 接続文字列>" \
 運用上の注意:
 
 - マイグレーションは**後方互換(additive)**を原則とする。デプロイ順序が「マイグレーション → Worker デプロイ」のため、マイグレーション完了からデプロイ完了までの間は旧コードが新スキーマ上で動く。カラム削除やリネームなど破壊的変更は避け、複数段階(追加 → 移行 → 削除)に分けること。
+- `migrate` 成功後に `deploy-api` / `deploy-web` が失敗した場合、「新スキーマ + 旧コード」の状態で止まる。マイグレーションが後方互換であれば旧コードはそのまま動き続けるため、慌てて切り戻す必要はない。失敗原因を解消したうえで、GitHub Actions の該当 Run から失敗ジョブを re-run すれば復旧する(適用済みのマイグレーションは `prisma migrate deploy` が冪等にスキップする)。
 - `pnpm --filter @workspace/database db:migrate:status` で適用状況を事前確認できる。
 
 ### ローカルからのデプロイはデフォルトでブロックされる
