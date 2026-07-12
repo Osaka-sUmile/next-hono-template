@@ -23,6 +23,10 @@ export const envSchema = z.object({
   APPLE_CLIENT_SECRET: z.string().min(1),
   // Sentry DSN. 未設定ならエラー監視は無効（ローカル開発などでノイズを出さない）。
   SENTRY_DSN: z.string().url().optional(),
+  // Sentry の environment タグ。preview / production はどちらも NODE_ENV=production の
+  // ため、環境の識別にはこちらを使う（未設定なら NODE_ENV にフォールバック）。
+  // 空文字は設定ミスとして起動時に弾く（SENTRY_DSN の url 検証と同じ fail-fast 方針）。
+  SENTRY_ENVIRONMENT: z.string().trim().min(1).optional(),
 });
 
 export type Env = z.infer<typeof envSchema>;

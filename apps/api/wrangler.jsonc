@@ -1,5 +1,6 @@
 {
   "$schema": "node_modules/wrangler/config-schema.json",
+  // top-level はローカル開発 (`wrangler dev`) 用。デプロイは env.preview / env.production を使う。
   "name": "api",
   "main": "src/index.ts",
   "compatibility_date": "2026-06-01",
@@ -8,10 +9,39 @@
   //   DATABASE_URL, AUTH_SECRET, RESEND_API_KEY,
   //   GOOGLE_CLIENT_ID, GOOGLE_CLIENT_SECRET,
   //   APPLE_CLIENT_ID, APPLE_CLIENT_SECRET, SENTRY_DSN
+  // 注意: env 付きの worker (api-preview / api-production) は top-level とは別 worker 扱いで
+  // secret も独立している。デプロイ前に `wrangler secret put <NAME> --env <preview|production>`
+  // を環境ごとに実行すること (未登録でもデプロイは成功し、ランタイムエラーで発覚する)。
   "vars": {
     "NODE_ENV": "production",
     "API_BASE_URL": "https://api.example.com",
     "WEB_BASE_URL": "https://example.com",
     "RESEND_FROM_EMAIL": "noreply@example.com"
+  },
+  // vars は env に継承されない (non-inheritable) ため、各 env で全キーを再定義する。
+  // URL は placeholder。初回デプロイで workers.dev URL が確定したら実値に更新すること。
+  "env": {
+    "preview": {
+      "name": "api-preview",
+      "vars": {
+        "NODE_ENV": "production",
+        // Sentry の environment タグ用。preview も NODE_ENV は production のため、
+        // 環境の識別はこの変数で行う (未設定時は NODE_ENV にフォールバック)。
+        "SENTRY_ENVIRONMENT": "preview",
+        "API_BASE_URL": "https://api-preview.example.com",
+        "WEB_BASE_URL": "https://preview.example.com",
+        "RESEND_FROM_EMAIL": "noreply@example.com"
+      }
+    },
+    "production": {
+      "name": "api-production",
+      "vars": {
+        "NODE_ENV": "production",
+        "SENTRY_ENVIRONMENT": "production",
+        "API_BASE_URL": "https://api.example.com",
+        "WEB_BASE_URL": "https://example.com",
+        "RESEND_FROM_EMAIL": "noreply@example.com"
+      }
+    }
   }
 }

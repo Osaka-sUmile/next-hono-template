@@ -5,19 +5,25 @@ NODE_ENV=development
 DATABASE_URL="postgresql://user:password@db:5432/app"
 
 # Auth (better-auth)
+# AUTH_SECRET は `openssl rand -base64 32` で生成した値に置き換えること（本番とは別の値を使う）。
 AUTH_SECRET="your-secret-key-at-least-32-characters-long"
 API_BASE_URL="http://localhost:8080"
 WEB_BASE_URL="http://localhost:3001"
 
 # Resend (Email OTP)
+# メール OTP を試すときだけ実値が必要（https://resend.com → API Keys, 権限は Sending access）。
+# 試さない間はこのダミー値のままで起動できる（送信時にエラーになるだけ）。
 RESEND_API_KEY="re_xxxxxxxxxxxxxxxxxxxx"
 RESEND_FROM_EMAIL=noreply@example.com
 
 # Google OAuth
+# Google ログインを試すときだけ実値が必要（Google Cloud Console → Credentials → OAuth クライアント ID）。
+# リダイレクト URI には {API_BASE_URL}/api/auth/callback/google を登録する。
 GOOGLE_CLIENT_ID="your-google-client-id"
 GOOGLE_CLIENT_SECRET="your-google-client-secret"
 
 # Apple OAuth
+# Apple ログインを試すときだけ実値が必要（Apple Developer で Services ID と秘密鍵を作成）。
 APPLE_CLIENT_ID="your-apple-client-id"
 APPLE_CLIENT_SECRET="your-apple-private-key-pem"
 

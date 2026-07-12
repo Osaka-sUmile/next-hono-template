@@ -1,25 +1,203 @@
 # 本番デプロイ・Neon 接続ガイド
 
-## 環境変数の全体像
+> このドキュメントは **preview / production 環境を整備してデプロイする人**向け。
+> ローカル開発を始めるだけなら本ドキュメントは不要で、README の「初期セットアップ手順」だけで完結する。
 
-環境変数は用途ごとにファイル・設定場所が分かれている。ローカル開発用の対応関係は `.env.example` にも記載しているが、本番デプロイ時の到達点まで含めて整理すると以下の通り。
+構成は次の通り。初めて環境を整備する場合は上から順に読めばよい。
 
-| 用途 | ローカル | 本番 |
+1. [デプロイの全体像](#デプロイの全体像) — 何がどこにデプロイされ、CI がどう動くか
+2. [セットアップ手順](#セットアップ手順) — 上から順に実施すれば環境整備が完了する
+3. [環境変数リファレンス](#環境変数リファレンス) — 全変数の入手方法と格納場所の一覧
+4. [補足: Neon の接続文字列が 2 種類ある理由](#補足-neon-の接続文字列が-2-種類ある理由)
+5. [運用](#運用) — マイグレーション、デプロイガード、Neon ブランチ
+
+## デプロイの全体像
+
+### デプロイされる Worker
+
+`wrangler.jsonc`(api / web とも)の `env` 定義により、環境ごとに**別々の Worker** としてデプロイされる。Worker が別なので、シークレットの保存領域も互いに独立している。
+
+| Worker | 用途 | デプロイ契機 |
 | :--- | :--- | :--- |
-| docker compose (Postgres 資格情報) | ルート `.env` | (本番では docker を使わないため対象外) |
-| API ランタイム (`apps/api`) | `apps/api/.dev.vars` | `wrangler secret put` (シークレット) + `apps/api/wrangler.jsonc` の `vars` (非シークレット) |
-| DB マイグレーション/Studio (`packages/database`) | `packages/database/.env` | CI/シェルの環境変数 (`DATABASE_URL`) |
-| web (`apps/web`) | `apps/web/.env.local` | ビルド実行環境の環境変数 (`NEXT_PUBLIC_*`) |
+| `api-preview` / `web-preview` | preview 環境 | develop への push |
+| `api-production` / `web-production` | production 環境 | main への push |
+| `api` / `web`(top-level 設定) | ローカル開発(`wrangler dev`)専用 | デプロイしない |
 
-本番の API ランタイムと DB マイグレーションは、どちらも `DATABASE_URL` という同じ名前の変数を使うが、**接続文字列の種類が異なる**(次節参照)。
+### CI パイプライン
 
-## Neon プロジェクトのプロビジョニング
+`.github/workflows/deploy.yml` が以下の順で直列実行する(workflow_dispatch による手動実行も可能)。
+
+```text
+checks (typecheck / test / api・web の dry-run ビルド)
+  → migrate (prisma migrate deploy)
+  → deploy-api
+  → deploy-web
+```
+
+- wrangler の環境選択は CI がジョブ環境変数 `CLOUDFLARE_ENV` で行う(wrangler は `--env` 未指定時にこの変数を参照する)。
+- Sentry の `environment` タグは `NODE_ENV` ではなく環境名(`preview` / `production`)で付与される。api は `wrangler.jsonc` の各 env の `SENTRY_ENVIRONMENT`、web は CI がビルド時に注入する `NEXT_PUBLIC_SENTRY_ENVIRONMENT` で識別する(いずれも手動設定は不要)。Sentry 側のアラートルールを `environment:production` に絞れば、preview のイベントは収集しつつ通知だけを本番に限定できる。
+
+### 環境変数の格納場所と役割分担
+
+格納場所は 4 種類あり、役割で使い分ける。
+
+| 格納場所 | 役割 | 例 |
+| :--- | :--- | :--- |
+| GitHub Secrets / Variables | **CI がデプロイ・マイグレーションを実行するための値**のみ | `CLOUDFLARE_API_TOKEN`、migrate 用 `DATABASE_URL`、ビルド時インラインされる `NEXT_PUBLIC_*` |
+| `wrangler secret put --env` | **アプリのランタイムシークレット**。CI を経由させずここで完結させる | ランタイム用 `DATABASE_URL`、`AUTH_SECRET` |
+| `wrangler.jsonc` の `vars` | 非シークレットのランタイム設定(コミット対象) | `API_BASE_URL`、`RESEND_FROM_EMAIL` |
+| ローカルファイル(`.dev.vars` / `.env.local` 等) | ローカル開発専用。デプロイには一切関与しない | README の初期セットアップ参照 |
+
+なお、本番の API ランタイムと DB マイグレーションはどちらも `DATABASE_URL` という同じ名前の変数を使うが、**接続文字列の種類が異なる**([補足](#補足-neon-の接続文字列が-2-種類ある理由)参照)。
+
+## セットアップ手順
+
+以下を上から順に実施する。各値の具体的な入手方法は[環境変数リファレンス](#環境変数リファレンス)を参照。
+
+### 1. workers.dev サブドメインの登録(未登録の場合)
+
+Cloudflare ダッシュボード → Workers & Pages で workers.dev サブドメインを登録する。未登録だと非対話の CI からの初回デプロイが失敗することがある。
+
+### 2. GitHub Environments の作成
+
+リポジトリの Settings → Environments で `preview` と `production` を作成する。`production` には必要に応じて required reviewers(デプロイ承認)を設定できる。
+
+`production` には **Deployment branches ルールを設定し、デプロイ元を `main` のみに制限すること**(Settings → Environments → `production` → Deployment branches and tags → Selected branches and tags → `main` を追加)。これにより、workflow_dispatch で他ブランチから production を選んで未マージのコードが本番へ出る事故を GitHub 側でブロックできる。deploy.yml の `resolve` ジョブでも同じ組み合わせを拒否しており、二段構えの防御になっている。
+
+### 3. GitHub リポジトリ Secrets の登録
+
+Settings → Secrets and variables → Actions → Secrets(リポジトリスコープ)に以下を登録する。環境共通の値なので Environment ではなくリポジトリ直下でよい。
+
+- `CLOUDFLARE_API_TOKEN`
+- `CLOUDFLARE_ACCOUNT_ID`
+
+### 4. Neon のプロビジョニングと DATABASE_URL の登録
 
 1. [Neon Console](https://console.neon.tech/) でプロジェクトを作成する。
-2. 環境ごとに Neon の**ブランチ**を分けることを推奨する(例: `production`、`preview`)。Neon のブランチは Postgres のコピーオンライトブランチで、本番データに影響を与えずスキーマ検証や動作確認ができる。
-3. 各ブランチについて、接続文字列が **2 種類**発行されることを確認する。
+2. 環境ごとにブランチを分ける(例: `production` / `preview`)。Neon のブランチは Postgres のコピーオンライトブランチで、本番データに影響を与えずスキーマ検証ができる。
+3. 各ブランチの接続文字列を **2 種類**取得し、それぞれ登録する:
+   - **direct**(非 pooled)→ GitHub の各 Environment の Secret `DATABASE_URL` へ(マイグレーション用)
+   - **pooled** → 手順 5 の `wrangler secret put DATABASE_URL --env <環境>` へ(API ランタイム用)
 
-### 接続文字列の 2 系統
+### 5. Cloudflare ランタイムシークレットの登録
+
+`api-preview` / `api-production` は別 Worker でシークレットも独立しているため、**必ず `--env` を付けて環境ごとに**登録する。**`--env` を省略すると top-level の Worker `api`(ローカル開発用)に登録され、デプロイされる Worker からは一切参照されない**。登録漏れがあってもデプロイは成功し、ランタイムエラーで発覚する点に注意。
+
+```bash
+cd apps/api
+
+# preview
+pnpm exec wrangler secret put DATABASE_URL --env preview          # Neon の pooled 接続文字列
+pnpm exec wrangler secret put AUTH_SECRET --env preview
+pnpm exec wrangler secret put RESEND_API_KEY --env preview
+pnpm exec wrangler secret put GOOGLE_CLIENT_ID --env preview
+pnpm exec wrangler secret put GOOGLE_CLIENT_SECRET --env preview
+pnpm exec wrangler secret put APPLE_CLIENT_ID --env preview
+pnpm exec wrangler secret put APPLE_CLIENT_SECRET --env preview
+pnpm exec wrangler secret put SENTRY_DSN --env preview           # Sentry を使わないなら登録不要(このコマンドは省略可)
+
+# production
+pnpm exec wrangler secret put DATABASE_URL --env production      # Neon の pooled 接続文字列
+pnpm exec wrangler secret put AUTH_SECRET --env production
+pnpm exec wrangler secret put RESEND_API_KEY --env production
+pnpm exec wrangler secret put GOOGLE_CLIENT_ID --env production
+pnpm exec wrangler secret put GOOGLE_CLIENT_SECRET --env production
+pnpm exec wrangler secret put APPLE_CLIENT_ID --env production
+pnpm exec wrangler secret put APPLE_CLIENT_SECRET --env production
+pnpm exec wrangler secret put SENTRY_DSN --env production         # 同上、省略可
+```
+
+### 6. GitHub Environment Variables の登録
+
+Settings → Environments → 各環境の Variables に以下を登録する。
+
+- `NEXT_PUBLIC_API_URL`(URL が確定する手順 7 までは仮値で可)
+- `NEXT_PUBLIC_SENTRY_DSN`(Sentry を使わないなら空文字)
+
+### 7. 初回デプロイ
+
+develop へ push すると preview 環境へ自動デプロイされる。CI を待たずに確認したい場合はローカルから手動でも実行できる(通常はガードによりブロックされるため `ALLOW_LOCAL_DEPLOY=1` が必要)。GitHub Secrets はローカルシェルには渡らないため、事前に `pnpm exec wrangler login` で認証するか、`CLOUDFLARE_API_TOKEN` / `CLOUDFLARE_ACCOUNT_ID` をローカル環境変数として設定しておくこと。CI と同じく **api → web の順**に、両方デプロイすること:
+
+```bash
+cd apps/api
+ALLOW_LOCAL_DEPLOY=1 CLOUDFLARE_ENV=preview pnpm run deploy
+
+cd ../web
+ALLOW_LOCAL_DEPLOY=1 CLOUDFLARE_ENV=preview pnpm run deploy
+```
+
+workers.dev の URL は `https://<Worker 名>.<アカウントのサブドメイン>.workers.dev` という固定の形式のため、初回デプロイでサブドメインが分かれば **preview / production 両方の URL が確定する**。例えばサブドメインが `example-team` なら:
+
+| Worker | URL |
+| :--- | :--- |
+| `api-preview` | `https://api-preview.example-team.workers.dev` |
+| `web-preview` | `https://web-preview.example-team.workers.dev` |
+| `api-production` | `https://api-production.example-team.workers.dev` |
+| `web-production` | `https://web-production.example-team.workers.dev` |
+
+既知の初回のみの失敗パターン:
+
+- web の `WORKER_SELF_REFERENCE` は自分自身への service binding のため、Worker が存在しない初回デプロイで失敗する場合がある。その場合はワークフローを再実行する。
+
+### 8. URL の反映と再デプロイ
+
+手順 7 で確定した URL を以下 3 箇所のプレースホルダ(`https://api.example.com` 等)に反映し、再デプロイする。**preview の URL は preview 用の設定箇所へ、production の URL は production 用の設定箇所へ**、それぞれ対応する場所に設定する。
+
+| 反映先 | preview の URL を入れる場所 | production の URL を入れる場所 |
+| :--- | :--- | :--- |
+| `apps/api/wrangler.jsonc` の `vars`(`API_BASE_URL` / `WEB_BASE_URL`) | `env.preview` | `env.production` |
+| `apps/web/wrangler.jsonc` の `vars`(`NEXT_PUBLIC_API_URL`) | `env.preview` | `env.production` |
+| GitHub Environment Variables(`NEXT_PUBLIC_API_URL`) | Environment `preview` | Environment `production` |
+
+`NEXT_PUBLIC_*` はビルド時にクライアントバンドルへインラインされるため、値の変更にはビルドからやり直す再デプロイが必須。
+
+### 9. 動作確認
+
+デプロイされた web からログイン等の API 通信ができること、(Sentry 利用時は)エラーが正しい `environment` タグで届くことを確認する。
+
+## 環境変数リファレンス
+
+デプロイに関わる全変数の一覧。この表を上から埋めていけば設定漏れがない状態になる。
+
+### GitHub 側に登録するもの
+
+| 変数名 | 値の入手方法 | 格納場所 | 環境ごとに別の値? |
+| :--- | :--- | :--- | :--- |
+| `CLOUDFLARE_API_TOKEN` | ダッシュボード右上のアイコン → My Profile → API Tokens → Create Token → テンプレート「**Edit Cloudflare Workers**」を選択(Account Resources は対象アカウントのみに絞る) | リポジトリ Secret | いいえ(共通) |
+| `CLOUDFLARE_ACCOUNT_ID` | ダッシュボード → Workers & Pages の右サイドバーに表示される Account ID | リポジトリ Secret | いいえ(共通) |
+| `DATABASE_URL` | Neon Console → 対象ブランチ → Connect で **Connection pooling を OFF** にした接続文字列(ホスト名に `-pooler` が付かない = direct) | Environment Secret | はい |
+| `NEXT_PUBLIC_API_URL` | 初回デプロイ後に確定する api Worker の URL(例: `https://api-preview.<subdomain>.workers.dev`)。**末尾スラッシュなし** | Environment Variable | はい |
+| `NEXT_PUBLIC_SENTRY_DSN` | [sentry.io](https://sentry.io) → web 用プロジェクト(Platform: Next.js)→ Settings → Client Keys (DSN)。**使わないなら空文字で可** | Environment Variable | はい(共通でも可) |
+
+### Cloudflare 側に登録するもの(`wrangler secret put <NAME> --env <preview|production>`)
+
+| 変数名 | 値の入手方法 | 環境ごとに別の値? |
+| :--- | :--- | :--- |
+| `DATABASE_URL` | Neon Console → 対象ブランチ → Connect で **Connection pooling を ON** にした接続文字列(ホスト名に `-pooler` が付く = pooled) | はい |
+| `AUTH_SECRET` | 自分で生成する: `openssl rand -base64 32`。**ローカル・preview・production すべて別の値**にすること(漏洩時の影響を分離するため) | はい |
+| `RESEND_API_KEY` | [Resend](https://resend.com) → API Keys → Create API Key(Permission は最小権限の **Sending access** を選択) | はい(共通でも可) |
+| `GOOGLE_CLIENT_ID` / `GOOGLE_CLIENT_SECRET` | Google Cloud Console → APIs & Services → Credentials → OAuth クライアント ID を作成。リダイレクト URI に `{API の URL}/api/auth/callback/google` を登録 | 環境ごとに分けるのを推奨 |
+| `APPLE_CLIENT_ID` / `APPLE_CLIENT_SECRET` | Apple Developer → Certificates, Identifiers & Profiles で Services ID と秘密鍵を作成。コールバックは `{API の URL}/api/auth/callback/apple` | 環境ごとに分けるのを推奨 |
+| `SENTRY_DSN` | [sentry.io](https://sentry.io) → api 用プロジェクト(Platform: Cloudflare Workers)→ Settings → Client Keys (DSN)。**使わないなら登録しなくてよい** | はい(共通でも可) |
+
+### `wrangler.jsonc` の `vars` で管理するもの(コミット対象・非シークレット)
+
+| 変数名 | 値の入手方法 | 場所 |
+| :--- | :--- | :--- |
+| `API_BASE_URL` / `WEB_BASE_URL` | 初回デプロイ後に確定する各 Worker の URL | `apps/api/wrangler.jsonc` の各 env の `vars` |
+| `NEXT_PUBLIC_API_URL` | 同上(api Worker の URL) | `apps/web/wrangler.jsonc` の各 env の `vars`(サーバー側参照用の写し。クライアント反映は GitHub Environment Variable 側) |
+| `RESEND_FROM_EMAIL` | Resend でドメイン検証(Domains → Add Domain)した送信元アドレスを自分で決める | `apps/api/wrangler.jsonc` の各 env の `vars` |
+
+### 設定不要(自動供給されるもの)
+
+| 変数名 | 供給元 |
+| :--- | :--- |
+| `NODE_ENV` | `wrangler.jsonc` の `vars` に定義済み |
+| `SENTRY_ENVIRONMENT` | `apps/api/wrangler.jsonc` の各 env の `vars` に定義済み |
+| `NEXT_PUBLIC_SENTRY_ENVIRONMENT` | CI(deploy.yml)がデプロイ先環境名をビルド時に自動注入 |
+| `CLOUDFLARE_ENV` | CI(deploy.yml)がジョブ環境変数として自動設定 |
+
+## 補足: Neon の接続文字列が 2 種類ある理由
 
 Neon はプールされた接続とプールされていない接続の 2 種類の接続文字列を提供する。**用途によって使い分けが必須**。
 
@@ -30,37 +208,35 @@ Neon はプールされた接続とプールされていない接続の 2 種類
 
 `packages/database/src/client.ts` は Neon serverless driver (`PrismaNeon` アダプタ)を使うため pooled 接続文字列を渡す。一方 `prisma migrate deploy` などの CLI コマンドは Prisma のマイグレーションエンジンが直接 TCP 接続するため、pooled 接続文字列(PgBouncer 経由)ではサポート外のプリペアドステートメント等でエラーになることがある。**マイグレーションには必ず direct 接続文字列を使うこと**。
 
-## API Worker へのシークレット設定
+## 運用
 
-本番の `apps/api` はシークレットを `wrangler.jsonc` に書かず、`wrangler secret put` で個別に登録する(`apps/api/wrangler.jsonc` のコメントに一覧あり)。
+### 本番マイグレーション
 
-```bash
-cd apps/api
-wrangler secret put DATABASE_URL          # Neon の pooled 接続文字列
-wrangler secret put AUTH_SECRET
-wrangler secret put RESEND_API_KEY
-wrangler secret put GOOGLE_CLIENT_ID
-wrangler secret put GOOGLE_CLIENT_SECRET
-wrangler secret put APPLE_CLIENT_ID
-wrangler secret put APPLE_CLIENT_SECRET
-wrangler secret put SENTRY_DSN
-```
-
-非シークレットの値(`NODE_ENV`、`API_BASE_URL`、`WEB_BASE_URL`、`RESEND_FROM_EMAIL`)は `apps/api/wrangler.jsonc` の `vars` で管理する。デプロイ先の実際の URL に応じてプレースホルダ(`https://api.example.com` 等)を更新すること。
-
-## 本番マイグレーション運用
-
-`packages/database/prisma.config.ts` は `dotenv/config` 経由で `.env` を読むが、dotenv はデフォルトで**既存の `process.env` を上書きしない**。そのため CI やシェルから環境変数として `DATABASE_URL` を渡せば、`.env` ファイルの有無に関係なくその値が優先される。
+CI の `migrate` ジョブが GitHub Environment Secret の `DATABASE_URL`(direct)を使って `prisma migrate deploy` を自動実行する。手動で実行する場合:
 
 ```bash
 DATABASE_URL="<Neon の direct 接続文字列>" \
   pnpm --filter @workspace/database db:migrate:deploy
 ```
 
+`packages/database/prisma.config.ts` は `dotenv/config` 経由で `.env` を読むが、dotenv はデフォルトで**既存の `process.env` を上書きしない**。そのため CI やシェルから環境変数として `DATABASE_URL` を渡せば、`.env` ファイルの有無に関係なくその値が優先される。
+
 運用上の注意:
-- マイグレーションは**後方互換(additive)**を原則とする。デプロイ順序が「マイグレーション → Worker デプロイ」の場合、マイグレーション完了からデプロイ完了までの間は旧コードが新スキーマ上で動くため、カラム削除やリネームなど破壊的変更は避け、複数段階(追加 → 移行 → 削除)に分けること。
+
+- マイグレーションは**後方互換(additive)**を原則とする。デプロイ順序が「マイグレーション → Worker デプロイ」のため、マイグレーション完了からデプロイ完了までの間は旧コードが新スキーマ上で動く。カラム削除やリネームなど破壊的変更は避け、複数段階(追加 → 移行 → 削除)に分けること。
+- `migrate` 成功後に `deploy-api` / `deploy-web` が失敗した場合、「新スキーマ + 旧コード」の状態で止まる。マイグレーションが後方互換であれば旧コードはそのまま動き続けるため、慌てて切り戻す必要はない。失敗原因を解消したうえで、GitHub Actions の該当 Run から失敗ジョブを re-run すれば復旧する(適用済みのマイグレーションは `prisma migrate deploy` が冪等にスキップする)。
 - `pnpm --filter @workspace/database db:migrate:status` で適用状況を事前確認できる。
 
-## ステージング/プレビュー環境での Neon ブランチ活用(任意)
+### ローカルからのデプロイはデフォルトでブロックされる
 
-プレビュー環境を用意する場合、Neon のブランチ機能を使うと本番データのコピーオンライトブランチを低コストで作成できる。プレビュー用の Cloudflare Worker(例: `api-preview`)に対して、そのブランチの pooled 接続文字列を `wrangler secret put --env preview` で登録し、マイグレーションもブランチの direct 接続文字列を使って実行する。ブランチは検証後に削除して問題ない。
+`pnpm run deploy`(api / web とも)は誤実行ガード(`scripts/ensure-ci-deploy.mjs`)により、CI 以外での実行をデフォルトで拒否する。checks / migrate を経ない野良デプロイ(例: シェルに `CLOUDFLARE_ENV=production` が残ったまま実行して本番を直接上書きする事故)を防ぐため。
+
+デプロイは CI 経由が原則で、ローカルから実行するのは初回セットアップ(セットアップ手順 7)等に限る。意図的に実行する場合のみ `ALLOW_LOCAL_DEPLOY=1` を付ける:
+
+```bash
+ALLOW_LOCAL_DEPLOY=1 CLOUDFLARE_ENV=preview pnpm run deploy
+```
+
+### ステージング/プレビュー環境での Neon ブランチ活用(任意)
+
+Neon のブランチ機能を使うと、本番データのコピーオンライトブランチを低コストで作成できる。プレビュー用 Worker(`api-preview`)にそのブランチの pooled 接続文字列を `wrangler secret put DATABASE_URL --env preview` で登録し、マイグレーションもブランチの direct 接続文字列で実行する。ブランチは検証後に削除して問題ない。
