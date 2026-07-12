@@ -7,7 +7,7 @@
 // 初回セットアップ (workers.dev サブドメイン登録や URL 確認のための手動デプロイ) など、
 // 意図的にローカルから実行する場合は ALLOW_LOCAL_DEPLOY=1 を付けること:
 //   ALLOW_LOCAL_DEPLOY=1 CLOUDFLARE_ENV=preview pnpm run deploy
-if (!process.env.CI && !process.env.ALLOW_LOCAL_DEPLOY) {
+if (!process.env.CI && process.env.ALLOW_LOCAL_DEPLOY !== "1") {
   console.error(
     [
       "ローカルからの deploy をブロックしました。",
