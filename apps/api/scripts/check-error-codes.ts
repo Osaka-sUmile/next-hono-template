@@ -53,10 +53,10 @@ async function main() {
   }
 
   console.error(
-    "エラーコード追加時は CLAUDE.md の「エラーコードの追加手順」に従い、以下の3箇所を同時に更新してください:\n" +
+    "エラーコード追加時は CLAUDE.md の「エラーコードの追加手順」を参照し、以下の2箇所を同時に更新してください" +
+      "(ErrorCode 型は ErrorCodes から自動導出されるため更新不要です):\n" +
       "  1. apps/api/src/presentation/error-codes.ts の ErrorCodes 定数\n" +
-      "  2. apps/api/src/presentation/error-codes.ts の ErrorCode 型\n" +
-      "  3. apps/api/docs/components/schemas/Error.yaml の enum",
+      "  2. apps/api/docs/components/schemas/Error.yaml の enum",
   );
   process.exit(1);
 }
