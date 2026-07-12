@@ -20,20 +20,21 @@
   "dependencies": {
     "@hono/swagger-ui": "^0.6.1",
     "@prisma/client": "^7.8.0",
-    "@sentry/cloudflare": "^10.63.0",
+    "@sentry/cloudflare": "^10.65.0",
     "@workspace/auth": "workspace:^",
     "@workspace/database": "workspace:^",
     "@workspace/domain": "workspace:^",
-    "hono": "^4.12.27",
+    "hono": "^4.12.29",
     "hono-rate-limiter": "^0.5.3",
     "zod": "^3.25.76"
   },
   "devDependencies": {
     "@apidevtools/swagger-parser": "^12.1.0",
     "@cloudflare/workers-types": "^4.20260702.1",
-    "tsx": "^4.21.0",
+    "tsx": "^4.23.0",
     "typescript": "5.9.3",
-    "vitest": "^4.1.5",
-    "wrangler": "^4.107.0"
+    "vite": "^8.0.16",
+    "vitest": "^4.1.10",
+    "wrangler": "^4.110.0"
   }
 }
