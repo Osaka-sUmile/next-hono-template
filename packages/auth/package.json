@@ -3,9 +3,18 @@
   "version": "0.0.1",
   "private": true,
   "exports": {
-    ".":        { "types": "./src/index.ts",  "default": "./dist/index.js" },
-    "./server": { "types": "./src/server.ts", "default": "./dist/server.js" },
-    "./client": { "types": "./src/client.ts", "default": "./dist/client.js" }
+    ".": {
+      "types": "./src/index.ts",
+      "default": "./dist/index.js"
+    },
+    "./server": {
+      "types": "./src/server.ts",
+      "default": "./dist/server.js"
+    },
+    "./client": {
+      "types": "./src/client.ts",
+      "default": "./dist/client.js"
+    }
   },
   "scripts": {
     "build": "tsc",
@@ -13,15 +22,17 @@
     "lint": "eslint ."
   },
   "dependencies": {
-    "better-auth": "^1.0.0",
-    "resend": "^4.0.0"
+    "better-auth": "^1.6.23",
+    "resend": "^4.8.0"
   },
   "peerDependencies": {
     "@prisma/client": "^7",
     "react": "^19"
   },
   "peerDependenciesMeta": {
-    "react": { "optional": true }
+    "react": {
+      "optional": true
+    }
   },
   "devDependencies": {
     "@workspace/eslint-config": "workspace:*",
