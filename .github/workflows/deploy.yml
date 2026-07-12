@@ -1,7 +1,7 @@
 name: Deploy
 
 # develop への push → preview 環境、main への push → production 環境へデプロイする。
-# workflow_dispatch で任意の環境を手動デプロイすることもできる。
+# workflow_dispatch で任意の環境を手動デプロイすることもできる (production へは main からのみ)。
 # セットアップ手順 (GitHub Environments / Secrets / Variables / wrangler secret) は
 # docs/deployment.md の「CI からの自動デプロイ」を参照。
 on:
@@ -15,6 +15,10 @@ on:
         options: [preview, production]
         required: true
 
+# どのジョブもリポジトリへの書き込みは行わないため、最小権限に絞る。
+permissions:
+  contents: read
+
 # 同一環境へのデプロイは直列化する。デプロイ途中のキャンセルは中途半端な状態を生むため
 # cancel-in-progress は無効にし、キューイングで処理する。
 concurrency:
@@ -26,38 +30,46 @@ jobs:
   # jobs.<id>.environment は env コンテキストを参照できないため outputs で受け渡す。
   resolve:
     runs-on: ubuntu-latest
+    # ハングすると concurrency group の後続デプロイが無期限に詰まるため、全ジョブでタイムアウトを設定する。
+    timeout-minutes: 5
     outputs:
       environment: ${{ steps.env.outputs.environment }}
     steps:
       - id: env
+        # github コンテキストの値はシェルへ直接展開せず、スクリプトインジェクション対策として
+        # env 経由でシェル変数として参照する。
+        env:
+          EVENT_NAME: ${{ github.event_name }}
+          REF_NAME: ${{ github.ref_name }}
+          INPUT_ENVIRONMENT: ${{ inputs.environment }}
         run: |
-          if [ "${{ github.event_name }}" = "workflow_dispatch" ]; then
-            echo "environment=${{ inputs.environment }}" >> "$GITHUB_OUTPUT"
-          elif [ "${{ github.ref_name }}" = "main" ]; then
+          if [ "$EVENT_NAME" = "workflow_dispatch" ]; then
+            # 未マージのコードが本番へ出るのを防ぐため、production へのデプロイは main からのみ許可する。
+            # GitHub Environments 側の Deployment branches 保護と二段構え (docs/deployment.md 参照)。
+            if [ "$INPUT_ENVIRONMENT" = "production" ] && [ "$REF_NAME" != "main" ]; then
+              echo "::error::production へは main ブランチからのみデプロイできます (現在のブランチ: $REF_NAME)"
+              exit 1
+            fi
+            echo "environment=$INPUT_ENVIRONMENT" >> "$GITHUB_OUTPUT"
+          elif [ "$REF_NAME" = "main" ]; then
             echo "environment=production" >> "$GITHUB_OUTPUT"
           else
             echo "environment=preview" >> "$GITHUB_OUTPUT"
           fi
 
-  # デプロイ前チェック: typecheck / test / api の dry-run ビルド (バンドルサイズ確認)
+  # デプロイ前チェック: typecheck / test / api・web の dry-run ビルド。
+  # web のビルドが壊れている場合に migrate / deploy-api だけ先行して不整合になるのを防ぐため、
+  # web もここでビルド検証する。
   checks:
     runs-on: ubuntu-latest
+    timeout-minutes: 20
     steps:
-      - uses: actions/checkout@v4
-
-      - name: Install pnpm
-        uses: pnpm/action-setup@v4
+      - uses: actions/checkout@93cb6efe18208431cddfb8368fd83d5badbf9bfd # v5.0.1
         with:
-          version: 9.15.9
+          persist-credentials: false
 
-      - name: Setup Node.js
-        uses: actions/setup-node@v4
-        with:
-          node-version: '20'
-          cache: 'pnpm'
-
-      - name: Install dependencies
-        run: pnpm install --frozen-lockfile
+      - name: Setup pnpm workspace
+        uses: ./.github/actions/setup
 
       - name: Run Typecheck
         run: pnpm run typecheck
@@ -68,29 +80,32 @@ jobs:
       - name: API dry-run build
         run: pnpm --filter api run build
 
+      - name: Web dry-run build
+        run: pnpm --filter web exec opennextjs-cloudflare build
+        env:
+          # ビルド検証用のダミー値。実際の値は deploy-web ジョブで環境ごとに注入される
+          # (NEXT_PUBLIC_API_URL は未設定だと next build が失敗するため必須)。
+          NEXT_PUBLIC_API_URL: "https://api.example.com"
+
   # DB マイグレーション。DATABASE_URL は Environment Secret で、Neon の direct (non-pooled)
   # 接続文字列を設定すること (prisma CLI は TCP 直結のため。docs/deployment.md 参照)。
   # prisma.config.ts の dotenv は既存の process.env を上書きしないため、ここで渡した値が優先される。
+  #
+  # このジョブの成功後に deploy-api が失敗すると「新スキーマ + 旧コード」の状態で止まるため、
+  # マイグレーションは後方互換 (expand-contract) を前提とする。復旧は失敗ジョブの re-run でよい
+  # (適用済みマイグレーションは migrate deploy が冪等にスキップする)。docs/deployment.md の「運用」参照。
   migrate:
     needs: [resolve, checks]
     runs-on: ubuntu-latest
+    timeout-minutes: 10
     environment: ${{ needs.resolve.outputs.environment }}
     steps:
-      - uses: actions/checkout@v4
-
-      - name: Install pnpm
-        uses: pnpm/action-setup@v4
+      - uses: actions/checkout@93cb6efe18208431cddfb8368fd83d5badbf9bfd # v5.0.1
         with:
-          version: 9.15.9
+          persist-credentials: false
 
-      - name: Setup Node.js
-        uses: actions/setup-node@v4
-        with:
-          node-version: '20'
-          cache: 'pnpm'
-
-      - name: Install dependencies
-        run: pnpm install --frozen-lockfile
+      - name: Setup pnpm workspace
+        uses: ./.github/actions/setup
 
       - name: Run Prisma migrations
         run: pnpm --filter @workspace/database db:migrate:deploy
@@ -102,27 +117,19 @@ jobs:
   deploy-api:
     needs: [resolve, migrate]
     runs-on: ubuntu-latest
+    timeout-minutes: 15
     environment: ${{ needs.resolve.outputs.environment }}
     env:
       CLOUDFLARE_ENV: ${{ needs.resolve.outputs.environment }}
       CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
       CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
     steps:
-      - uses: actions/checkout@v4
-
-      - name: Install pnpm
-        uses: pnpm/action-setup@v4
+      - uses: actions/checkout@93cb6efe18208431cddfb8368fd83d5badbf9bfd # v5.0.1
         with:
-          version: 9.15.9
+          persist-credentials: false
 
-      - name: Setup Node.js
-        uses: actions/setup-node@v4
-        with:
-          node-version: '20'
-          cache: 'pnpm'
-
-      - name: Install dependencies
-        run: pnpm install --frozen-lockfile
+      - name: Setup pnpm workspace
+        uses: ./.github/actions/setup
 
       - name: Deploy API to Cloudflare Workers
         run: pnpm --filter api run deploy
@@ -134,6 +141,7 @@ jobs:
   deploy-web:
     needs: [resolve, deploy-api]
     runs-on: ubuntu-latest
+    timeout-minutes: 20
     environment: ${{ needs.resolve.outputs.environment }}
     env:
       CLOUDFLARE_ENV: ${{ needs.resolve.outputs.environment }}
@@ -141,22 +149,16 @@ jobs:
       CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
       NEXT_PUBLIC_API_URL: ${{ vars.NEXT_PUBLIC_API_URL }}
       NEXT_PUBLIC_SENTRY_DSN: ${{ vars.NEXT_PUBLIC_SENTRY_DSN }}
+      # Sentry の environment タグ用。preview / production はどちらも NODE_ENV=production で
+      # ビルドされるため、デプロイ先環境名をビルド時に注入して区別する (GitHub Variables 不要)。
+      NEXT_PUBLIC_SENTRY_ENVIRONMENT: ${{ needs.resolve.outputs.environment }}
     steps:
-      - uses: actions/checkout@v4
-
-      - name: Install pnpm
-        uses: pnpm/action-setup@v4
+      - uses: actions/checkout@93cb6efe18208431cddfb8368fd83d5badbf9bfd # v5.0.1
         with:
-          version: 9.15.9
+          persist-credentials: false
 
-      - name: Setup Node.js
-        uses: actions/setup-node@v4
-        with:
-          node-version: '20'
-          cache: 'pnpm'
-
-      - name: Install dependencies
-        run: pnpm install --frozen-lockfile
+      - name: Setup pnpm workspace
+        uses: ./.github/actions/setup
 
       - name: Deploy Web to Cloudflare Workers
         run: pnpm --filter web run deploy

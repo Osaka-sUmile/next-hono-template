@@ -21,15 +21,24 @@ export default Sentry.withSentry<WorkerBindings>(
   (rawEnv) => {
     // ここでの rawEnv は未検証の生 binding のため、値は string | undefined として扱う。
     const sentryDsn = rawEnv.SENTRY_DSN;
+    const sentryEnvironment = rawEnv.SENTRY_ENVIRONMENT;
     const nodeEnv = rawEnv.NODE_ENV;
     // SENTRY_DSN が未設定の場合は undefined を返し、Sentry を無効のままにする
     // （ローカル開発などで本番 Sentry にノイズを送らないため）。
     if (typeof sentryDsn !== "string" || !sentryDsn) {
       return undefined;
     }
+    // preview / production はどちらも NODE_ENV=production のため、環境の識別には
+    // SENTRY_ENVIRONMENT (wrangler.jsonc の env ごとの vars) を優先する。
+    const environment =
+      typeof sentryEnvironment === "string" && sentryEnvironment
+        ? sentryEnvironment
+        : typeof nodeEnv === "string"
+          ? nodeEnv
+          : undefined;
     return {
       dsn: sentryDsn,
-      environment: typeof nodeEnv === "string" ? nodeEnv : undefined,
+      environment,
     };
   },
   handler,
