@@ -24,6 +24,7 @@
     "react": { "optional": true }
   },
   "devDependencies": {
+    "@workspace/database": "workspace:*",
     "@workspace/eslint-config": "workspace:*",
     "@workspace/typescript-config": "workspace:*",
     "typescript": "5.9.3"
