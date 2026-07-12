@@ -114,10 +114,13 @@ Settings → Environments → 各環境の Variables に以下を登録する。
 
 ### 7. 初回デプロイ
 
-develop へ push すると preview 環境へ自動デプロイされる。CI を待たずに確認したい場合はローカルから手動でも実行できる(通常はガードによりブロックされるため `ALLOW_LOCAL_DEPLOY=1` が必要):
+develop へ push すると preview 環境へ自動デプロイされる。CI を待たずに確認したい場合はローカルから手動でも実行できる(通常はガードによりブロックされるため `ALLOW_LOCAL_DEPLOY=1` が必要)。CI と同じく **api → web の順**に、両方デプロイすること:
 
 ```bash
 cd apps/api
+ALLOW_LOCAL_DEPLOY=1 CLOUDFLARE_ENV=preview pnpm run deploy
+
+cd ../web
 ALLOW_LOCAL_DEPLOY=1 CLOUDFLARE_ENV=preview pnpm run deploy
 ```
 
