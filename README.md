@@ -27,6 +27,16 @@
      cp apps/api/.dev.vars.example apps/api/.dev.vars
      ```
    - `apps/web/.env.local`（Web ローカル実行時の環境変数）
+     ```bash
+     cp apps/web/.env.local.example apps/web/.env.local
+     ```
+
+   **値の埋め方（ローカル開発）:** ほとんどのファイルはコピーしたままで動きます。編集が必要なのは `apps/api/.dev.vars` のみ:
+   - `AUTH_SECRET`: `openssl rand -base64 32` で生成した値に置き換える
+   - `RESEND_API_KEY` / `GOOGLE_*` / `APPLE_*`: メール OTP・ソーシャルログインを試すときだけ実値が必要。それまでは example のダミー値のままで起動できます
+   - `SENTRY_DSN`: 空のままで OK（エラー監視が無効になるだけ）
+
+   preview / production 環境の整備（Cloudflare / Neon / GitHub Secrets）は `docs/deployment.md` のセットアップチェックリストを参照してください。
 
 3. **データベースの起動 (Docker)**
    Docker を使ってローカルの PostgreSQL と、Neon serverless driver 用の wsproxy を起動します。
@@ -67,7 +77,7 @@
 | `pnpm cf-typegen`| `wrangler.jsonc` の bindings から `cloudflare-env.d.ts` を再生成 |
 
 > ⚠️ `deploy` は `pnpm` 自身の予約コマンド(workspace デプロイ機能)と名前が衝突するため、`pnpm deploy` ではなく `pnpm run deploy` と実行してください。
-> なお `pnpm run deploy` は誤実行防止のため CI 以外ではデフォルトでブロックされます（意図的にローカルから実行する場合は `ALLOW_LOCAL_DEPLOY=1` を付与。詳細は `docs/deployment.md`）。
+> なお、デプロイは CI（GitHub Actions）経由が原則です。`pnpm run deploy` をローカルで実行するのは初回セットアップ（URL 確定のための手動デプロイ）のみとし、それ以外では実行しないでください。誤実行防止のため CI 以外ではデフォルトでブロックされます（初回など意図的に実行する場合のみ `ALLOW_LOCAL_DEPLOY=1` を付与。詳細は `docs/deployment.md`）。
 
 **環境変数について:**
 - ローカル開発では `apps/web/.env.local.example` を `.env.local` としてコピーしてください（`.env.local` は Git 管理対象外）。
