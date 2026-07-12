@@ -94,7 +94,7 @@ pnpm exec wrangler secret put GOOGLE_CLIENT_ID --env preview
 pnpm exec wrangler secret put GOOGLE_CLIENT_SECRET --env preview
 pnpm exec wrangler secret put APPLE_CLIENT_ID --env preview
 pnpm exec wrangler secret put APPLE_CLIENT_SECRET --env preview
-pnpm exec wrangler secret put SENTRY_DSN --env preview
+pnpm exec wrangler secret put SENTRY_DSN --env preview           # Sentry を使わないなら登録不要(このコマンドは省略可)
 
 # production
 pnpm exec wrangler secret put DATABASE_URL --env production      # Neon の pooled 接続文字列
@@ -104,7 +104,7 @@ pnpm exec wrangler secret put GOOGLE_CLIENT_ID --env production
 pnpm exec wrangler secret put GOOGLE_CLIENT_SECRET --env production
 pnpm exec wrangler secret put APPLE_CLIENT_ID --env production
 pnpm exec wrangler secret put APPLE_CLIENT_SECRET --env production
-pnpm exec wrangler secret put SENTRY_DSN --env production
+pnpm exec wrangler secret put SENTRY_DSN --env production         # 同上、省略可
 ```
 
 ### 6. GitHub Environment Variables の登録
@@ -116,7 +116,7 @@ Settings → Environments → 各環境の Variables に以下を登録する。
 
 ### 7. 初回デプロイ
 
-develop へ push すると preview 環境へ自動デプロイされる。CI を待たずに確認したい場合はローカルから手動でも実行できる(通常はガードによりブロックされるため `ALLOW_LOCAL_DEPLOY=1` が必要)。CI と同じく **api → web の順**に、両方デプロイすること:
+develop へ push すると preview 環境へ自動デプロイされる。CI を待たずに確認したい場合はローカルから手動でも実行できる(通常はガードによりブロックされるため `ALLOW_LOCAL_DEPLOY=1` が必要)。GitHub Secrets はローカルシェルには渡らないため、事前に `pnpm exec wrangler login` で認証するか、`CLOUDFLARE_API_TOKEN` / `CLOUDFLARE_ACCOUNT_ID` をローカル環境変数として設定しておくこと。CI と同じく **api → web の順**に、両方デプロイすること:
 
 ```bash
 cd apps/api
