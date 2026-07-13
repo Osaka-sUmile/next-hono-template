@@ -9,6 +9,7 @@
     "format": "turbo format",
     "typecheck": "turbo typecheck",
     "test": "turbo test",
+    "db:generate": "pnpm --filter @workspace/database run db:generate",
     "prepare": "husky"
   },
   "devDependencies": {
