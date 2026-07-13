@@ -24,7 +24,8 @@ async function main() {
       "[check-error-codes] ERROR: components.schemas.Error.properties.code.enum が見つかりません" +
         "(apps/api/docs/components/schemas/Error.yaml を確認してください)",
     );
-    process.exit(1);
+    process.exitCode = 1;
+    return;
   }
 
   const tsCodes = new Set(Object.values(ErrorCodes));
