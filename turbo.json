@@ -21,8 +21,11 @@
     "NEXT_RUNTIME"
   ],
   "tasks": {
+    "//#db:generate": {
+      "cache": false
+    },
     "build": {
-      "dependsOn": ["^build"],
+      "dependsOn": ["^build", "//#db:generate"],
       "inputs": ["$TURBO_DEFAULT$", ".env*"],
       "outputs": [".next/**", "!.next/cache/**", "dist/**"]
     },
@@ -33,7 +36,7 @@
       "dependsOn": ["^format"]
     },
     "typecheck": {
-      "dependsOn": ["^typecheck"]
+      "dependsOn": ["^build", "//#db:generate"]
     },
     "test": {
       "outputs": ["coverage/**"]
