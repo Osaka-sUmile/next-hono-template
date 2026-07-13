@@ -9,6 +9,7 @@
     "deploy": "node ../../scripts/ensure-ci-deploy.mjs && pnpm bundle:openapi && wrangler deploy",
     "typecheck": "pnpm bundle:openapi && tsc --noEmit",
     "bundle:openapi": "tsx scripts/bundle-openapi.ts",
+    "check:error-codes": "tsx scripts/check-error-codes.ts",
     "test": "pnpm bundle:openapi && vitest run",
     "test:watch": "pnpm bundle:openapi && vitest",
     "test:coverage": "pnpm bundle:openapi && vitest run --coverage",
@@ -31,6 +32,7 @@
   "devDependencies": {
     "@apidevtools/swagger-parser": "^12.1.0",
     "@cloudflare/workers-types": "^4.20260702.1",
+    "openapi-types": "^12.1.3",
     "tsx": "^4.23.0",
     "typescript": "5.9.3",
     "vite": "^8.0.16",

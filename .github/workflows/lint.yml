@@ -2,9 +2,9 @@ name: Lint
 
 on:
   push:
-    branches: [ "main" ]
+    branches: [ "main", "develop" ]
   pull_request:
-    branches: [ "main" ]
+    branches: [ "main", "develop" ]
 
 jobs:
   lint:
@@ -33,3 +33,6 @@ jobs:
 
       - name: Run Lint
         run: pnpm run lint
+
+      - name: Check error code consistency
+        run: cd apps/api && pnpm run check:error-codes
