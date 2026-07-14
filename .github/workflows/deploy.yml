@@ -179,10 +179,26 @@ jobs:
       # Sentry の environment タグ用。preview / production はどちらも NODE_ENV=production で
       # ビルドされるため、デプロイ先環境名をビルド時に注入して区別する (GitHub Variables 不要)。
       NEXT_PUBLIC_SENTRY_ENVIRONMENT: ${{ needs.resolve.outputs.environment }}
+      # deploy-api で使った値との不一致検知用 (docs 上は両者とも同じ api Worker の URL)。
+      API_BASE_URL: ${{ vars.API_BASE_URL }}
     steps:
       - uses: actions/checkout@93cb6efe18208431cddfb8368fd83d5badbf9bfd # v5.0.1
         with:
           persist-credentials: false
+
+      # 未設定のままビルドすると apps/web/lib/auth-client.ts が実行時 (ブラウザ) に
+      # 例外を投げて画面が壊れた状態でデプロイされてしまうため、ビルド前に失敗させる。
+      # API_BASE_URL と値が異なる場合も、api/web が別々の URL を向く設定ミスとして検知する。
+      - name: Ensure deploy URLs are configured
+        run: |
+          if [ -z "$NEXT_PUBLIC_API_URL" ]; then
+            echo "::error::GitHub Environment Variables の NEXT_PUBLIC_API_URL が未設定です。Settings → Environments → ${{ needs.resolve.outputs.environment }} の Variables に登録してください (docs/deployment.md 参照)"
+            exit 1
+          fi
+          if [ -n "$API_BASE_URL" ] && [ "$NEXT_PUBLIC_API_URL" != "$API_BASE_URL" ]; then
+            echo "::error::NEXT_PUBLIC_API_URL ($NEXT_PUBLIC_API_URL) と API_BASE_URL ($API_BASE_URL) が一致していません。どちらも同じ api Worker の URL を設定してください (docs/deployment.md 参照)"
+            exit 1
+          fi
 
       - name: Setup pnpm workspace
         uses: ./.github/actions/setup

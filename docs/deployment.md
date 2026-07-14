@@ -244,13 +244,23 @@ DATABASE_URL="<Neon の direct 接続文字列>" \
 ALLOW_LOCAL_DEPLOY=1 CLOUDFLARE_ENV=preview pnpm run deploy
 ```
 
-注意: 環境ごとの URL(`API_BASE_URL` / `WEB_BASE_URL` / `NEXT_PUBLIC_*`)は CI が GitHub Environment Variables から注入するため、ローカルから上記コマンドだけで実行すると URL 系の vars が未定義のままデプロイされる(api は `env.ts` の Zod default である localhost にフォールバックし、CORS が実オリジンを拒否する)。ローカルからデプロイする場合は、CI と同様に `--var` で実値を渡すこと:
+注意: 環境ごとの URL(`API_BASE_URL` / `WEB_BASE_URL` / `NEXT_PUBLIC_*`)は CI が GitHub Environment Variables から注入するため、ローカルから上記コマンドだけで実行すると URL 系の vars が未定義のままデプロイされる(api は `env.ts` の Zod default である localhost にフォールバックし、CORS が実オリジンを拒否する)。ローカルからデプロイする場合は、CI と同様に実値を渡すこと:
 
 ```bash
-# api の例
+# api の例 (--var で wrangler に渡す。サーバーの実行時 env なのでこれで十分)
 ALLOW_LOCAL_DEPLOY=1 CLOUDFLARE_ENV=preview pnpm run deploy \
   --var "API_BASE_URL:https://api-preview.<subdomain>.workers.dev" \
   --var "WEB_BASE_URL:https://web-preview.<subdomain>.workers.dev"
+```
+
+```bash
+# web の例。NEXT_PUBLIC_API_URL はデプロイ前の `next build` でクライアントバンドルへ
+# インラインされるため、--var (wrangler deploy 時のみ有効) では手遅れ。
+# `pnpm run deploy` 実行前のシェル環境変数として渡すこと。
+ALLOW_LOCAL_DEPLOY=1 CLOUDFLARE_ENV=preview \
+NEXT_PUBLIC_API_URL="https://api-preview.<subdomain>.workers.dev" \
+NEXT_PUBLIC_SENTRY_DSN="" \
+  pnpm run deploy --var "NEXT_PUBLIC_API_URL:https://api-preview.<subdomain>.workers.dev"
 ```
 
 ### ステージング/プレビュー環境での Neon ブランチ活用(任意)
