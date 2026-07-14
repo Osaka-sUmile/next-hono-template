@@ -45,7 +45,7 @@ checks (typecheck / test / api・web の dry-run ビルド)
 | :--- | :--- | :--- |
 | GitHub Secrets / Variables | **CI がデプロイ・マイグレーションを実行するための値**と、**環境ごとの URL**(CI が `--var` / ビルド時 env で注入。唯一のソース) | `CLOUDFLARE_API_TOKEN`、migrate 用 `DATABASE_URL`、`API_BASE_URL` / `WEB_BASE_URL`、`NEXT_PUBLIC_*` |
 | `wrangler secret put --env` | **アプリのランタイムシークレット**。CI を経由させずここで完結させる | ランタイム用 `DATABASE_URL`、`AUTH_SECRET` |
-| `wrangler.jsonc` の `vars` | 非シークレットのランタイム設定(コミット対象)。URL 系はプレースホルダのままでよい(CI が上書き) | `NODE_ENV`、`RESEND_FROM_EMAIL` |
+| `wrangler.jsonc` の `vars` | 非シークレットのランタイム設定(コミット対象)。環境ごとの URL はここには定義しない(CI が注入) | `NODE_ENV`、`RESEND_FROM_EMAIL` |
 | ローカルファイル(`.dev.vars` / `.env.local` 等) | ローカル開発専用。デプロイには一切関与しない | README の初期セットアップ参照 |
 
 なお、本番の API ランタイムと DB マイグレーションはどちらも `DATABASE_URL` という同じ名前の変数を使うが、**接続文字列の種類が異なる**([補足](#補足-neon-の接続文字列が-2-種類ある理由)参照)。
@@ -152,7 +152,7 @@ workers.dev の URL は `https://<Worker 名>.<アカウントのサブドメイ
 | `API_BASE_URL` / `NEXT_PUBLIC_API_URL` | api Worker の URL(例: `https://api-preview.<subdomain>.workers.dev`) |
 | `WEB_BASE_URL` | web Worker の URL(例: `https://web-preview.<subdomain>.workers.dev`) |
 
-環境ごとの URL のソースはこの GitHub Environment Variables のみで、`wrangler.jsonc` のプレースホルダは書き換え不要(CI が `wrangler deploy --var` で上書きする)。
+環境ごとの URL のソースはこの GitHub Environment Variables のみ。`wrangler.jsonc` の `env.preview` / `env.production` には URL 系の `vars` は定義されておらず、CI が `wrangler deploy --var` で注入する。
 
 再デプロイは GitHub Actions の Run を re-run するか、workflow_dispatch で手動実行する。`NEXT_PUBLIC_*` はビルド時にクライアントバンドルへインラインされるため、値の変更にはビルドからやり直す再デプロイが必須。
 
@@ -193,7 +193,7 @@ workers.dev の URL は `https://<Worker 名>.<アカウントのサブドメイ
 | :--- | :--- | :--- |
 | `RESEND_FROM_EMAIL` | Resend でドメイン検証(Domains → Add Domain)した送信元アドレスを自分で決める | `apps/api/wrangler.jsonc` の各 env の `vars` |
 
-なお `wrangler.jsonc` にも `API_BASE_URL` / `WEB_BASE_URL` / `NEXT_PUBLIC_*` の記載があるが、これらはプレースホルダのままでよい。実値は GitHub Environment Variables を唯一のソースとして CI が注入する(上の「GitHub 側に登録するもの」参照)。
+環境ごとの URL(`API_BASE_URL` / `WEB_BASE_URL` / `NEXT_PUBLIC_*`)は `wrangler.jsonc` には定義しない。デプロイ環境の実値は GitHub Environment Variables を唯一のソースとして CI が `--var` で注入し(上の「GitHub 側に登録するもの」参照)、ローカル実行(`wrangler dev` / `pnpm preview`)は `.dev.vars` をソースとする。
 
 ### 設定不要(自動供給されるもの)
 
@@ -244,7 +244,7 @@ DATABASE_URL="<Neon の direct 接続文字列>" \
 ALLOW_LOCAL_DEPLOY=1 CLOUDFLARE_ENV=preview pnpm run deploy
 ```
 
-注意: 環境ごとの URL(`API_BASE_URL` / `WEB_BASE_URL` / `NEXT_PUBLIC_*`)は CI が GitHub Environment Variables から注入するため、ローカルから上記コマンドだけで実行すると `wrangler.jsonc` のプレースホルダ URL がデプロイされる。URL 確定後(セットアップ手順 8 以降)にローカルからデプロイする場合は、CI と同様に `--var` で実値を渡すこと:
+注意: 環境ごとの URL(`API_BASE_URL` / `WEB_BASE_URL` / `NEXT_PUBLIC_*`)は CI が GitHub Environment Variables から注入するため、ローカルから上記コマンドだけで実行すると URL 系の vars が未定義のままデプロイされる(api は `env.ts` の Zod default である localhost にフォールバックし、CORS が実オリジンを拒否する)。ローカルからデプロイする場合は、CI と同様に `--var` で実値を渡すこと:
 
 ```bash
 # api の例

@@ -115,7 +115,7 @@ jobs:
   # API のデプロイ。CLOUDFLARE_ENV は wrangler が --env 未指定時に参照するフォールバックで、
   # wrangler.jsonc の env.preview / env.production を選択する。
   # API_BASE_URL / WEB_BASE_URL は GitHub Environment Variables を唯一のソースとし、
-  # `wrangler deploy --var` で注入する (wrangler.jsonc の vars はプレースホルダのまま運用する)。
+  # `wrangler deploy --var` で注入する (wrangler.jsonc の各 env には定義しない)。
   # 値が wrangler.jsonc / GitHub Variables の複数箇所に分散すると同期漏れで CORS エラー等を
   # 起こすため、環境ごとの実 URL は GitHub 側に一元化する (docs/deployment.md 参照)。
   deploy-api:
@@ -134,7 +134,7 @@ jobs:
         with:
           persist-credentials: false
 
-      # 未設定のままデプロイすると wrangler.jsonc のプレースホルダ URL が使われ、
+      # 未設定のままデプロイすると env.ts の Zod default (localhost) が使われ、
       # CORS / better-auth の origin 検証が全リクエストを拒否する状態で公開されてしまうため、
       # デプロイ前に失敗させる。
       - name: Ensure deploy URLs are configured
