@@ -21,15 +21,16 @@
   // NEXT_PUBLIC_* はここに置いてもクライアントバンドルには反映されない。
   // クライアントに公開する値はビルド時に .env.local / CI の環境変数として
   // `pnpm build` (= opennextjs-cloudflare build) に渡す必要がある。
-  // 下記の値は実際の URL ではなくプレースホルダ。デプロイ先の環境に合わせて変更すること。
+  // 実値は GitHub Environment Variables を唯一のソースとし、CI (deploy.yml) がビルド時 env と
+  // `--var` (サーバー側ランタイム用) の両方に同じ値を注入する。このファイルは書き換え不要。
   "vars": {
     "NEXT_PUBLIC_API_URL": "https://api.example.com",
     "NEXT_PUBLIC_SENTRY_DSN": ""
   },
   // vars / services は env に継承されない (non-inheritable) ため、各 env で再定義する。
   // WORKER_SELF_REFERENCE は自 env の worker 名に向けること (web-preview は web-preview を参照)。
-  // vars の NEXT_PUBLIC_* はサーバー側 process.env 用の写し。クライアント反映はビルド時 env
-  // (CI の GitHub Environment Variables) で行うため、両者の値は一致させて運用する。
+  // vars の NEXT_PUBLIC_* はサーバー側 process.env 用の写しで、CI が GitHub Environment
+  // Variables の値を `--var` で注入して上書きするため placeholder のままでよい。
   "env": {
     "preview": {
       "name": "web-preview",
