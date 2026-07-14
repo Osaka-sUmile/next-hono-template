@@ -43,9 +43,9 @@ checks (typecheck / test / api・web の dry-run ビルド)
 
 | 格納場所 | 役割 | 例 |
 | :--- | :--- | :--- |
-| GitHub Secrets / Variables | **CI がデプロイ・マイグレーションを実行するための値**のみ | `CLOUDFLARE_API_TOKEN`、migrate 用 `DATABASE_URL`、ビルド時インラインされる `NEXT_PUBLIC_*` |
+| GitHub Secrets / Variables | **CI がデプロイ・マイグレーションを実行するための値**と、**環境ごとの URL**(CI が `--var` / ビルド時 env で注入。唯一のソース) | `CLOUDFLARE_API_TOKEN`、migrate 用 `DATABASE_URL`、`API_BASE_URL` / `WEB_BASE_URL`、`NEXT_PUBLIC_*` |
 | `wrangler secret put --env` | **アプリのランタイムシークレット**。CI を経由させずここで完結させる | ランタイム用 `DATABASE_URL`、`AUTH_SECRET` |
-| `wrangler.jsonc` の `vars` | 非シークレットのランタイム設定(コミット対象) | `API_BASE_URL`、`RESEND_FROM_EMAIL` |
+| `wrangler.jsonc` の `vars` | 非シークレットのランタイム設定(コミット対象)。環境ごとの URL はここには定義しない(CI が注入) | `NODE_ENV`、`RESEND_FROM_EMAIL` |
 | ローカルファイル(`.dev.vars` / `.env.local` 等) | ローカル開発専用。デプロイには一切関与しない | README の初期セットアップ参照 |
 
 なお、本番の API ランタイムと DB マイグレーションはどちらも `DATABASE_URL` という同じ名前の変数を使うが、**接続文字列の種類が異なる**([補足](#補足-neon-の接続文字列が-2-種類ある理由)参照)。
@@ -109,10 +109,14 @@ pnpm exec wrangler secret put SENTRY_DSN --env production         # 同上、省
 
 ### 6. GitHub Environment Variables の登録
 
-Settings → Environments → 各環境の Variables に以下を登録する。
+Settings → Environments → 各環境の Variables に以下を登録する。URL 3 つは手順 7 で確定するため、それまでは仮値(`https://example.com` 等の非空文字列)で可。
 
-- `NEXT_PUBLIC_API_URL`(URL が確定する手順 7 までは仮値で可)
+- `API_BASE_URL`(api Worker 自身の URL)
+- `WEB_BASE_URL`(web Worker の URL。API の CORS / better-auth の許可 origin に使われる)
+- `NEXT_PUBLIC_API_URL`(api Worker の URL。web のクライアントバンドルにインラインされる)
 - `NEXT_PUBLIC_SENTRY_DSN`(Sentry を使わないなら空文字)
+
+`API_BASE_URL` / `WEB_BASE_URL` が未設定のままだと deploy-api ジョブがデプロイ前に失敗する(プレースホルダ URL のままデプロイされ、CORS が全リクエストを拒否する事故を防ぐため)。
 
 ### 7. 初回デプロイ
 
@@ -141,15 +145,16 @@ workers.dev の URL は `https://<Worker 名>.<アカウントのサブドメイ
 
 ### 8. URL の反映と再デプロイ
 
-手順 7 で確定した URL を以下 3 箇所のプレースホルダ(`https://api.example.com` 等)に反映し、再デプロイする。**preview の URL は preview 用の設定箇所へ、production の URL は production 用の設定箇所へ**、それぞれ対応する場所に設定する。
+手順 7 で確定した URL を **GitHub Environment Variables(手順 6 の仮値)** に反映し、再デプロイする。**preview の URL は Environment `preview` へ、production の URL は Environment `production` へ**設定する(末尾スラッシュなし)。
 
-| 反映先 | preview の URL を入れる場所 | production の URL を入れる場所 |
-| :--- | :--- | :--- |
-| `apps/api/wrangler.jsonc` の `vars`(`API_BASE_URL` / `WEB_BASE_URL`) | `env.preview` | `env.production` |
-| `apps/web/wrangler.jsonc` の `vars`(`NEXT_PUBLIC_API_URL`) | `env.preview` | `env.production` |
-| GitHub Environment Variables(`NEXT_PUBLIC_API_URL`) | Environment `preview` | Environment `production` |
+| 変数 | 設定する値 |
+| :--- | :--- |
+| `API_BASE_URL` / `NEXT_PUBLIC_API_URL` | api Worker の URL(例: `https://api-preview.<subdomain>.workers.dev`) |
+| `WEB_BASE_URL` | web Worker の URL(例: `https://web-preview.<subdomain>.workers.dev`) |
 
-`NEXT_PUBLIC_*` はビルド時にクライアントバンドルへインラインされるため、値の変更にはビルドからやり直す再デプロイが必須。
+環境ごとの URL のソースはこの GitHub Environment Variables のみ。`wrangler.jsonc` の `env.preview` / `env.production` には URL 系の `vars` は定義されておらず、CI が `wrangler deploy --var` で注入する。
+
+再デプロイは GitHub Actions の Run を re-run するか、workflow_dispatch で手動実行する。`NEXT_PUBLIC_*` はビルド時にクライアントバンドルへインラインされるため、値の変更にはビルドからやり直す再デプロイが必須。
 
 ### 9. 動作確認
 
@@ -166,7 +171,9 @@ workers.dev の URL は `https://<Worker 名>.<アカウントのサブドメイ
 | `CLOUDFLARE_API_TOKEN` | ダッシュボード右上のアイコン → My Profile → API Tokens → Create Token → テンプレート「**Edit Cloudflare Workers**」を選択(Account Resources は対象アカウントのみに絞る) | リポジトリ Secret | いいえ(共通) |
 | `CLOUDFLARE_ACCOUNT_ID` | ダッシュボード → Workers & Pages の右サイドバーに表示される Account ID | リポジトリ Secret | いいえ(共通) |
 | `DATABASE_URL` | Neon Console → 対象ブランチ → Connect で **Connection pooling を OFF** にした接続文字列(ホスト名に `-pooler` が付かない = direct) | Environment Secret | はい |
-| `NEXT_PUBLIC_API_URL` | 初回デプロイ後に確定する api Worker の URL(例: `https://api-preview.<subdomain>.workers.dev`)。**末尾スラッシュなし** | Environment Variable | はい |
+| `API_BASE_URL` | 初回デプロイ後に確定する api Worker の URL(例: `https://api-preview.<subdomain>.workers.dev`)。**末尾スラッシュなし**。CI が `wrangler deploy --var` で api Worker に注入する | Environment Variable | はい |
+| `WEB_BASE_URL` | 初回デプロイ後に確定する web Worker の URL(例: `https://web-preview.<subdomain>.workers.dev`)。**末尾スラッシュなし**。API の CORS / better-auth の許可 origin に使われる | Environment Variable | はい |
+| `NEXT_PUBLIC_API_URL` | `API_BASE_URL` と同じ値(api Worker の URL)。web のビルド時にクライアントバンドルへインラインされる | Environment Variable | はい |
 | `NEXT_PUBLIC_SENTRY_DSN` | [sentry.io](https://sentry.io) → web 用プロジェクト(Platform: Next.js)→ Settings → Client Keys (DSN)。**使わないなら空文字で可** | Environment Variable | はい(共通でも可) |
 
 ### Cloudflare 側に登録するもの(`wrangler secret put <NAME> --env <preview|production>`)
@@ -184,9 +191,9 @@ workers.dev の URL は `https://<Worker 名>.<アカウントのサブドメイ
 
 | 変数名 | 値の入手方法 | 場所 |
 | :--- | :--- | :--- |
-| `API_BASE_URL` / `WEB_BASE_URL` | 初回デプロイ後に確定する各 Worker の URL | `apps/api/wrangler.jsonc` の各 env の `vars` |
-| `NEXT_PUBLIC_API_URL` | 同上(api Worker の URL) | `apps/web/wrangler.jsonc` の各 env の `vars`(サーバー側参照用の写し。クライアント反映は GitHub Environment Variable 側) |
 | `RESEND_FROM_EMAIL` | Resend でドメイン検証(Domains → Add Domain)した送信元アドレスを自分で決める | `apps/api/wrangler.jsonc` の各 env の `vars` |
+
+環境ごとの URL(`API_BASE_URL` / `WEB_BASE_URL` / `NEXT_PUBLIC_*`)は `wrangler.jsonc` には定義しない。デプロイ環境の実値は GitHub Environment Variables を唯一のソースとして CI が `--var` で注入し(上の「GitHub 側に登録するもの」参照)、ローカル実行(`wrangler dev` / `pnpm preview`)は `.dev.vars` をソースとする。
 
 ### 設定不要(自動供給されるもの)
 
@@ -235,6 +242,25 @@ DATABASE_URL="<Neon の direct 接続文字列>" \
 
 ```bash
 ALLOW_LOCAL_DEPLOY=1 CLOUDFLARE_ENV=preview pnpm run deploy
+```
+
+注意: 環境ごとの URL(`API_BASE_URL` / `WEB_BASE_URL` / `NEXT_PUBLIC_*`)は CI が GitHub Environment Variables から注入するため、ローカルから上記コマンドだけで実行すると URL 系の vars が未定義のままデプロイされる(api は `env.ts` の Zod default である localhost にフォールバックし、CORS が実オリジンを拒否する)。ローカルからデプロイする場合は、CI と同様に実値を渡すこと:
+
+```bash
+# api の例 (--var で wrangler に渡す。サーバーの実行時 env なのでこれで十分)
+ALLOW_LOCAL_DEPLOY=1 CLOUDFLARE_ENV=preview pnpm run deploy \
+  --var "API_BASE_URL:https://api-preview.<subdomain>.workers.dev" \
+  --var "WEB_BASE_URL:https://web-preview.<subdomain>.workers.dev"
+```
+
+```bash
+# web の例。NEXT_PUBLIC_API_URL はデプロイ前の `next build` でクライアントバンドルへ
+# インラインされるため、--var (wrangler deploy 時のみ有効) では手遅れ。
+# `pnpm run deploy` 実行前のシェル環境変数として渡すこと。
+ALLOW_LOCAL_DEPLOY=1 CLOUDFLARE_ENV=preview \
+NEXT_PUBLIC_API_URL="https://api-preview.<subdomain>.workers.dev" \
+NEXT_PUBLIC_SENTRY_DSN="" \
+  pnpm run deploy --var "NEXT_PUBLIC_API_URL:https://api-preview.<subdomain>.workers.dev"
 ```
 
 ### ステージング/プレビュー環境での Neon ブランチ活用(任意)

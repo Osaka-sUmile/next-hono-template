@@ -12,14 +12,19 @@
   // 注意: env 付きの worker (api-preview / api-production) は top-level とは別 worker 扱いで
   // secret も独立している。デプロイ前に `wrangler secret put <NAME> --env <preview|production>`
   // を環境ごとに実行すること (未登録でもデプロイは成功し、ランタイムエラーで発覚する)。
+  // API_BASE_URL / WEB_BASE_URL はここには定義しない。ローカル開発 (`wrangler dev`) は
+  // .dev.vars の値を使う (未設定なら env.ts の Zod default = localhost にフォールバック)。
   "vars": {
     "NODE_ENV": "production",
-    "API_BASE_URL": "https://api.example.com",
-    "WEB_BASE_URL": "https://example.com",
     "RESEND_FROM_EMAIL": "noreply@example.com"
   },
   // vars は env に継承されない (non-inheritable) ため、各 env で全キーを再定義する。
-  // URL は placeholder。初回デプロイで workers.dev URL が確定したら実値に更新すること。
+  // API_BASE_URL / WEB_BASE_URL は各 env には定義しない。実値は GitHub Environment Variables を
+  // 唯一のソースとし、CI (deploy.yml) が `wrangler deploy --var` で注入する。
+  // ローカルから手動デプロイする場合 (初回セットアップ等) も CI と同様に
+  // `--var API_BASE_URL:... --var WEB_BASE_URL:...` を自分で付けること (docs/deployment.md 参照)。
+  // 未注入のままデプロイすると env.ts の Zod default (localhost) が使われ、CORS / better-auth が
+  // 実オリジンからのリクエストをすべて拒否する状態になるので注意。
   "env": {
     "preview": {
       "name": "api-preview",
@@ -28,8 +33,6 @@
         // Sentry の environment タグ用。preview も NODE_ENV は production のため、
         // 環境の識別はこの変数で行う (未設定時は NODE_ENV にフォールバック)。
         "SENTRY_ENVIRONMENT": "preview",
-        "API_BASE_URL": "https://api-preview.example.com",
-        "WEB_BASE_URL": "https://preview.example.com",
         "RESEND_FROM_EMAIL": "noreply@example.com"
       }
     },
@@ -38,8 +41,6 @@
       "vars": {
         "NODE_ENV": "production",
         "SENTRY_ENVIRONMENT": "production",
-        "API_BASE_URL": "https://api.example.com",
-        "WEB_BASE_URL": "https://example.com",
         "RESEND_FROM_EMAIL": "noreply@example.com"
       }
     }

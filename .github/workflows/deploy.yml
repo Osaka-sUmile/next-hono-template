@@ -114,6 +114,10 @@ jobs:
 
   # API のデプロイ。CLOUDFLARE_ENV は wrangler が --env 未指定時に参照するフォールバックで、
   # wrangler.jsonc の env.preview / env.production を選択する。
+  # API_BASE_URL / WEB_BASE_URL は GitHub Environment Variables を唯一のソースとし、
+  # `wrangler deploy --var` で注入する (wrangler.jsonc の各 env には定義しない)。
+  # 値が wrangler.jsonc / GitHub Variables の複数箇所に分散すると同期漏れで CORS エラー等を
+  # 起こすため、環境ごとの実 URL は GitHub 側に一元化する (docs/deployment.md 参照)。
   deploy-api:
     needs: [resolve, migrate]
     runs-on: ubuntu-latest
@@ -123,10 +127,22 @@ jobs:
       CLOUDFLARE_ENV: ${{ needs.resolve.outputs.environment }}
       CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
       CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+      API_BASE_URL: ${{ vars.API_BASE_URL }}
+      WEB_BASE_URL: ${{ vars.WEB_BASE_URL }}
     steps:
       - uses: actions/checkout@93cb6efe18208431cddfb8368fd83d5badbf9bfd # v5.0.1
         with:
           persist-credentials: false
+
+      # 未設定のままデプロイすると env.ts の Zod default (localhost) が使われ、
+      # CORS / better-auth の origin 検証が全リクエストを拒否する状態で公開されてしまうため、
+      # デプロイ前に失敗させる。
+      - name: Ensure deploy URLs are configured
+        run: |
+          if [ -z "$API_BASE_URL" ] || [ -z "$WEB_BASE_URL" ]; then
+            echo "::error::GitHub Environment Variables の API_BASE_URL / WEB_BASE_URL が未設定です。Settings → Environments → ${{ needs.resolve.outputs.environment }} の Variables に登録してください (docs/deployment.md 参照)"
+            exit 1
+          fi
 
       - name: Setup pnpm workspace
         uses: ./.github/actions/setup
@@ -138,11 +154,16 @@ jobs:
         run: pnpm exec turbo run build --filter=api^...
 
       - name: Deploy API to Cloudflare Workers
-        run: pnpm --filter api run deploy
+        run: >-
+          pnpm --filter api run deploy
+          --var "API_BASE_URL:${API_BASE_URL}"
+          --var "WEB_BASE_URL:${WEB_BASE_URL}"
 
   # Web のデプロイ。新しい web が新しい API に依存するケースを安全側に倒すため API の後に実行する。
   # NEXT_PUBLIC_* はビルド時にクライアントバンドルへインラインされるため、GitHub Environment
   # Variables からビルドプロセスの環境変数として注入する (wrangler.jsonc の vars では不足)。
+  # サーバー側ランタイム (instrumentation.ts 等が process.env を実行時参照する分) へは
+  # deploy-api と同様に `--var` で同じ値を注入し、GitHub Variables を唯一のソースとする。
   # CLOUDFLARE_ENV は OpenNext が spawn する wrangler にそのまま伝播する。
   deploy-web:
     needs: [resolve, deploy-api]
@@ -158,10 +179,26 @@ jobs:
       # Sentry の environment タグ用。preview / production はどちらも NODE_ENV=production で
       # ビルドされるため、デプロイ先環境名をビルド時に注入して区別する (GitHub Variables 不要)。
       NEXT_PUBLIC_SENTRY_ENVIRONMENT: ${{ needs.resolve.outputs.environment }}
+      # deploy-api で使った値との不一致検知用 (docs 上は両者とも同じ api Worker の URL)。
+      API_BASE_URL: ${{ vars.API_BASE_URL }}
     steps:
       - uses: actions/checkout@93cb6efe18208431cddfb8368fd83d5badbf9bfd # v5.0.1
         with:
           persist-credentials: false
+
+      # 未設定のままビルドすると apps/web/lib/auth-client.ts が実行時 (ブラウザ) に
+      # 例外を投げて画面が壊れた状態でデプロイされてしまうため、ビルド前に失敗させる。
+      # API_BASE_URL と値が異なる場合も、api/web が別々の URL を向く設定ミスとして検知する。
+      - name: Ensure deploy URLs are configured
+        run: |
+          if [ -z "$NEXT_PUBLIC_API_URL" ]; then
+            echo "::error::GitHub Environment Variables の NEXT_PUBLIC_API_URL が未設定です。Settings → Environments → ${{ needs.resolve.outputs.environment }} の Variables に登録してください (docs/deployment.md 参照)"
+            exit 1
+          fi
+          if [ -n "$API_BASE_URL" ] && [ "$NEXT_PUBLIC_API_URL" != "$API_BASE_URL" ]; then
+            echo "::error::NEXT_PUBLIC_API_URL ($NEXT_PUBLIC_API_URL) と API_BASE_URL ($API_BASE_URL) が一致していません。どちらも同じ api Worker の URL を設定してください (docs/deployment.md 参照)"
+            exit 1
+          fi
 
       - name: Setup pnpm workspace
         uses: ./.github/actions/setup
@@ -171,5 +208,12 @@ jobs:
       - name: Build workspace dependencies
         run: pnpm exec turbo run build --filter=web^...
 
+      # opennextjs-cloudflare deploy は未知のフラグをそのまま wrangler へパススルーする。
+      # NEXT_PUBLIC_SENTRY_DSN は空文字運用 (Sentry 無効) がありうるため、非空のときだけ渡す。
       - name: Deploy Web to Cloudflare Workers
-        run: pnpm --filter web run deploy
+        run: |
+          extra_vars=(--var "NEXT_PUBLIC_API_URL:${NEXT_PUBLIC_API_URL}")
+          if [ -n "$NEXT_PUBLIC_SENTRY_DSN" ]; then
+            extra_vars+=(--var "NEXT_PUBLIC_SENTRY_DSN:${NEXT_PUBLIC_SENTRY_DSN}")
+          fi
+          pnpm --filter web run deploy "${extra_vars[@]}"

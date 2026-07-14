@@ -17,19 +17,15 @@
       "service": "web"
     }
   ],
-  // サーバー側 (Node.js ランタイム) から参照する環境変数のプレースホルダ。
-  // NEXT_PUBLIC_* はここに置いてもクライアントバンドルには反映されない。
-  // クライアントに公開する値はビルド時に .env.local / CI の環境変数として
-  // `pnpm build` (= opennextjs-cloudflare build) に渡す必要がある。
-  // 下記の値は実際の URL ではなくプレースホルダ。デプロイ先の環境に合わせて変更すること。
-  "vars": {
-    "NEXT_PUBLIC_API_URL": "https://api.example.com",
-    "NEXT_PUBLIC_SENTRY_DSN": ""
-  },
-  // vars / services は env に継承されない (non-inheritable) ため、各 env で再定義する。
+  // NEXT_PUBLIC_* の環境変数はこのファイルには定義しない。
+  // - クライアントバンドル向け: ビルド時に .env.local / CI の環境変数として next build へ
+  //   渡す必要がある (ここに置いてもクライアントには反映されない)。
+  // - サーバー側 (SSR) ランタイム向け: デプロイ環境は CI (deploy.yml) が GitHub Environment
+  //   Variables の値を `wrangler deploy --var` で注入し、ローカル実行は .dev.vars を使う。
+  // services は env に継承されない (non-inheritable) ため、各 env で再定義する。
   // WORKER_SELF_REFERENCE は自 env の worker 名に向けること (web-preview は web-preview を参照)。
-  // vars の NEXT_PUBLIC_* はサーバー側 process.env 用の写し。クライアント反映はビルド時 env
-  // (CI の GitHub Environment Variables) で行うため、両者の値は一致させて運用する。
+  // NEXT_PUBLIC_* (サーバー側 process.env 用) は各 env には定義しない。実値は GitHub
+  // Environment Variables を唯一のソースとし、CI (deploy.yml) が `--var` で注入する。
   "env": {
     "preview": {
       "name": "web-preview",
@@ -38,11 +34,7 @@
           "binding": "WORKER_SELF_REFERENCE",
           "service": "web-preview"
         }
-      ],
-      "vars": {
-        "NEXT_PUBLIC_API_URL": "https://api-preview.example.com",
-        "NEXT_PUBLIC_SENTRY_DSN": ""
-      }
+      ]
     },
     "production": {
       "name": "web-production",
@@ -51,11 +43,7 @@
           "binding": "WORKER_SELF_REFERENCE",
           "service": "web-production"
         }
-      ],
-      "vars": {
-        "NEXT_PUBLIC_API_URL": "https://api.example.com",
-        "NEXT_PUBLIC_SENTRY_DSN": ""
-      }
+      ]
     }
   }
 }
