@@ -131,6 +131,12 @@ jobs:
       - name: Setup pnpm workspace
         uses: ./.github/actions/setup
 
+      # wrangler が @workspace/* を TS ソースからバンドルする際、依存パッケージの dist と
+      # Prisma Client (.prisma/client) が必要なため、turbo 経由で依存のみ事前ビルドする
+      # (build タスクの dependsOn により //#db:generate → prisma generate が先行実行される)。
+      - name: Build workspace dependencies
+        run: pnpm exec turbo run build --filter=api^...
+
       - name: Deploy API to Cloudflare Workers
         run: pnpm --filter api run deploy
 
@@ -159,6 +165,11 @@ jobs:
 
       - name: Setup pnpm workspace
         uses: ./.github/actions/setup
+
+      # next build が @workspace/auth (→ @workspace/database) の dist と Prisma Client に
+      # 依存するため、deploy-api と同様に依存のみ事前ビルドする。
+      - name: Build workspace dependencies
+        run: pnpm exec turbo run build --filter=web^...
 
       - name: Deploy Web to Cloudflare Workers
         run: pnpm --filter web run deploy
