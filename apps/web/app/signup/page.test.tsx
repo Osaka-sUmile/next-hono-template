@@ -6,8 +6,6 @@ const mocks = vi.hoisted(() => ({
   sendVerificationOtp: vi.fn(),
   signInEmailOtp: vi.fn(),
   signInSocial: vi.fn(),
-  updateUser: vi.fn(),
-  reportError: vi.fn(),
   replace: vi.fn(),
 }));
 
@@ -16,12 +14,7 @@ vi.mock("@/lib/auth-client", () => ({
   authClient: {
     emailOtp: { sendVerificationOtp: mocks.sendVerificationOtp },
     signIn: { emailOtp: mocks.signInEmailOtp, social: mocks.signInSocial },
-    updateUser: mocks.updateUser,
   },
-}));
-
-vi.mock("@/lib/report-error", () => ({
-  reportError: mocks.reportError,
 }));
 
 vi.mock("next/navigation", () => ({
@@ -85,22 +78,25 @@ describe("SignupPage", () => {
     ).toBeInTheDocument();
   });
 
-  it("表示名ありなら OTP 成功後に updateUser を呼んでリダイレクトする", async () => {
+  it("表示名ありなら signIn.emailOtp に displayName を渡してリダイレクトする", async () => {
     mocks.sendVerificationOtp.mockResolvedValue({ data: { success: true }, error: null });
     mocks.signInEmailOtp.mockResolvedValue({ data: { token: "tok" }, error: null });
-    mocks.updateUser.mockResolvedValue({ data: { status: true }, error: null });
     render(<SignupPage />);
 
     await submitEmail({ displayName: "テスト太郎" });
     await submitOtp();
 
+    expect(mocks.signInEmailOtp).toHaveBeenCalledWith({
+      email: "test@example.com",
+      otp: "123456",
+      displayName: "テスト太郎",
+    });
     await waitFor(() => {
-      expect(mocks.updateUser).toHaveBeenCalledWith({ displayName: "テスト太郎" });
       expect(mocks.replace).toHaveBeenCalledWith("/");
     });
   });
 
-  it("表示名が空なら updateUser を呼ばない", async () => {
+  it("表示名が空なら signIn.emailOtp に displayName を渡さない", async () => {
     mocks.sendVerificationOtp.mockResolvedValue({ data: { success: true }, error: null });
     mocks.signInEmailOtp.mockResolvedValue({ data: { token: "tok" }, error: null });
     render(<SignupPage />);
@@ -108,28 +104,13 @@ describe("SignupPage", () => {
     await submitEmail();
     await submitOtp();
 
+    expect(mocks.signInEmailOtp).toHaveBeenCalledWith({
+      email: "test@example.com",
+      otp: "123456",
+    });
     await waitFor(() => {
       expect(mocks.replace).toHaveBeenCalledWith("/");
     });
-    expect(mocks.updateUser).not.toHaveBeenCalled();
-  });
-
-  it("updateUser が失敗してもリダイレクトし、reportError で報告する", async () => {
-    mocks.sendVerificationOtp.mockResolvedValue({ data: { success: true }, error: null });
-    mocks.signInEmailOtp.mockResolvedValue({ data: { token: "tok" }, error: null });
-    mocks.updateUser.mockResolvedValue({
-      data: null,
-      error: { message: "failed", status: 500, statusText: "Internal Server Error" },
-    });
-    render(<SignupPage />);
-
-    await submitEmail({ displayName: "テスト太郎" });
-    await submitOtp();
-
-    await waitFor(() => {
-      expect(mocks.replace).toHaveBeenCalledWith("/");
-    });
-    expect(mocks.reportError).toHaveBeenCalledOnce();
   });
 
   it("OTP が不正ならエラーメッセージを表示し、リダイレクトしない", async () => {

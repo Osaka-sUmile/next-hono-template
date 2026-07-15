@@ -7,7 +7,6 @@ import { HugeiconsIcon } from "@hugeicons/react";
 import { AppleIcon, GoogleIcon } from "@hugeicons/core-free-icons";
 import { Button } from "@workspace/ui/components/button";
 import { authClient } from "@/lib/auth-client";
-import { reportError } from "@/lib/report-error";
 
 type Step = "request" | "verify";
 
@@ -40,18 +39,17 @@ export default function SignupPage() {
     e.preventDefault();
     setError(null);
     setLoading(true);
-    const { error } = await authClient.signIn.emailOtp({ email, otp });
+    // displayName は signIn.emailOtp の追加フィールドとして渡す。
+    // 既存ユーザーのサインイン時はサーバー側で無視されるため、初回登録時にのみ反映される。
+    const { error } = await authClient.signIn.emailOtp({
+      email,
+      otp,
+      ...(displayName ? { displayName } : {}),
+    });
+    setLoading(false);
     if (error) {
-      setLoading(false);
       setError("コードが正しくありません。または有効期限が切れています。");
       return;
-    }
-    if (displayName) {
-      // サインイン自体は成功しているため、表示名の保存失敗で登録フローを止めない
-      const { error: updateError } = await authClient.updateUser({ displayName });
-      if (updateError) {
-        reportError(new Error(`Failed to save displayName after signup: ${updateError.message}`));
-      }
     }
     router.replace("/");
   }
