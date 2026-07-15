@@ -15,6 +15,8 @@ interface AuthConfig {
   prisma: PrismaClientInput;
   secret: string;
   baseURL: string;
+  /** web アプリのオリジン。「アカウント未登録」案内メール内の登録ページ URL に使う。 */
+  webBaseURL: string;
   trustedOrigins: string[];
   resendApiKey: string;
   resendFromEmail: string;
@@ -24,6 +26,40 @@ interface AuthConfig {
 
 export function createAuth(config: AuthConfig) {
   const resendClient = new Resend(config.resendApiKey);
+
+  // OTP 本体を送る（従来の挙動）。
+  async function sendOtpEmail(email: string, otp: string, type: string) {
+    const subject =
+      type === "forget-password" ? "パスワードリセットコード" :
+      type === "change-email"    ? "メールアドレス変更コード" :
+                                   "認証コード";
+    const body = `${subject}: ${otp}\n\nこのコードは5分間有効です。`;
+    const { error } = await resendClient.emails.send({
+      from: config.resendFromEmail,
+      to: email,
+      subject,
+      text: body,
+    });
+    if (error) throw new Error(`Failed to send OTP email: ${error.message ?? JSON.stringify(error)}`);
+  }
+
+  // 未登録メールでのログイン試行に対し、OTP の代わりに登録導線を案内するメールを送る。
+  // OTP を送らないことで自動アカウント作成を避けつつ、ユーザーには必ずフィードバックを届ける。
+  async function sendNoAccountEmail(email: string) {
+    const signupUrl = `${config.webBaseURL}/signup`;
+    const subject = "アカウントが見つかりません";
+    const body =
+      `このメールアドレスのアカウントは登録されていません。\n\n` +
+      `新規登録はこちら: ${signupUrl}\n\n` +
+      `お心当たりがない場合はこのメールを無視してください。`;
+    const { error } = await resendClient.emails.send({
+      from: config.resendFromEmail,
+      to: email,
+      subject,
+      text: body,
+    });
+    if (error) throw new Error(`Failed to send no-account email: ${error.message ?? JSON.stringify(error)}`);
+  }
 
   return betterAuth({
     secret: config.secret,
@@ -56,19 +92,23 @@ export function createAuth(config: AuthConfig) {
     plugins: [
       emailOTP({
         changeEmail: { enabled: true },
-        async sendVerificationOTP({ email, otp, type }: { email: string; otp: string; type: string }) {
-          const subject =
-            type === "forget-password" ? "パスワードリセットコード" :
-            type === "change-email"    ? "メールアドレス変更コード" :
-                                         "認証コード";
-          const body = `${subject}: ${otp}\n\nこのコードは5分間有効です。`;
-          const { error } = await resendClient.emails.send({
-            from: config.resendFromEmail,
-            to: email,
-            subject,
-            text: body,
-          });
-          if (error) throw new Error(`Failed to send OTP email: ${error.message ?? JSON.stringify(error)}`);
+        async sendVerificationOTP({ email, otp, type }: { email: string; otp: string; type: string }, ctx) {
+          // sign-in 系のみ、ログイン/新規登録の契約を分離する。
+          // signup ページからの送信だけが x-signup-intent ヘッダを付与する。
+          // ctx が無い場合は意図も登録状態も判定できないため分岐をスキップし OTP 送信に
+          // フォールバックする（実ユーザーを止めない。未登録の作成防止は verify 時の before フックが担保）。
+          if (type === "sign-in" && ctx) {
+            const isSignUpIntent = ctx.getHeader("x-signup-intent") === "1";
+            // email は send ルートで小文字化済み。verify 側フックと同じ内部アダプタで判定する。
+            const isRegistered = !!(await ctx.context.internalAdapter.findUserByEmail(email));
+            // 未登録 かつ 登録意図なし(=ログイン試行) → OTP を送らず登録導線を案内する。
+            // レスポンスは success:true のまま変えない（アカウント列挙を防ぐため throw しない）。
+            if (!isRegistered && !isSignUpIntent) {
+              await sendNoAccountEmail(email);
+              return;
+            }
+          }
+          await sendOtpEmail(email, otp, type);
         },
       }),
     ],

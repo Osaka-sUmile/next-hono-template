@@ -99,7 +99,7 @@ describe("LoginPage", () => {
     fireEvent.click(screen.getByRole("button", { name: "ログイン" }));
 
     expect(
-      await screen.findByText("コードが正しくないか、有効期限切れです。未登録のメールアドレスの可能性もあります。"),
+      await screen.findByText("コードが正しくありません。または有効期限が切れています。"),
     ).toBeInTheDocument();
     expect(mocks.replace).not.toHaveBeenCalled();
   });

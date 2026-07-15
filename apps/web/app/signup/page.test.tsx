@@ -57,10 +57,10 @@ describe("SignupPage", () => {
 
     await submitEmail();
 
-    expect(mocks.sendVerificationOtp).toHaveBeenCalledWith({
-      email: "test@example.com",
-      type: "sign-in",
-    });
+    expect(mocks.sendVerificationOtp).toHaveBeenCalledWith(
+      { email: "test@example.com", type: "sign-in" },
+      { headers: { "x-signup-intent": "1" } },
+    );
     expect(await screen.findByLabelText("認証コード")).toBeInTheDocument();
   });
 

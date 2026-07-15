@@ -69,6 +69,7 @@ export function createApp(env: Env): Hono<AppEnv> {
     prisma,
     secret: env.AUTH_SECRET,
     baseURL: env.API_BASE_URL,
+    webBaseURL: env.WEB_BASE_URL,
     trustedOrigins: [env.WEB_BASE_URL],
     resendApiKey: env.RESEND_API_KEY,
     resendFromEmail: env.RESEND_FROM_EMAIL,
