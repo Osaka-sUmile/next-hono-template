@@ -2,7 +2,7 @@
 NODE_ENV=development
 
 # Database connection string (Neon serverless driver + docker wsproxy 経由でローカル Postgres に接続)
-DATABASE_URL="postgresql://user:password@db:5432/app"
+DATABASE_URL="postgresql://user:password@localhost:5432/app"
 
 # Auth (better-auth)
 # AUTH_SECRET は `openssl rand -base64 32` で生成した値に置き換えること（本番とは別の値を使う）。
