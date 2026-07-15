@@ -41,9 +41,12 @@ export default function SignupPage() {
     setLoading(true);
     // displayName は signIn.emailOtp の追加フィールドとして渡す。
     // 既存ユーザーのサインイン時はサーバー側で無視されるため、初回登録時にのみ反映される。
+    // signUp: true は登録意図の明示。これがないリクエストはサーバー側フックが
+    // 未登録メールを拒否するため、/login からの自動アカウント作成は起きない。
     const { error } = await authClient.signIn.emailOtp({
       email,
       otp,
+      signUp: true,
       ...(displayName ? { displayName } : {}),
     });
     setLoading(false);

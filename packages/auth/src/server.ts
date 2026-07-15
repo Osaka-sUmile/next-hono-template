@@ -1,5 +1,6 @@
 import { betterAuth } from "better-auth";
 import { prismaAdapter } from "better-auth/adapters/prisma";
+import { APIError, createAuthMiddleware } from "better-auth/api";
 import { emailOTP } from "better-auth/plugins";
 import { Resend } from "resend";
 import type { PrismaClient } from "@prisma/client";
@@ -35,6 +36,23 @@ export function createAuth(config: AuthConfig) {
     database: prismaAdapter(config.prisma, {
       provider: "postgresql",
     }),
+    hooks: {
+      // emailOTP プラグインの sign-in は未登録メールを自動的に新規登録するため、
+      // 明示的な登録意図 (body.signUp === true) がないリクエストでは未登録メールを拒否し、
+      // ログイン(/login)と新規登録(/signup)の契約を分離する。
+      // 未登録エラーは OTP 不一致と同じレスポンスにし、アカウント列挙を防ぐ。
+      before: createAuthMiddleware(async (ctx) => {
+        if (ctx.path !== "/sign-in/email-otp") return;
+        const body = ctx.body as { email?: unknown; signUp?: unknown } | undefined;
+        if (body?.signUp === true) return;
+        // email の形式検証はプラグイン本体の Zod スキーマに任せる
+        if (typeof body?.email !== "string") return;
+        const user = await ctx.context.internalAdapter.findUserByEmail(body.email.toLowerCase());
+        if (!user) {
+          throw new APIError("BAD_REQUEST", { message: "Invalid OTP", code: "INVALID_OTP" });
+        }
+      }),
+    },
     plugins: [
       emailOTP({
         changeEmail: { enabled: true },

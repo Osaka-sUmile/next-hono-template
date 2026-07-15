@@ -41,7 +41,7 @@ export default function LoginPage() {
     const { error } = await authClient.signIn.emailOtp({ email, otp });
     if (error) {
       setLoading(false);
-      setError("コードが正しくありません。または有効期限が切れています。");
+      setError("コードが正しくないか、有効期限切れです。未登録のメールアドレスの可能性もあります。");
       return;
     }
     router.replace("/");

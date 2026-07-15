@@ -89,6 +89,7 @@ describe("SignupPage", () => {
     expect(mocks.signInEmailOtp).toHaveBeenCalledWith({
       email: "test@example.com",
       otp: "123456",
+      signUp: true,
       displayName: "テスト太郎",
     });
     await waitFor(() => {
@@ -107,6 +108,7 @@ describe("SignupPage", () => {
     expect(mocks.signInEmailOtp).toHaveBeenCalledWith({
       email: "test@example.com",
       otp: "123456",
+      signUp: true,
     });
     await waitFor(() => {
       expect(mocks.replace).toHaveBeenCalledWith("/");
