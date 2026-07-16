@@ -109,8 +109,9 @@ export async function createApp(env: Env): Promise<CreatedApp> {
 
     return { app, prisma };
   } catch (error) {
-    // 構築途中で失敗した場合、呼び出し側(index.ts)は prisma を受け取れず後始末できないためここで解放する
-    await prisma.$disconnect();
+    // 構築途中で失敗した場合、呼び出し側(index.ts)は prisma を受け取れず後始末できないためここで解放する。
+    // $disconnect() 自体の失敗で元の構築エラーを握り潰さないよう、後始末のエラーは無視して元の error を再送出する。
+    await prisma.$disconnect().catch(() => {});
     throw error;
   }
 }
