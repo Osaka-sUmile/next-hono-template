@@ -93,7 +93,7 @@ describe("SignupPage", () => {
       displayName: "テスト太郎",
     });
     await waitFor(() => {
-      expect(mocks.replace).toHaveBeenCalledWith("/");
+      expect(mocks.replace).toHaveBeenCalledWith("/dashboard");
     });
   });
 
@@ -111,7 +111,7 @@ describe("SignupPage", () => {
       signUp: true,
     });
     await waitFor(() => {
-      expect(mocks.replace).toHaveBeenCalledWith("/");
+      expect(mocks.replace).toHaveBeenCalledWith("/dashboard");
     });
   });
 
@@ -141,7 +141,7 @@ describe("SignupPage", () => {
     await waitFor(() => {
       expect(mocks.signInSocial).toHaveBeenCalledWith({
         provider: "google",
-        callbackURL: `${window.location.origin}/`,
+        callbackURL: `${window.location.origin}/dashboard`,
         errorCallbackURL: `${window.location.origin}/signup`,
       });
     });

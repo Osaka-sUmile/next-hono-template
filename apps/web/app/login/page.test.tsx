@@ -80,7 +80,7 @@ describe("LoginPage", () => {
         email: "test@example.com",
         otp: "123456",
       });
-      expect(mocks.replace).toHaveBeenCalledWith("/");
+      expect(mocks.replace).toHaveBeenCalledWith("/dashboard");
     });
   });
 
@@ -113,7 +113,7 @@ describe("LoginPage", () => {
     await waitFor(() => {
       expect(mocks.signInSocial).toHaveBeenCalledWith({
         provider: "google",
-        callbackURL: `${window.location.origin}/`,
+        callbackURL: `${window.location.origin}/dashboard`,
         errorCallbackURL: `${window.location.origin}/login`,
       });
     });
