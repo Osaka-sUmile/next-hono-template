@@ -15,9 +15,10 @@ import {
 } from "../presentation";
 import { setupSwagger, type Env } from "../infrastructure";
 
-// レートリミッターの in-memory ストアをリクエスト間で共有するためモジュールスコープで一度だけ生成する。
-// createApp/buildApp はリクエストごとに実行されるため、ここで生成しないとカウントが毎回リセットされてしまう。
-const authLimiter = createAuthLimiter();
+// レートリミッターの in-memory ストアをリクエスト間で共有するためモジュールスコープに一度だけ保持する。
+// ただし createAuthLimiter() は内部で setInterval を使い、Workers はグローバルスコープでの
+// setInterval を禁止するため、モジュール読み込み時ではなく初回リクエスト(ハンドラ内)で遅延生成する。
+let authLimiter: ReturnType<typeof createAuthLimiter> | undefined;
 
 export type AppEnv = { Variables: AuthVariables };
 
@@ -43,6 +44,7 @@ export function buildApp(deps: AppDeps): Hono<AppEnv> {
   app.use(cors({ origin: deps.env.WEB_BASE_URL, credentials: true }));
 
   // better-auth ハンドラ。レート制限を先行適用し、Web 標準の Request をそのまま渡す。
+  authLimiter ??= createAuthLimiter();
   app.use("/api/auth/*", authLimiter);
   app.on(["GET", "POST"], "/api/auth/*", (c) => deps.auth.handler(c.req.raw));
 
