@@ -56,7 +56,7 @@ export default function SignupPage() {
       setError("コードが正しくありません。または有効期限が切れています。");
       return;
     }
-    router.replace("/");
+    router.replace("/dashboard");
   }
 
   async function handleSocial(provider: "google" | "apple") {
@@ -65,7 +65,7 @@ export default function SignupPage() {
     // callbackURL は API オリジン基準で解決されるため、web 側の絶対 URL を渡す必要がある
     const { error } = await authClient.signIn.social({
       provider,
-      callbackURL: `${window.location.origin}/`,
+      callbackURL: `${window.location.origin}/dashboard`,
       errorCallbackURL: `${window.location.origin}/signup`,
     });
     if (error) {
