@@ -23,10 +23,12 @@ export default function SignupPage() {
     e.preventDefault();
     setError(null);
     setLoading(true);
-    const { error } = await authClient.emailOtp.sendVerificationOtp({
-      email,
-      type: "sign-in",
-    });
+    // x-signup-intent ヘッダで登録意図をサーバーに伝える。
+    // これがないと未登録メールは OTP が送られず「登録はこちら」案内メールになる。
+    const { error } = await authClient.emailOtp.sendVerificationOtp(
+      { email, type: "sign-in" },
+      { headers: { "x-signup-intent": "1" } },
+    );
     setLoading(false);
     if (error) {
       setError("送信に失敗しました。しばらく経ってから再試行してください。");
@@ -41,9 +43,12 @@ export default function SignupPage() {
     setLoading(true);
     // displayName は signIn.emailOtp の追加フィールドとして渡す。
     // 既存ユーザーのサインイン時はサーバー側で無視されるため、初回登録時にのみ反映される。
+    // signUp: true は登録意図の明示。これがないリクエストはサーバー側フックが
+    // 未登録メールを拒否するため、/login からの自動アカウント作成は起きない。
     const { error } = await authClient.signIn.emailOtp({
       email,
       otp,
+      signUp: true,
       ...(displayName ? { displayName } : {}),
     });
     setLoading(false);

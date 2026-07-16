@@ -57,10 +57,10 @@ describe("SignupPage", () => {
 
     await submitEmail();
 
-    expect(mocks.sendVerificationOtp).toHaveBeenCalledWith({
-      email: "test@example.com",
-      type: "sign-in",
-    });
+    expect(mocks.sendVerificationOtp).toHaveBeenCalledWith(
+      { email: "test@example.com", type: "sign-in" },
+      { headers: { "x-signup-intent": "1" } },
+    );
     expect(await screen.findByLabelText("認証コード")).toBeInTheDocument();
   });
 
@@ -89,6 +89,7 @@ describe("SignupPage", () => {
     expect(mocks.signInEmailOtp).toHaveBeenCalledWith({
       email: "test@example.com",
       otp: "123456",
+      signUp: true,
       displayName: "テスト太郎",
     });
     await waitFor(() => {
@@ -107,6 +108,7 @@ describe("SignupPage", () => {
     expect(mocks.signInEmailOtp).toHaveBeenCalledWith({
       email: "test@example.com",
       otp: "123456",
+      signUp: true,
     });
     await waitFor(() => {
       expect(mocks.replace).toHaveBeenCalledWith("/");

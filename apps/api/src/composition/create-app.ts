@@ -88,12 +88,14 @@ export async function createApp(env: Env): Promise<CreatedApp> {
       prisma,
       secret: env.AUTH_SECRET,
       baseURL: env.API_BASE_URL,
+      webBaseURL: env.WEB_BASE_URL,
       trustedOrigins: [env.WEB_BASE_URL],
       resendApiKey: env.RESEND_API_KEY,
       resendFromEmail: env.RESEND_FROM_EMAIL,
       google: { clientId: env.GOOGLE_CLIENT_ID, clientSecret: env.GOOGLE_CLIENT_SECRET },
       apple: { clientId: env.APPLE_CLIENT_ID, clientSecret: env.APPLE_CLIENT_SECRET },
     });
+
 
     const userQueryService = new UserQueryService(prisma);
     const getCurrentUserUseCase = new GetCurrentUserUseCase(userQueryService);
@@ -107,8 +109,9 @@ export async function createApp(env: Env): Promise<CreatedApp> {
 
     return { app, prisma };
   } catch (error) {
-    // 構築途中で失敗した場合、呼び出し側(index.ts)は prisma を受け取れず後始末できないためここで解放する
-    await prisma.$disconnect();
+    // 構築途中で失敗した場合、呼び出し側(index.ts)は prisma を受け取れず後始末できないためここで解放する。
+    // $disconnect() 自体の失敗で元の構築エラーを握り潰さないよう、後始末のエラーは無視して元の error を再送出する。
+    await prisma.$disconnect().catch(() => {});
     throw error;
   }
 }
