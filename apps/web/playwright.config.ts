@@ -9,6 +9,13 @@ import { defineConfig, devices } from '@playwright/test';
 // dotenv.config({ path: path.resolve(__dirname, '.env') });
 
 /**
+ * ローカルで開発サーバー(既定 3000)が起動中でも衝突せず e2e を回せるよう、
+ * `PLAYWRIGHT_PORT` でポートを差し替え可能にする。CI は未指定=3000 のまま。
+ */
+const PORT = process.env.PLAYWRIGHT_PORT ?? '3000';
+const BASE_URL = `http://127.0.0.1:${PORT}`;
+
+/**
  * See https://playwright.dev/docs/test-configuration.
  */
 export default defineConfig({
@@ -26,7 +33,7 @@ export default defineConfig({
   /* Shared settings for all the projects below. See https://playwright.dev/docs/api/class-testoptions. */
   use: {
     /* Base URL to use in actions like `await page.goto('')`. */
-    baseURL: 'http://127.0.0.1:3000',
+    baseURL: BASE_URL,
 
     /* Collect trace when retrying the failed test. See https://playwright.dev/docs/trace-viewer */
     trace: 'on-first-retry',
@@ -72,8 +79,8 @@ export default defineConfig({
 
   /* Run your local dev server before starting the tests */
   webServer: {
-    command: 'pnpm start',
-    url: 'http://127.0.0.1:3000',
+    command: `pnpm start --port ${PORT}`,
+    url: BASE_URL,
     reuseExistingServer: !process.env.CI,
   },
 });

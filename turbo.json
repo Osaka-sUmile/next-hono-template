@@ -18,7 +18,8 @@
     "NEXT_PUBLIC_SENTRY_DSN",
     "NEXT_PUBLIC_SENTRY_ENVIRONMENT",
     "SENTRY_ENVIRONMENT",
-    "NEXT_RUNTIME"
+    "NEXT_RUNTIME",
+    "PLAYWRIGHT_PORT"
   ],
   "tasks": {
     "//#db:generate": {

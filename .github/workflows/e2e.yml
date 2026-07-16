@@ -2,9 +2,9 @@ name: E2E Tests
 
 on:
   push:
-    branches: [ "main" ]
+    branches: [ "main", "develop" ]
   pull_request:
-    branches: [ "main" ]
+    branches: [ "main", "develop" ]
 
 jobs:
   e2e:
@@ -27,7 +27,12 @@ jobs:
         run: pnpm install --frozen-lockfile
 
       - name: Build Web App
+        # NEXT_PUBLIC_API_URL は build 時にインライン化され、未設定だと
+        # auth-client が throw してビルドが失敗する。e2e では /api/auth/* を
+        # route interception でモックするため、実際に到達しないダミー値でよい。
         run: cd apps/web && pnpm build
+        env:
+          NEXT_PUBLIC_API_URL: http://127.0.0.1:8787
 
       - name: Install Playwright Browsers
         run: cd apps/web && pnpm exec playwright install --with-deps
