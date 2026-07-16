@@ -26,6 +26,7 @@ import {
   DropdownMenuTrigger,
 } from "@workspace/ui/components/dropdown-menu";
 import { authClient } from "@/lib/auth-client";
+import { reportError } from "@/lib/report-error";
 
 /**
  * 保護エリア共通のヘッダー。
@@ -42,13 +43,21 @@ export function AppHeader() {
   async function handleSignOut() {
     setError(null);
     setLoading(true);
-    const { error } = await authClient.signOut();
-    setLoading(false);
-    if (error) {
+    try {
+      // 戻り値の { error }(想定内エラー)は UI 通知のみ、
+      // reject(ネットワーク断など想定外エラー)は reportError で Sentry へ送る。
+      const { error } = await authClient.signOut();
+      if (error) {
+        setError("ログアウトに失敗しました。");
+        return;
+      }
+      router.replace("/login");
+    } catch (err) {
+      reportError(err);
       setError("ログアウトに失敗しました。");
-      return;
+    } finally {
+      setLoading(false);
     }
-    router.replace("/login");
   }
 
   return (

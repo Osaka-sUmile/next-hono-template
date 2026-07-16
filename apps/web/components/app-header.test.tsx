@@ -8,6 +8,7 @@ const mocks = vi.hoisted(() => ({
   signOut: vi.fn(),
   replace: vi.fn(),
   setTheme: vi.fn(),
+  reportError: vi.fn(),
 }));
 
 // auth-client は import 時に NEXT_PUBLIC_API_URL を要求して throw するため、モジュールごと差し替える
@@ -16,6 +17,11 @@ vi.mock("@/lib/auth-client", () => ({
     useSession: mocks.useSession,
     signOut: mocks.signOut,
   },
+}));
+
+// reportError は内部で Sentry を叩くため、呼び出し検証用にモックする
+vi.mock("@/lib/report-error", () => ({
+  reportError: mocks.reportError,
 }));
 
 vi.mock("next/navigation", () => ({
@@ -87,6 +93,24 @@ describe("AppHeader", () => {
     await user.click(await screen.findByRole("menuitem", { name: "ログアウト" }));
 
     expect(await screen.findByRole("alert")).toHaveTextContent("ログアウトに失敗しました。");
+    expect(mocks.replace).not.toHaveBeenCalled();
+    // 戻り値の { error } は想定内エラーなので Sentry へは送らない
+    expect(mocks.reportError).not.toHaveBeenCalled();
+  });
+
+  it("ログアウトが reject したらエラーを表示し reportError を呼び、遷移しない", async () => {
+    const user = userEvent.setup();
+    mocks.signOut.mockRejectedValue(new Error("network down"));
+    render(<AppHeader />);
+
+    await user.click(screen.getByRole("button", { name: "アカウントメニュー" }));
+    await user.click(await screen.findByRole("menuitem", { name: "ログアウト" }));
+
+    expect(await screen.findByRole("alert")).toHaveTextContent("ログアウトに失敗しました。");
+    // reject(想定外エラー)は Sentry へ送る
+    await waitFor(() => {
+      expect(mocks.reportError).toHaveBeenCalledTimes(1);
+    });
     expect(mocks.replace).not.toHaveBeenCalled();
   });
 
