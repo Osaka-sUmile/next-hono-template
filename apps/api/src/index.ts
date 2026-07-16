@@ -12,7 +12,7 @@ import { parseEnv, type WorkerBindings } from "./infrastructure";
 // prisma.$disconnect() を waitUntil で実行する。
 const handler = {
   async fetch(req, rawEnv, ctx) {
-    const { app, prisma } = createApp(parseEnv(rawEnv));
+    const { app, prisma } = await createApp(parseEnv(rawEnv));
     try {
       return await app.fetch(req, rawEnv, ctx);
     } finally {

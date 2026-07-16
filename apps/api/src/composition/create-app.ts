@@ -15,6 +15,10 @@ import {
 } from "../presentation";
 import { setupSwagger, type Env } from "../infrastructure";
 
+// レートリミッターの in-memory ストアをリクエスト間で共有するためモジュールスコープで一度だけ生成する。
+// createApp/buildApp はリクエストごとに実行されるため、ここで生成しないとカウントが毎回リセットされてしまう。
+const authLimiter = createAuthLimiter();
+
 export type AppEnv = { Variables: AuthVariables };
 
 export type AppDeps = {
@@ -39,7 +43,7 @@ export function buildApp(deps: AppDeps): Hono<AppEnv> {
   app.use(cors({ origin: deps.env.WEB_BASE_URL, credentials: true }));
 
   // better-auth ハンドラ。レート制限を先行適用し、Web 標準の Request をそのまま渡す。
-  app.use("/api/auth/*", createAuthLimiter());
+  app.use("/api/auth/*", authLimiter);
   app.on(["GET", "POST"], "/api/auth/*", (c) => deps.auth.handler(c.req.raw));
 
   const requireAuth = createRequireAuth(deps.auth);
@@ -72,31 +76,37 @@ export type CreatedApp = {
   prisma: ReturnType<typeof createPrismaClient>;
 };
 
-export function createApp(env: Env): CreatedApp {
+export async function createApp(env: Env): Promise<CreatedApp> {
   const prisma = createPrismaClient(env.DATABASE_URL, {
     queryLogging: env.NODE_ENV === "development",
     localProxy: env.NODE_ENV === "development",
   });
-  const auth = createAuth({
-    prisma,
-    secret: env.AUTH_SECRET,
-    baseURL: env.API_BASE_URL,
-    trustedOrigins: [env.WEB_BASE_URL],
-    resendApiKey: env.RESEND_API_KEY,
-    resendFromEmail: env.RESEND_FROM_EMAIL,
-    google: { clientId: env.GOOGLE_CLIENT_ID, clientSecret: env.GOOGLE_CLIENT_SECRET },
-    apple: { clientId: env.APPLE_CLIENT_ID, clientSecret: env.APPLE_CLIENT_SECRET },
-  });
+  try {
+    const auth = createAuth({
+      prisma,
+      secret: env.AUTH_SECRET,
+      baseURL: env.API_BASE_URL,
+      trustedOrigins: [env.WEB_BASE_URL],
+      resendApiKey: env.RESEND_API_KEY,
+      resendFromEmail: env.RESEND_FROM_EMAIL,
+      google: { clientId: env.GOOGLE_CLIENT_ID, clientSecret: env.GOOGLE_CLIENT_SECRET },
+      apple: { clientId: env.APPLE_CLIENT_ID, clientSecret: env.APPLE_CLIENT_SECRET },
+    });
 
-  const userQueryService = new UserQueryService(prisma);
-  const getCurrentUserUseCase = new GetCurrentUserUseCase(userQueryService);
+    const userQueryService = new UserQueryService(prisma);
+    const getCurrentUserUseCase = new GetCurrentUserUseCase(userQueryService);
 
-  const app = buildApp({
-    env,
-    auth,
-    healthController: new HealthController(),
-    userController: new UserController(getCurrentUserUseCase),
-  });
+    const app = buildApp({
+      env,
+      auth,
+      healthController: new HealthController(),
+      userController: new UserController(getCurrentUserUseCase),
+    });
 
-  return { app, prisma };
+    return { app, prisma };
+  } catch (error) {
+    // 構築途中で失敗した場合、呼び出し側(index.ts)は prisma を受け取れず後始末できないためここで解放する
+    await prisma.$disconnect();
+    throw error;
+  }
 }
