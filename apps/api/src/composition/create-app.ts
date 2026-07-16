@@ -60,7 +60,19 @@ export function buildApp(deps: AppDeps): Hono<AppEnv> {
   return app;
 }
 
-export function createApp(env: Env): Hono<AppEnv> {
+/**
+ * createApp の戻り値。
+ * Neon serverless driver の接続 (WebSocket) を保持する prisma は Workers の
+ * 「リクエスト跨ぎ I/O 禁止」制約によりリクエスト間で使い回せないため、リクエスト
+ * 単位で構築し、レスポンス後に prisma.$disconnect() で後始末する必要がある。
+ * 呼び出し側 (index.ts) がクリーンアップできるよう prisma も併せて返す。
+ */
+export type CreatedApp = {
+  app: Hono<AppEnv>;
+  prisma: ReturnType<typeof createPrismaClient>;
+};
+
+export function createApp(env: Env): CreatedApp {
   const prisma = createPrismaClient(env.DATABASE_URL, {
     queryLogging: env.NODE_ENV === "development",
     localProxy: env.NODE_ENV === "development",
@@ -79,10 +91,12 @@ export function createApp(env: Env): Hono<AppEnv> {
   const userQueryService = new UserQueryService(prisma);
   const getCurrentUserUseCase = new GetCurrentUserUseCase(userQueryService);
 
-  return buildApp({
+  const app = buildApp({
     env,
     auth,
     healthController: new HealthController(),
     userController: new UserController(getCurrentUserUseCase),
   });
+
+  return { app, prisma };
 }

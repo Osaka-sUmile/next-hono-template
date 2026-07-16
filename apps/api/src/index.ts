@@ -1,19 +1,23 @@
 import * as Sentry from "@sentry/cloudflare";
-import type { Hono } from "hono";
-import { createApp, type AppEnv } from "./composition";
+import { createApp } from "./composition";
 import { parseEnv, type WorkerBindings } from "./infrastructure";
-
-// isolate 起動後、最初のリクエストで一度だけアプリを構築する。
-// Workers の isolate はリクエスト間で再利用されるため、モジュールスコープの
-// let にキャッシュして毎リクエストの再構築を避ける。
-let app: Hono<AppEnv> | undefined;
 
 // rawEnv は Cloudflare Workers から渡される未検証の生 binding。
 // 検証は parseEnv で行い、検証済みの Env はアプリ構築にのみ渡す。
+//
+// アプリはリクエスト単位で構築する。Neon serverless driver は WebSocket 接続を張るが、
+// Workers は「あるリクエストで生成した I/O オブジェクトを別リクエストで使うこと」を
+// 禁止するため、Prisma/Neon クライアントを isolate にキャッシュして使い回すと
+// 2 回目以降の DB アクセスでハングする。接続リークを避けるためレスポンス後に
+// prisma.$disconnect() を waitUntil で実行する。
 const handler = {
-  fetch(req, rawEnv, ctx) {
-    app ??= createApp(parseEnv(rawEnv));
-    return app.fetch(req, rawEnv, ctx);
+  async fetch(req, rawEnv, ctx) {
+    const { app, prisma } = createApp(parseEnv(rawEnv));
+    try {
+      return await app.fetch(req, rawEnv, ctx);
+    } finally {
+      ctx.waitUntil(prisma.$disconnect());
+    }
   },
 } satisfies ExportedHandler<WorkerBindings>;
 
