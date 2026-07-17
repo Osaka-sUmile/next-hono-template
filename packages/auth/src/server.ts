@@ -1,4 +1,4 @@
-import { betterAuth } from "better-auth";
+import { betterAuth, type BetterAuthOptions } from "better-auth";
 import { prismaAdapter } from "better-auth/adapters/prisma";
 import { APIError, createAuthMiddleware } from "better-auth/api";
 import { emailOTP } from "better-auth/plugins";
@@ -13,6 +13,11 @@ type PrismaClientInput = Pick<PrismaClient, "user" | "session" | "account" | "ve
 
 interface AuthConfig {
   prisma: PrismaClientInput;
+  /**
+   * テスト時に prismaAdapter の代わりに注入する DB アダプタ(better-auth の memoryAdapter 等)。
+   * 本番コードでは未指定のままとし、常に prismaAdapter を使う。
+   */
+  database?: BetterAuthOptions["database"];
   secret: string;
   baseURL: string;
   /** web アプリのオリジン。「アカウント未登録」案内メール内の登録ページ URL に使う。 */
@@ -69,9 +74,11 @@ export function createAuth(config: AuthConfig) {
       expiresIn: 7 * 24 * 60 * 60, // 7 days
       updateAge: 24 * 60 * 60,     // refresh session every 24 hours
     },
-    database: prismaAdapter(config.prisma, {
-      provider: "postgresql",
-    }),
+    database:
+      config.database ??
+      prismaAdapter(config.prisma, {
+        provider: "postgresql",
+      }),
     hooks: {
       // emailOTP プラグインの sign-in は未登録メールを自動的に新規登録するため、
       // 明示的な登録意図 (body.signUp === true) がないリクエストでは未登録メールを拒否し、
@@ -113,13 +120,18 @@ export function createAuth(config: AuthConfig) {
       }),
     ],
     socialProviders: {
+      // disableImplicitSignUp: 未登録アカウントでの暗黙の新規登録を無効化し、
+      // ログイン(/login)と新規登録(/signup)の契約を分離する。email OTP の hooks.before と同じ思想。
+      // 新規登録は signIn.social({ requestSignUp: true })(/signup 側)でのみ許可される。
       google: {
         clientId: config.google.clientId,
         clientSecret: config.google.clientSecret,
+        disableImplicitSignUp: true,
       },
       apple: {
         clientId: config.apple.clientId,
         clientSecret: config.apple.clientSecret,
+        disableImplicitSignUp: true,
       },
     },
     user: {

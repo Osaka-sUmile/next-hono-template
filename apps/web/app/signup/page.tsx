@@ -63,10 +63,13 @@ export default function SignupPage() {
     setError(null);
     setLoading(true);
     // callbackURL は API オリジン基準で解決されるため、web 側の絶対 URL を渡す必要がある
+    // requestSignUp: true は新規登録意図の明示(email OTP の signUp: true と対になる)。
+    // provider 側は disableImplicitSignUp のため、これがないと未登録アカウントの作成は拒否される。
     const { error } = await authClient.signIn.social({
       provider,
       callbackURL: `${window.location.origin}/dashboard`,
       errorCallbackURL: `${window.location.origin}/signup`,
+      requestSignUp: true,
     });
     if (error) {
       setLoading(false);
