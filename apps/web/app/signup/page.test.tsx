@@ -143,6 +143,8 @@ describe("SignupPage", () => {
         provider: "google",
         callbackURL: `${window.location.origin}/dashboard`,
         errorCallbackURL: `${window.location.origin}/signup`,
+        // 新規登録意図を明示。これがないと disableImplicitSignUp により登録が拒否される
+        requestSignUp: true,
       });
     });
   });

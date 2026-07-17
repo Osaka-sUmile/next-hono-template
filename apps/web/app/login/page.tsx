@@ -1,8 +1,8 @@
 "use client";
 
-import { useState } from "react";
+import { Suspense, useState } from "react";
 import Link from "next/link";
-import { useRouter } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
 import { HugeiconsIcon } from "@hugeicons/react";
 import { AppleIcon, GoogleIcon } from "@hugeicons/core-free-icons";
 import { Button } from "@workspace/ui/components/button";
@@ -10,12 +10,40 @@ import { authClient } from "@/lib/auth-client";
 
 type Step = "request" | "verify";
 
+// social ログインの失敗時に表示するメッセージ。useEffect(?error 受信時)と
+// handleSocial(呼び出し失敗時)の両方で使うため定数化してドリフトを防ぐ。
+const SOCIAL_LOGIN_FAILED_MESSAGE =
+  "ログインに失敗しました。しばらく経ってから再試行してください。";
+const ACCOUNT_NOT_FOUND_MESSAGE =
+  "このアカウントは登録されていません。新規登録してください。";
+
 export default function LoginPage() {
+  return (
+    <Suspense>
+      <LoginPageContent />
+    </Suspense>
+  );
+}
+
+function LoginPageContent() {
   const router = useRouter();
+  const searchParams = useSearchParams();
   const [step, setStep] = useState<Step>("request");
   const [email, setEmail] = useState("");
   const [otp, setOtp] = useState("");
-  const [error, setError] = useState<string | null>(null);
+  // social ログインが失敗すると errorCallbackURL(=/login)へ ?error= 付きで戻ってくる。
+  // 未登録アカウントでのログインは provider の disableImplicitSignUp により拒否され、
+  // better-auth が signup_disabled を返す。この場合は新規登録へ誘導する。
+  // social は Google/Apple 側で本人認証を済ませた後にしか到達しないため、
+  // /login で「未登録」を明示してもアカウント列挙のリスクにはならない。
+  const initialErrorCode = searchParams.get("error");
+  const [error, setError] = useState<string | null>(
+    initialErrorCode === "signup_disabled"
+      ? ACCOUNT_NOT_FOUND_MESSAGE
+      : initialErrorCode
+        ? SOCIAL_LOGIN_FAILED_MESSAGE
+        : null,
+  );
   const [loading, setLoading] = useState(false);
 
   async function handleRequest(e: React.FormEvent) {
@@ -58,7 +86,7 @@ export default function LoginPage() {
     });
     if (error) {
       setLoading(false);
-      setError("ログインに失敗しました。しばらく経ってから再試行してください。");
+      setError(SOCIAL_LOGIN_FAILED_MESSAGE);
     }
   }
 

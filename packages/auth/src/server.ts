@@ -120,13 +120,18 @@ export function createAuth(config: AuthConfig) {
       }),
     ],
     socialProviders: {
+      // disableImplicitSignUp: 未登録アカウントでの暗黙の新規登録を無効化し、
+      // ログイン(/login)と新規登録(/signup)の契約を分離する。email OTP の hooks.before と同じ思想。
+      // 新規登録は signIn.social({ requestSignUp: true })(/signup 側)でのみ許可される。
       google: {
         clientId: config.google.clientId,
         clientSecret: config.google.clientSecret,
+        disableImplicitSignUp: true,
       },
       apple: {
         clientId: config.apple.clientId,
         clientSecret: config.apple.clientSecret,
+        disableImplicitSignUp: true,
       },
     },
     user: {
