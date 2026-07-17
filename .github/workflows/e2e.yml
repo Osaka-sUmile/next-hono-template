@@ -2,9 +2,9 @@ name: E2E Tests
 
 on:
   push:
-    branches: [ "main" ]
+    branches: [ "main", "develop" ]
   pull_request:
-    branches: [ "main" ]
+    branches: [ "main", "develop" ]
 
 jobs:
   e2e:
@@ -26,8 +26,19 @@ jobs:
       - name: Install dependencies
         run: pnpm install --frozen-lockfile
 
+      # next build は @workspace/auth (→ @workspace/database) の dist と Prisma Client に
+      # 依存する。クリーンな CI では未生成のため、依存パッケージのみ事前ビルドする
+      # (build タスクの dependsOn により //#db:generate → prisma generate も先行実行される)。
+      - name: Build workspace dependencies
+        run: pnpm exec turbo run build --filter=web^...
+
       - name: Build Web App
+        # NEXT_PUBLIC_API_URL は build 時にインライン化され、未設定だと
+        # auth-client が throw してビルドが失敗する。e2e では /api/auth/* を
+        # route interception でモックするため、実際に到達しないダミー値でよい。
         run: cd apps/web && pnpm build
+        env:
+          NEXT_PUBLIC_API_URL: http://127.0.0.1:8787
 
       - name: Install Playwright Browsers
         run: cd apps/web && pnpm exec playwright install --with-deps
