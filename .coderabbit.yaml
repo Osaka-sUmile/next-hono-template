@@ -24,23 +24,52 @@ instructions: |
   - 実装レイヤーの順序（Domain → Database → Application → Presentation）が守られているか
   - Barrel Pattern・環境変数・バリデーション境界のルールに違反していないか
 
+  【テストの十分性】CLAUDE.md「層別テスト戦略」に基づき、実装の追加・変更に見合うテストが
+  同じ PR に含まれているかを必ず確認してください：
+  - 実装ファイル（*.ts / *.tsx）を追加・変更しているのに、対応する co-located テストの
+    追加・更新がない場合は、その理由を確認し、必要なら追加を要求すること。
+  - テストが追加されていても、正常系のみで異常系（エラーパス・境界値・null 系）が
+    欠けている場合は不十分として指摘すること。
+  - 分岐（if / switch / 早期 return）を追加した変更は、その分岐の両側を通るテストが
+    あるかを確認すること。
+
 path_instructions:
   - path: "packages/domain/**"
     instructions: |
       packages/domain/CLAUDE.md の制約に従っているか確認してください。
+      【テストの十分性】エンティティ・値オブジェクトのビジネスルール（バリデーション・状態遷移・
+      不変条件）を追加・変更した場合、co-located の単体テストがそのルールの成功側と違反側の
+      両方をカバーしているか確認してください。外部依存ゼロの層なので、テスト省略の言い訳は
+      成立しません。
 
   - path: "packages/database/**"
     instructions: |
       packages/database/CLAUDE.md の制約に従っているか確認してください。
+      テスト方針（結合テストが標準、単体テストは例外）について特に以下を監視してください：
+      - PrismaClient をモックした単体テスト（vi.mock / vi.fn で prisma の呼び出しを検証するテスト）が
+        追加されていないか。追加されていたら、実 DB への結合テストへの書き換えを指摘すること。
+      - repository / query-service 内の変換ロジック（Prisma モデル → Entity / DTO）が複雑化していないか。
+        JSON カラムの解釈・条件分岐を含む変換・集計 DTO の組み立てなど、単純なフィールド詰め替えを超えた
+        変換が private メソッドや inline に書かれている場合は、mappers/ 配下の export された純関数へ
+        切り出し、DB なしの単体テストを追加するよう指摘すること（「複雑さが生まれたら純粋関数に押し出す」ルール）。
+      - repository / query-service の実装を追加・変更した PR に、対応する co-located の
+        結合テスト（*.test.ts）が含まれているか。
 
   - path: "apps/api/src/application/**"
     instructions: |
       apps/api/src/application/CLAUDE.md の制約に従っているか確認してください。
+      【テストの十分性】ユースケースを追加・変更した場合、リポジトリ / クエリサービスをモックした
+      co-located の単体テストがあり、正常系だけでなくエラー変換（Domain Error → Application Error）と
+      すべての分岐（対象が見つからない・権限がない等）をカバーしているか確認してください。
 
   - path: "apps/api/src/presentation/**"
     instructions: |
       ルートの CLAUDE.md「DTO / エラーの責務」「バリデーション境界」のルールに従っているか確認してください。
       エラーレスポンスのキー名は必ず `error` であること。
+      【テストの十分性】コントローラー・ミドルウェアを追加・変更した場合、Hono の app.request() を
+      用いた統合テストがあり、バリデーションエラー（400）・認証/認可エラー（401/403）・
+      対象なし（404）などの異常系レスポンスまでカバーしているか確認してください。
+      正常系 200 のみのテストは不十分として指摘すること。
 
   - path: "apps/api/src/presentation/error-codes.ts"
     instructions: |
@@ -64,3 +93,7 @@ path_instructions:
       想定内エラーのみ ExpectedError で抑制し、それ以外は Sentry に送る（fail-loud）方針です。
       判断に迷うものは送信側に倒すこと。
       better-auth クライアントが返す { error } は想定内扱いのため reportError 不要です。
+      【テストの十分性】コンポーネント・hooks・lib を追加・変更した場合、co-located の
+      単体テスト（Vitest + React Testing Library）が追加・更新されているか確認してください。
+      画面をまたぐフロー（認証・ページ遷移）を追加した場合は apps/web/tests/e2e/ の
+      Playwright テストでカバーされているかも確認すること。
