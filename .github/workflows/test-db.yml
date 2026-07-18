@@ -19,6 +19,11 @@ jobs:
       - name: Setup pnpm workspace
         uses: ./.github/actions/setup
 
+      # @workspace/domain は dist (ビルド出力) を公開エントリにするため、
+      # 結合テストが @workspace/domain を解決できるよう依存パッケージを先にビルドする。
+      - name: Build workspace dependencies
+        run: pnpm --filter "@workspace/database^..." build
+
       - name: Generate Prisma Client
         run: pnpm --filter @workspace/database db:generate
 
