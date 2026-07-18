@@ -4,13 +4,15 @@ import { secureHeaders } from "hono/secure-headers";
 import { createAuth } from "@workspace/auth/server";
 import type { AuthInstance } from "@workspace/auth/server";
 import { createPrismaClient, UserQueryService } from "@workspace/database";
-import { GetCurrentUserUseCase } from "../application";
+import { GetCurrentUserUseCase, ListUsersUseCase } from "../application";
 import {
+  AdminController,
   HealthController,
   UserController,
   createAuthLimiter,
   createErrorHandler,
   createRequireAuth,
+  requireAdmin,
   type AuthVariables,
 } from "../presentation";
 import { setupSwagger, type Env } from "../infrastructure";
@@ -27,6 +29,7 @@ export type AppDeps = {
   auth: AuthInstance;
   healthController: HealthController;
   userController: UserController;
+  adminController: AdminController;
 };
 
 /**
@@ -58,6 +61,8 @@ export function buildApp(deps: AppDeps): Hono<AppEnv> {
   });
   v1.get("/health", deps.healthController.check);
   v1.get("/me", requireAuth, deps.userController.getUserMe);
+  // admin 専用: requireAuth で認証 → requireAdmin で認可 (role=admin) を確認してから一覧を返す。
+  v1.get("/admin/users", requireAuth, requireAdmin, deps.adminController.listUsers);
 
   app.route("/api/v1", v1);
 
@@ -99,12 +104,14 @@ export async function createApp(env: Env): Promise<CreatedApp> {
 
     const userQueryService = new UserQueryService(prisma);
     const getCurrentUserUseCase = new GetCurrentUserUseCase(userQueryService);
+    const listUsersUseCase = new ListUsersUseCase(userQueryService);
 
     const app = buildApp({
       env,
       auth,
       healthController: new HealthController(),
       userController: new UserController(getCurrentUserUseCase),
+      adminController: new AdminController(listUsersUseCase),
     });
 
     return { app, prisma };
