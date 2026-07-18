@@ -28,6 +28,7 @@ export class UserQueryService implements IUserQueryService {
     }
   }
 
+  /** 全ユーザーを createdAt 昇順（同一時刻は id で決定的に並べる）で取得する。 */
   async findAll(): Promise<UserQueryResult[]> {
     const rows = await this.prisma.user.findMany({
       select: {
