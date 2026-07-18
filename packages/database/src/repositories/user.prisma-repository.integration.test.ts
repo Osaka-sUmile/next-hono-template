@@ -1,4 +1,4 @@
-import { afterAll, beforeEach, describe, expect, it } from "vitest";
+import { afterAll, beforeAll, beforeEach, describe, expect, it } from "vitest";
 import type { PrismaClient } from "@prisma/client";
 import { UserEntity } from "@workspace/domain";
 import { UserPrismaRepository } from "./user.prisma-repository";
@@ -10,10 +10,15 @@ describe("UserPrismaRepository (integration)", () => {
   let prisma: PrismaClient;
   let repository: UserPrismaRepository;
 
-  beforeEach(async () => {
+  // 接続リークを避けるため PrismaClient は一度だけ生成し、各テストの独立性は
+  // beforeEach の resetDatabase (truncate) で担保する。
+  beforeAll(() => {
     prisma = createTestPrismaClient();
-    await resetDatabase(prisma);
     repository = new UserPrismaRepository(prisma);
+  });
+
+  beforeEach(async () => {
+    await resetDatabase(prisma);
   });
 
   afterAll(async () => {
