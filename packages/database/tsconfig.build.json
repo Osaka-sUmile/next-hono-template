@@ -1,0 +1,8 @@
+// production ビルド用の tsconfig。
+// dist に Node 専用のテストコード (test-utils / *.test.ts) を含めないよう除外する
+// (apps/api は Cloudflare Workers で動くため、dist を純粋な production コードに保つ)。
+// 型チェックは tsconfig.json (全ファイル対象) を使う。
+{
+  "extends": "./tsconfig.json",
+  "exclude": ["node_modules", "dist", "src/test-utils", "**/*.test.ts"]
+}
