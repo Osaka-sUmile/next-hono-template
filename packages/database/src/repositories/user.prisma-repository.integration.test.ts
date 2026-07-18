@@ -78,4 +78,19 @@ describe("UserPrismaRepository (integration)", () => {
 
     await expect(repository.findById("user-3")).resolves.toBeNull();
   });
+
+  it("別 id で同一 email を save すると email の一意制約に違反して失敗する", async () => {
+    await repository.save(
+      UserEntity.reconstitute("user-a", "dup@example.com", "First", "user", null),
+    );
+
+    // save は upsert({ where: { id } }) で id をキーに分岐するため、別 id + 同一 email は
+    // create 経路に入り User.email の @unique に違反する。制約エラーがそのまま伝播することを確認する。
+    const duplicate = UserEntity.reconstitute("user-b", "dup@example.com", "Second", "user", null);
+
+    await expect(repository.save(duplicate)).rejects.toMatchObject({ code: "P2002" });
+
+    // 制約違反時に 2 件目 (user-b) が部分的に書き込まれないことを確認する。
+    await expect(repository.findById("user-b")).resolves.toBeNull();
+  });
 });
