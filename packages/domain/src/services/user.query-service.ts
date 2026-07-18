@@ -13,4 +13,5 @@ export type UserQueryResult = {
 
 export interface IUserQueryService {
   findById(id: string): Promise<UserQueryResult | null>;
+  findAll(): Promise<UserQueryResult[]>;
 }

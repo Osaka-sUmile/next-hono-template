@@ -27,4 +27,29 @@ export class UserQueryService implements IUserQueryService {
       );
     }
   }
+
+  async findAll(): Promise<UserQueryResult[]> {
+    const rows = await this.prisma.user.findMany({
+      select: {
+        id: true,
+        email: true,
+        name: true,
+        role: true,
+        displayName: true,
+        image: true,
+        emailVerified: true,
+        createdAt: true,
+      },
+      orderBy: { createdAt: "asc" },
+    });
+    return rows.map((raw) => {
+      try {
+        return { ...raw, role: parseUserRole(raw.role) };
+      } catch (err) {
+        throw new Error(
+          `Failed to map user query result (id=${raw.id}, role="${raw.role}"): ${String(err)}`,
+        );
+      }
+    });
+  }
 }
