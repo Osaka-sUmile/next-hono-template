@@ -69,7 +69,7 @@ describe("UserQueryService (integration)", () => {
 
   describe("findAll", () => {
     it("複数ユーザーを createdAt 昇順で、読み取り専用 DTO の配列にして返す", async () => {
-      // createdAt (@default(now())) が作成順と一致するよう await で順次投入する。
+      // 並び順を決定的にするため createdAt を明示する (同一時刻だと DB は順序を保証しないため)。
       const admin = await prisma.user.create({
         data: {
           email: "admin@example.com",
@@ -77,6 +77,7 @@ describe("UserQueryService (integration)", () => {
           role: "admin",
           displayName: "Boss",
           emailVerified: true,
+          createdAt: new Date("2026-01-01T00:00:00.000Z"),
         },
       });
       const member = await prisma.user.create({
@@ -84,6 +85,7 @@ describe("UserQueryService (integration)", () => {
           email: "member@example.com",
           name: "Member User",
           role: "user",
+          createdAt: new Date("2026-01-02T00:00:00.000Z"),
         },
       });
 
@@ -111,6 +113,22 @@ describe("UserQueryService (integration)", () => {
         emailVerified: false,
         createdAt: member.createdAt,
       });
+    });
+
+    it("createdAt が同一のユーザーは id 昇順で決定的に並ぶ", async () => {
+      const sameTime = new Date("2026-03-01T00:00:00.000Z");
+      // id 昇順が投入順と逆になるよう、先に id="u-b" を投入する。
+      await prisma.user.create({
+        data: { id: "u-b", email: "b@example.com", name: "B", createdAt: sameTime },
+      });
+      await prisma.user.create({
+        data: { id: "u-a", email: "a@example.com", name: "A", createdAt: sameTime },
+      });
+
+      const results = await queryService.findAll();
+
+      // 投入順ではなく id 昇順 (tie-breaker) で並ぶこと。
+      expect(results.map((r) => r.id)).toEqual(["u-a", "u-b"]);
     });
 
     it("ユーザーが存在しない場合は空配列を返す", async () => {

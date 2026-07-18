@@ -56,4 +56,11 @@ describe("ListUsersUseCase", () => {
 
     await expect(useCase.execute()).resolves.toEqual([]);
   });
+
+  it("findAll が例外を投げた場合はそのまま reject する", async () => {
+    const error = new Error("query failed");
+    const useCase = new ListUsersUseCase(createQueryService(vi.fn().mockRejectedValue(error)));
+
+    await expect(useCase.execute()).rejects.toBe(error);
+  });
 });

@@ -40,7 +40,8 @@ export class UserQueryService implements IUserQueryService {
         emailVerified: true,
         createdAt: true,
       },
-      orderBy: { createdAt: "asc" },
+      // createdAt が同一のレコード間でも順序を決定的にするため id を tie-breaker に加える。
+      orderBy: [{ createdAt: "asc" }, { id: "asc" }],
     });
     return rows.map((raw) => {
       try {
