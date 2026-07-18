@@ -66,4 +66,84 @@ describe("UserQueryService (integration)", () => {
       expect(result?.displayName).toBeNull();
     });
   });
+
+  describe("findAll", () => {
+    it("複数ユーザーを createdAt 昇順で、読み取り専用 DTO の配列にして返す", async () => {
+      // 並び順を決定的にするため createdAt を明示する (同一時刻だと DB は順序を保証しないため)。
+      const admin = await prisma.user.create({
+        data: {
+          email: "admin@example.com",
+          name: "Admin User",
+          role: "admin",
+          displayName: "Boss",
+          emailVerified: true,
+          createdAt: new Date("2026-01-01T00:00:00.000Z"),
+        },
+      });
+      const member = await prisma.user.create({
+        data: {
+          email: "member@example.com",
+          name: "Member User",
+          role: "user",
+          createdAt: new Date("2026-01-02T00:00:00.000Z"),
+        },
+      });
+
+      const results = await queryService.findAll();
+
+      expect(results).toHaveLength(2);
+      expect(results.map((r) => r.email)).toEqual(["admin@example.com", "member@example.com"]);
+      expect(results[0]).toEqual({
+        id: admin.id,
+        email: "admin@example.com",
+        name: "Admin User",
+        role: "admin",
+        displayName: "Boss",
+        image: null,
+        emailVerified: true,
+        createdAt: admin.createdAt,
+      });
+      expect(results[1]).toEqual({
+        id: member.id,
+        email: "member@example.com",
+        name: "Member User",
+        role: "user",
+        displayName: null,
+        image: null,
+        emailVerified: false,
+        createdAt: member.createdAt,
+      });
+    });
+
+    it("createdAt が同一のユーザーは id 昇順で決定的に並ぶ", async () => {
+      const sameTime = new Date("2026-03-01T00:00:00.000Z");
+      // id 昇順が投入順と逆になるよう、先に id="u-b" を投入する。
+      await prisma.user.create({
+        data: { id: "u-b", email: "b@example.com", name: "B", createdAt: sameTime },
+      });
+      await prisma.user.create({
+        data: { id: "u-a", email: "a@example.com", name: "A", createdAt: sameTime },
+      });
+
+      const results = await queryService.findAll();
+
+      // 投入順ではなく id 昇順 (tie-breaker) で並ぶこと。
+      expect(results.map((r) => r.id)).toEqual(["u-a", "u-b"]);
+    });
+
+    it("ユーザーが存在しない場合は空配列を返す", async () => {
+      await expect(queryService.findAll()).resolves.toEqual([]);
+    });
+
+    it("role のデフォルト値 (user) を含めて正しくマッピングする", async () => {
+      await prisma.user.create({
+        data: { email: "member@example.com", name: "Member" },
+      });
+
+      const results = await queryService.findAll();
+
+      expect(results[0]?.role).toBe("user");
+      expect(results[0]?.displayName).toBeNull();
+    });
+  });
 });

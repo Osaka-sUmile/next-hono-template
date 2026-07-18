@@ -27,4 +27,31 @@ export class UserQueryService implements IUserQueryService {
       );
     }
   }
+
+  /** 全ユーザーを createdAt 昇順（同一時刻は id で決定的に並べる）で取得する。 */
+  async findAll(): Promise<UserQueryResult[]> {
+    const rows = await this.prisma.user.findMany({
+      select: {
+        id: true,
+        email: true,
+        name: true,
+        role: true,
+        displayName: true,
+        image: true,
+        emailVerified: true,
+        createdAt: true,
+      },
+      // createdAt が同一のレコード間でも順序を決定的にするため id を tie-breaker に加える。
+      orderBy: [{ createdAt: "asc" }, { id: "asc" }],
+    });
+    return rows.map((raw) => {
+      try {
+        return { ...raw, role: parseUserRole(raw.role) };
+      } catch (err) {
+        throw new Error(
+          `Failed to map user query result (id=${raw.id}, role="${raw.role}"): ${String(err)}`,
+        );
+      }
+    });
+  }
 }

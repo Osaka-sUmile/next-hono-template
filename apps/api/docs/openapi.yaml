@@ -12,6 +12,8 @@ paths:
     $ref: './paths/health.yaml'
   /me:
     $ref: './paths/me.yaml'
+  /admin/users:
+    $ref: './paths/users.yaml'
 
 components:
   schemas:
