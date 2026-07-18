@@ -115,6 +115,14 @@ packages/database  →  packages/domain
 - Vitest は co-located な `*.test.ts` / `*.test.tsx` を採用する。
 - Playwright は `apps/web/tests/e2e/` に集約する。
 
+## 層別テスト戦略
+責務分離ができているからこそ、層ごとにテスト戦略を変えられる。ビジネスロジックの検証は domain（単体）と application（単体 + リポジトリモック）が担い、`packages/database` では重複させない。
+
+- **packages/domain**: 単体テスト。外部依存ゼロのため高速に全ルールを検証できる。
+- **apps/api/src/application**: 単体テスト。リポジトリ / クエリサービスはモックし、ユースケースの分岐とエラー変換を検証する。
+- **packages/database**: **実 DB への結合テストが標準**。この層のバグ（where 句の誤り・スキーマドリフト・制約違反）は実 DB に当てて初めて検出できるため、PrismaClient のモックによる単体テストは原則禁止。`prisma migrate` → テスト実行のフローにより、マイグレーションの検証も副産物として得られる。例外規則（複雑化した変換ロジックの純関数切り出し + 単体テスト）を含む詳細は `packages/database/CLAUDE.md` を参照。
+- **apps/web**: 単体テスト（jsdom + React Testing Library）と Playwright E2E。詳細は `docs/frontend-guidelines.md` を参照。
+
 ## components の責務
 - `packages/ui/`: 汎用 UI 部品のみ。
 - `apps/web/components/`: theme provider などのアプリ固有コンポーネント・設定。

@@ -59,6 +59,16 @@ develop
 - **Playwright**: `apps/web/tests/e2e/` に集約する。
 - **テスト共通ユーティリティ**: `<app>/src/test-utils/` に集約し、`__tests__/helpers/` 等の独自階層は作らない。
 
+## 層別テスト戦略
+「単体か結合か」ではなく、層ごとにテストの主戦場を変える。
+
+| 層 | 主戦場 | 補足 |
+| :--- | :--- | :--- |
+| packages/domain | 単体テスト | エンティティ・値オブジェクトのビジネスルール検証 |
+| apps/api/src/application | 単体テスト（リポジトリはモック） | ユースケースの分岐・エラー変換の検証 |
+| packages/database | **結合テスト（実 DB）** | PrismaClient のモックは原則禁止。詳細は `packages/database/CLAUDE.md` |
+| apps/web | 単体テスト + Playwright E2E | `docs/frontend-guidelines.md` を参照 |
+
 ## apps/web のルール
 - フロントエンドの詳細ガイドライン（フォルダ構成・コンポーネント追加・スタイリング・Server/Client Components・API 呼び出し）は `docs/frontend-guidelines.md` を参照すること。
 

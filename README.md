@@ -91,11 +91,25 @@
 
 このリポジトリでは品質保証のため、ユニットテストからE2Eテスト、CI/CD環境までを整備しています。
 
-### 単体テスト (Unit Tests)
-高速なテストランナーである **[Vitest](https://vitest.dev/)** を採用しています。
+### テストの全体マップ（どこに・どんなテストを書くか）
 
-- **Frontend (`apps/web`)**: `jsdom` および `React Testing Library` を用いて、`app/*.test.tsx` や `components/**/*.test.tsx` のように co-located でテストを置きます。
-- **Backend (`apps/api`)**: Hono の `app.request()` を用いて、APIエンドポイントの統合テストを行います。
+「単体か結合か」を一律に決めるのではなく、**層ごとにテストの主戦場を変える**方針です。テストランナーは **[Vitest](https://vitest.dev/)**（E2E のみ [Playwright](https://playwright.dev/)）を採用しています。
+
+| 場所 | テストの種類 | 手法 | 何を検証するか |
+|------|------------|------|--------------|
+| `packages/domain` | 単体テスト | Vitest | エンティティ・値オブジェクトのビジネスルール。外部依存ゼロのため高速に全ルールを検証できる |
+| `packages/auth` | 単体テスト | Vitest | better-auth ラッパーの設定・認証契約 |
+| `packages/database` | **結合テスト（実 DB）** | Vitest + docker の Postgres/wsproxy | repository / query-service のクエリの正しさ・スキーマとの整合・制約違反。**PrismaClient のモックによる単体テストは原則禁止**（モックでは where 句の誤りやスキーマドリフトを検出できないため）。例外: 複雑化した変換ロジックは `mappers/` の純関数に切り出して単体テスト |
+| `apps/api` application 層 | 単体テスト | Vitest（リポジトリはモック） | ユースケースの分岐・エラー変換。ビジネスルール自体は domain 側でテスト済みなので重複させない |
+| `apps/api` presentation 層 | 統合テスト | Vitest + Hono の `app.request()` | ルーティング・Zod バリデーション・HTTP エラーへの変換・ミドルウェア（認証/認可） |
+| `apps/web` | 単体テスト | Vitest + jsdom + React Testing Library | コンポーネント・hooks・lib。`app/*.test.tsx` のように co-located で置く |
+| `apps/web/tests/e2e` | E2E テスト | Playwright | 認証フロー等、画面をまたぐシナリオ |
+
+**配置ルール（共通）:**
+- Vitest のテストは実装ファイルと同じ階層に `*.test.ts` / `*.test.tsx` を置く（co-located）。`__tests__/` ディレクトリは作らない。
+- テスト共通ユーティリティは `<app>/src/test-utils/` に集約する。
+
+詳細な理由付けは `CLAUDE.md`「層別テスト戦略」、`docs/architecture.md`、`packages/database/CLAUDE.md` を参照してください。
 
 **💡 主なコマンド:**
 
