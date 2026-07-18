@@ -20,7 +20,8 @@ export default async function setup(): Promise<void> {
   }
   await prisma.$disconnect().catch(() => {});
   throw new Error(
-    `結合テスト用の DB に接続できませんでした。docker compose (db / neon-wsproxy) の起動と ` +
-      `マイグレーション適用を確認してください: ${String(lastError)}`,
+    "結合テスト用の DB に接続できませんでした。docker compose (db / neon-wsproxy) の起動と " +
+      "マイグレーション適用を確認してください。",
+    { cause: lastError },
   );
 }

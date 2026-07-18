@@ -10,6 +10,9 @@ export default defineConfig({
   test: {
     globals: true,
     environment: "node",
+    // このパッケージのテストは全て実 DB 前提のため、*.integration.test.ts に限定する。
+    // (将来 mapper 等の DB なし単体テストを置く場合も、この DB ハーネスには巻き込まない)
+    include: ["src/**/*.integration.test.ts"],
     exclude: [...configDefaults.exclude, "dist/**"],
     // 実 DB を共有するため、truncate の競合を避けてファイル単位で直列実行する。
     fileParallelism: false,

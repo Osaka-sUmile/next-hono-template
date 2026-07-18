@@ -20,39 +20,22 @@ jobs:
         uses: ./.github/actions/setup
 
       # @workspace/domain は dist (ビルド出力) を公開エントリにするため、
-      # 結合テストが @workspace/domain を解決できるよう依存パッケージを先にビルドする。
+      # 結合テストが @workspace/domain を解決できるよう依存パッケージを先にビルドする
+      # (build タスクの dependsOn により //#db:generate → prisma generate も先行実行される)。
       - name: Build workspace dependencies
-        run: pnpm --filter "@workspace/database^..." build
-
-      - name: Generate Prisma Client
-        run: pnpm --filter @workspace/database db:generate
+        run: pnpm exec turbo run build --filter=@workspace/database^...
 
       - name: Prepare env files
         run: |
           cp .env.example .env
           cp packages/database/.env.example packages/database/.env
 
+      # --wait は db サービスの healthcheck (docker-compose.yml) が healthy になるまで待つ。
       - name: Start Postgres + wsproxy
-        run: docker compose up -d db neon-wsproxy
-
-      - name: Wait for Postgres to be ready
-        run: |
-          for i in $(seq 1 30); do
-            if docker compose exec -T db pg_isready -U user -d app; then
-              exit 0
-            fi
-            sleep 2
-          done
-          echo "::error::Postgres did not become ready in time"
-          docker compose logs
-          exit 1
+        run: docker compose up -d --wait db neon-wsproxy
 
       - name: Apply migrations
         run: pnpm --filter @workspace/database db:migrate:deploy
 
       - name: Run DB integration tests
         run: pnpm --filter @workspace/database test:integration
-
-      - name: Teardown
-        if: always()
-        run: docker compose down -v
