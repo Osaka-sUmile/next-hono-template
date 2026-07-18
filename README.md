@@ -115,9 +115,34 @@
 
 | 対象 | コマンド | 説明 |
 |---------|--------------------------------|------------------------------------------------------|
-| **全体** | `pnpm test` | ワークスペース全体の単体テストを一度だけ実行 (turbo経由) |
+| **全体** | `pnpm test` | ワークスペース全体のテストを一度だけ実行 (turbo経由)。DB 結合テストは実 DB を要するため含まない |
 | **Web** | `pnpm --filter web test:watch` | フロントエンドのテストをウォッチモードで実行 |
 | **API** | `pnpm --filter api test:watch` | バックエンドのテストをウォッチモードで実行 |
+
+### DB 結合テスト (packages/database)
+
+`packages/database` は**実 DB への結合テストが標準**です（`PrismaClient` のモックは原則禁止）。docker の Postgres + wsproxy に対して実行するため、`pnpm test`（turbo）には含めず `test:integration` で明示的に実行します。
+
+**💡 実行手順（初回・ローカル）:**
+
+```bash
+# 1. docker 用の資格情報と prisma/テスト用の接続文字列を用意
+cp .env.example .env
+cp packages/database/.env.example packages/database/.env
+
+# 2. Postgres + wsproxy を起動
+docker compose up -d db neon-wsproxy
+
+# 3. マイグレーションを適用
+pnpm --filter @workspace/database db:migrate:deploy
+
+# 4. 結合テストを実行
+pnpm --filter @workspace/database test:integration
+```
+
+- ウォッチ実行は `pnpm --filter @workspace/database test:integration:watch`。
+- テスト間の独立性は `src/test-utils` の `resetDatabase`（各テストの `beforeEach` で truncate）で担保します。
+- CI では `.github/workflows/test-db.yml` が同じ docker 構成で自動実行します。
 
 ### E2Eテスト (End-to-End Tests)
 フロントエンドの全体的なUIテストやシナリオテストには **[Playwright](https://playwright.dev/)** を使用しています。コードは `apps/web/tests/e2e` ディレクトリに配置しています。

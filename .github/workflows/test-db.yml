@@ -1,0 +1,50 @@
+name: DB Integration Tests
+
+# packages/database は実 DB への結合テストが標準 (層別テスト戦略)。
+# docker compose の Postgres + wsproxy を CI 内で起動し、ローカル開発と同一構成で検証する。
+# turbo test (= pnpm test) には載せていないため、この job が DB 層のテストを担保する。
+on:
+  push:
+    branches: ["main", "develop"]
+  pull_request:
+    branches: ["main", "develop"]
+
+jobs:
+  db-integration:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup pnpm workspace
+        uses: ./.github/actions/setup
+
+      - name: Prepare env files
+        run: |
+          cp .env.example .env
+          cp packages/database/.env.example packages/database/.env
+
+      - name: Start Postgres + wsproxy
+        run: docker compose up -d db neon-wsproxy
+
+      - name: Wait for Postgres to be ready
+        run: |
+          for i in $(seq 1 30); do
+            if docker compose exec -T db pg_isready -U user -d app; then
+              exit 0
+            fi
+            sleep 2
+          done
+          echo "::error::Postgres did not become ready in time"
+          docker compose logs
+          exit 1
+
+      - name: Apply migrations
+        run: pnpm --filter @workspace/database db:migrate:deploy
+
+      - name: Run DB integration tests
+        run: pnpm --filter @workspace/database test:integration
+
+      - name: Teardown
+        if: always()
+        run: docker compose down -v
