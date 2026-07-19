@@ -30,7 +30,7 @@
 ## 📂 フォルダ構造
 
 ```
-my-app/
+next-hono-template/
 ├── apps/
 │   ├── api/                          # Hono バックエンド
 │   │   ├── docs/                     # OpenAPI 定義 (YAML)
@@ -79,6 +79,7 @@ my-app/
 │   └── typescript-config/            # 共有 tsconfig
 ├── docs/
 │   ├── architecture.md               # 本ファイル
+│   ├── deployment.md                 # デプロイ手順 (Cloudflare)
 │   └── frontend-guidelines.md        # フロントエンド開発ガイドライン
 ├── CLAUDE.md                         # AI エージェント向け開発ガイドライン
 ├── docker-compose.yml

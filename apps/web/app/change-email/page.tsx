@@ -24,7 +24,6 @@ export default function ChangeEmailPage() {
       setStep("verify");
     } catch (error) {
       reportError(error);
-      console.error("Failed to request email change:", error);
       setError("送信に失敗しました。ログイン済みか確認してください。");
     } finally {
       setLoading(false);
@@ -40,7 +39,6 @@ export default function ChangeEmailPage() {
       setStep("done");
     } catch (error) {
       reportError(error);
-      console.error("Failed to change email:", error);
       setError("変更に失敗しました。コードが正しいか確認してください。");
     } finally {
       setLoading(false);

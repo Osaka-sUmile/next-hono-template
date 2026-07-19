@@ -1,7 +1,13 @@
 {
-  "name": "my-app",
+  "name": "next-hono-template",
   "version": "0.0.1",
   "private": true,
+  "description": "Next.js + Hono (Cloudflare Workers) monorepo template with DDD/CQRS, Prisma/Neon, and better-auth.",
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/Osaka-sUmile/next-hono-template.git"
+  },
   "scripts": {
     "build": "turbo build",
     "dev": "turbo dev",
