@@ -80,7 +80,8 @@ next-hono-template/
 ├── docs/
 │   ├── architecture.md               # 本ファイル
 │   ├── deployment.md                 # デプロイ手順 (Cloudflare)
-│   └── frontend-guidelines.md        # フロントエンド開発ガイドライン
+│   ├── frontend-guidelines.md        # フロントエンド開発ガイドライン
+│   └── r2-upload.md                  # R2 ファイルアップロード導入レシピ
 ├── CLAUDE.md                         # AI エージェント向け開発ガイドライン
 ├── docker-compose.yml
 ├── turbo.json
