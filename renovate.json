@@ -9,6 +9,10 @@
   "schedule": ["before 9am on monday"],
   "baseBranches": ["develop"],
   "labels": ["dependencies"],
+  "vulnerabilityAlerts": {
+    "labels": ["dependencies", "security"],
+    "schedule": ["at any time"]
+  },
   "packageRules": [
     {
       "matchUpdateTypes": ["minor", "patch"],
@@ -18,7 +22,8 @@
       "matchDepTypes": ["devDependencies"],
       "matchUpdateTypes": ["patch"],
       "groupName": "devDependencies (patch)",
-      "automerge": true
+      "automerge": true,
+      "automergeSchedule": ["at any time"]
     },
     {
       "matchManagers": ["github-actions"],
