@@ -1,24 +1,32 @@
-import { rateLimiter } from "hono-rate-limiter";
 import type { MiddlewareHandler } from "hono";
+import type { WorkerRateLimitBindings } from "../../infrastructure";
 import { ErrorCodes } from "../error-codes";
 
+type AuthLimiterEnv = { Bindings: WorkerRateLimitBindings };
+
 /**
- * 認証系エンドポイント (/api/auth) 向けのレートリミッターを生成する。
- * 15 分間に 20 リクエストを上限とし、超過時は 429 で RATE_LIMIT_EXCEEDED を返す。
+ * 認証系エンドポイント(email OTP 送信・サインイン・パスワードリセット)向けのレートリミッター。
+ * Cloudflare Workers Rate Limiting binding を使い、wrangler.jsonc の設定(60 秒間に 10 リクエスト)
+ * を上限とする。超過時は 429 で RATE_LIMIT_EXCEEDED を返す。
  *
- * 制約: in-memory store のため isolate ごとに状態が分離され、
- * Cloudflare Workers では複数 isolate 間でカウントが共有されない
- * （同一クライアントでも isolate が変われば上限がリセットされうる）。
- * 恒久対応は Durable Objects 等への置き換えを issue #41 / #52 で追跡中。
+ * binding は colo 単位の eventual consistent な近似カウントであり、in-memory store と異なり
+ * 複数インスタンス間でも共有される(issue #41)。
+ * ローカルテスト等で binding が未注入の場合はレート制限をスキップする。
  */
-export function createAuthLimiter(): MiddlewareHandler {
-  return rateLimiter({
-    windowMs: 15 * 60 * 1000,
-    limit: 20,
-    standardHeaders: "draft-6",
-    // クライアント IP をキーにする。Cloudflare Workers では cf-connecting-ip ヘッダーで取得する。
-    keyGenerator: (c) => c.req.header("cf-connecting-ip") ?? "unknown",
-    handler: (c) =>
-      c.json({ error: "Too many requests", code: ErrorCodes.RATE_LIMIT_EXCEEDED }, 429),
-  });
+export function createAuthLimiter(): MiddlewareHandler<AuthLimiterEnv> {
+  return async (c, next) => {
+    const limiter = c.env?.AUTH_RATE_LIMITER;
+    if (!limiter) {
+      await next();
+      return;
+    }
+
+    const key = c.req.header("cf-connecting-ip") ?? "unknown";
+    const { success } = await limiter.limit({ key });
+    if (!success) {
+      return c.json({ error: "Too many requests", code: ErrorCodes.RATE_LIMIT_EXCEEDED }, 429);
+    }
+
+    await next();
+  };
 }

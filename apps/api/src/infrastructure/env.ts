@@ -27,6 +27,8 @@ export const envSchema = z.object({
   // ため、環境の識別にはこちらを使う（未設定なら NODE_ENV にフォールバック）。
   // 空文字は設定ミスとして起動時に弾く（SENTRY_DSN の url 検証と同じ fail-fast 方針）。
   SENTRY_ENVIRONMENT: z.string().trim().min(1).optional(),
+  // Cloudflare Turnstile の secret key。emailOTP 送信系エンドポイントの captcha 検証に必須。
+  TURNSTILE_SECRET_KEY: z.string().min(1),
 });
 
 export type Env = z.infer<typeof envSchema>;
@@ -37,6 +39,11 @@ export type Env = z.infer<typeof envSchema>;
  * 検証済みの `Env` とは区別して扱う。
  */
 export type WorkerBindings = Record<string, unknown>;
+
+/** Cloudflare Workers の Rate Limiting binding（wrangler.jsonc の ratelimits で定義）。 */
+export type WorkerRateLimitBindings = {
+  AUTH_RATE_LIMITER?: RateLimit;
+};
 
 /**
  * Cloudflare Workers の fetch handler が受け取る env オブジェクトを検証する。

@@ -17,11 +17,6 @@ import {
 } from "../presentation";
 import { setupSwagger, type Env } from "../infrastructure";
 
-// レートリミッターの in-memory ストアをリクエスト間で共有するためモジュールスコープに一度だけ保持する。
-// ただし createAuthLimiter() は内部で setInterval を使い、Workers はグローバルスコープでの
-// setInterval を禁止するため、モジュール読み込み時ではなく初回リクエスト(ハンドラ内)で遅延生成する。
-let authLimiter: ReturnType<typeof createAuthLimiter> | undefined;
-
 export type AppEnv = { Variables: AuthVariables };
 
 export type AppDeps = {
@@ -46,9 +41,13 @@ export function buildApp(deps: AppDeps): Hono<AppEnv> {
   // cors はすべてのルートに適用するため先行させる
   app.use(cors({ origin: deps.env.WEB_BASE_URL, credentials: true }));
 
-  // better-auth ハンドラ。レート制限を先行適用し、Web 標準の Request をそのまま渡す。
-  authLimiter ??= createAuthLimiter();
-  app.use("/api/auth/*", authLimiter);
+  // better-auth ハンドラ。Web 標準の Request をそのまま渡す。
+  // レート制限は認証ミューテーション系(メール送信・サインイン・パスワードリセット)のみに絞る。
+  // /api/auth/* 全体にかけると get-session 等の高頻度な参照系まで巻き込み、共有 IP 環境で
+  // アプリ全体が誤 429 になりうるため。
+  app.use("/api/auth/email-otp/*", createAuthLimiter());
+  app.use("/api/auth/sign-in/*", createAuthLimiter());
+  app.use("/api/auth/forget-password/*", createAuthLimiter());
   app.on(["GET", "POST"], "/api/auth/*", (c) => deps.auth.handler(c.req.raw));
 
   const requireAuth = createRequireAuth(deps.auth);
@@ -99,6 +98,7 @@ export async function createApp(env: Env): Promise<CreatedApp> {
       resendFromEmail: env.RESEND_FROM_EMAIL,
       google: { clientId: env.GOOGLE_CLIENT_ID, clientSecret: env.GOOGLE_CLIENT_SECRET },
       apple: { clientId: env.APPLE_CLIENT_ID, clientSecret: env.APPLE_CLIENT_SECRET },
+      turnstile: { secretKey: env.TURNSTILE_SECRET_KEY },
     });
 
 
