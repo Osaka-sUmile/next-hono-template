@@ -90,7 +90,39 @@ pnpm exec wrangler secret put R2_SECRET_ACCESS_KEY --env preview
 - キーはユーザーが指定した値をそのまま使わず、サーバ側で `uploads/<userId>/<uuid>.<ext>` のように**サーバ採番**する(パス・トラバーサルと衝突を防ぐ)。
 - 署名生成は `aws4fetch` など軽量な Workers 互換ライブラリを使うと Node 依存を避けられる。
 
-### 5. ローカル開発(wrangler dev の R2 シミュレーション)
+### 5. バケットの CORS 設定(presigned URL でブラウザから直接 PUT/GET する場合)
+
+Worker 経由方式では不要だが、**presigned URL 方式でブラウザから R2 へ直接 `PUT`/`GET` する場合は、バケット側の CORS ルールが必須**(未設定だとブラウザがプリフライトで拒否する)。preview / production の web の実 origin ごとに許可する。
+
+`apps/api` から環境ごとに適用する(バケットが別なので `--env` 相当としてバケット名で分ける)。
+
+```bash
+cd apps/api
+pnpm exec wrangler r2 bucket cors put myapp-uploads-preview --rules ./r2-cors.preview.json
+pnpm exec wrangler r2 bucket cors put myapp-uploads-production --rules ./r2-cors.production.json
+```
+
+ルール例(preview。production は `AllowedOrigins` を production の web origin に置換する):
+
+```jsonc
+[
+  {
+    // web の実 origin のみ許可する(ワイルドカードにしない)。deployment.md の WEB_BASE_URL と揃える。
+    "AllowedOrigins": ["https://web-preview.<subdomain>.workers.dev"],
+    // presigned PUT でアップロード、presigned GET でダウンロードする想定。
+    "AllowedMethods": ["PUT", "GET"],
+    // presigned PUT で Content-Type を固定するため許可する。必要に応じて追加。
+    "AllowedHeaders": ["content-type"],
+    "MaxAgeSeconds": 3600
+  }
+]
+```
+
+- `AllowedOrigins` はワイルドカード(`*`)にせず、preview / production それぞれの web origin を明示する。
+- `AllowedMethods` は実際に使うメソッドのみ(直 PUT + 直 GET なら `PUT` / `GET`)。
+- `AllowedHeaders` には presigned URL で固定する `content-type` 等、クライアントが送るヘッダーを列挙する。
+
+### 6. ローカル開発(wrangler dev の R2 シミュレーション)
 
 `wrangler dev` はローカルの Miniflare で R2 をエミュレートするため、**実バケットなしで動作確認できる**。データはローカルの `.wrangler/state` 配下に保存される(gitignore 済みの前提)。
 
