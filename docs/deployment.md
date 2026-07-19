@@ -130,7 +130,7 @@ Settings → Environments → 各環境の Variables に以下を登録する。
 - `NEXT_PUBLIC_TURNSTILE_SITE_KEY`(手順 5 で発行した Site Key)
 - `NEXT_PUBLIC_SENTRY_DSN`(Sentry を使わないなら空文字)
 
-`API_BASE_URL` / `WEB_BASE_URL` / `NEXT_PUBLIC_TURNSTILE_SITE_KEY` が未設定のままだと該当デプロイジョブがデプロイ前に失敗する(プレースホルダ URL のままデプロイされ、CORS が全リクエストを拒否する事故等を防ぐため)。
+`API_BASE_URL` / `WEB_BASE_URL` / `NEXT_PUBLIC_API_URL` / `NEXT_PUBLIC_TURNSTILE_SITE_KEY` が未設定のままだと該当デプロイジョブがデプロイ前に失敗する(プレースホルダ URL のままデプロイされ、CORS が全リクエストを拒否する事故等を防ぐため)。
 
 ### 8. 初回デプロイ
 
