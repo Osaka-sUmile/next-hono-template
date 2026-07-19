@@ -24,3 +24,65 @@ get:
         application/json:
           schema:
             $ref: '../components/schemas/Error.yaml'
+patch:
+  summary: Update current user's profile
+  description: Updates the authenticated user's display name
+  tags:
+    - Users
+  security:
+    - cookieAuth: []
+  requestBody:
+    required: true
+    content:
+      application/json:
+        schema:
+          type: object
+          required:
+            - displayName
+          properties:
+            displayName:
+              type: string
+              nullable: true
+              maxLength: 100
+              description: New display name. Send null (or an empty string) to clear it.
+  responses:
+    '200':
+      description: Updated profile
+      content:
+        application/json:
+          schema:
+            type: object
+            required:
+              - id
+              - email
+              - name
+              - role
+            properties:
+              id:
+                type: string
+              email:
+                type: string
+                format: email
+              name:
+                type: string
+              role:
+                type: string
+                enum: [user, admin]
+              displayName:
+                type: string
+                nullable: true
+    '401':
+      description: Unauthorized
+      content:
+        application/json:
+          schema:
+            $ref: '../components/schemas/Error.yaml'
+    '500':
+      description: >-
+        Internal server error. Note that request-body validation failures are
+        also surfaced here as INTERNAL_ERROR, since the central error handler
+        maps all thrown errors (including ZodError) to 500.
+      content:
+        application/json:
+          schema:
+            $ref: '../components/schemas/Error.yaml'

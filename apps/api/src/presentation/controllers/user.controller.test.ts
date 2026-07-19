@@ -61,3 +61,92 @@ describe("GET /api/v1/me", () => {
     expect((await res.json<{ code: string }>()).code).toBe(ErrorCodes.INTERNAL_ERROR);
   });
 });
+
+describe("PATCH /api/v1/me", () => {
+  it("returns 200 with updated profile and the v1 private cache header", async () => {
+    const updated = {
+      id: "user-1",
+      email: "test@example.com",
+      name: "Test User",
+      role: "user" as const,
+      displayName: "New Name",
+    };
+    const updateProfile = vi.fn().mockResolvedValue(updated);
+    const { app } = createTestApp({
+      getSession: vi.fn().mockResolvedValue(session),
+      updateProfile,
+    });
+
+    const res = await app.request("/api/v1/me", {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ displayName: "New Name" }),
+    });
+
+    expect(res.status).toBe(200);
+    expect(await res.json()).toEqual(updated);
+    expect(updateProfile).toHaveBeenCalledWith({ userId: "user-1", displayName: "New Name" });
+    expect(res.headers.get("Cache-Control")).toBe(
+      "private, no-cache, no-store, must-revalidate",
+    );
+  });
+
+  it("normalizes empty displayName to null before calling updateProfile", async () => {
+    const updateProfile = vi.fn().mockResolvedValue({
+      id: "user-1",
+      email: "test@example.com",
+      name: "Test User",
+      role: "user",
+      displayName: null,
+    });
+    const { app } = createTestApp({
+      getSession: vi.fn().mockResolvedValue(session),
+      updateProfile,
+    });
+
+    const res = await app.request("/api/v1/me", {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ displayName: "" }),
+    });
+
+    expect(res.status).toBe(200);
+    expect(updateProfile).toHaveBeenCalledWith({ userId: "user-1", displayName: null });
+  });
+
+  it("returns 401 SESSION_INVALID when unauthenticated and does not call updateProfile", async () => {
+    const updateProfile = vi.fn();
+    const { app } = createTestApp({
+      getSession: vi.fn().mockResolvedValue(null),
+      updateProfile,
+    });
+
+    const res = await app.request("/api/v1/me", {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ displayName: "New Name" }),
+    });
+
+    expect(res.status).toBe(401);
+    expect((await res.json<{ code: string }>()).code).toBe(ErrorCodes.SESSION_INVALID);
+    expect(updateProfile).not.toHaveBeenCalled();
+  });
+
+  it("returns 500 INTERNAL_ERROR when displayName exceeds max length", async () => {
+    const updateProfile = vi.fn();
+    const { app } = createTestApp({
+      getSession: vi.fn().mockResolvedValue(session),
+      updateProfile,
+    });
+
+    const res = await app.request("/api/v1/me", {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ displayName: "a".repeat(101) }),
+    });
+
+    expect(res.status).toBe(500);
+    expect((await res.json<{ code: string }>()).code).toBe(ErrorCodes.INTERNAL_ERROR);
+    expect(updateProfile).not.toHaveBeenCalled();
+  });
+});

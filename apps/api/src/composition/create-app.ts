@@ -3,8 +3,8 @@ import { cors } from "hono/cors";
 import { secureHeaders } from "hono/secure-headers";
 import { createAuth } from "@workspace/auth/server";
 import type { AuthInstance } from "@workspace/auth/server";
-import { createPrismaClient, UserQueryService } from "@workspace/database";
-import { GetCurrentUserUseCase, ListUsersUseCase } from "../application";
+import { createPrismaClient, UserPrismaRepository, UserQueryService } from "@workspace/database";
+import { GetCurrentUserUseCase, ListUsersUseCase, UpdateUserProfileUseCase } from "../application";
 import {
   AdminController,
   HealthController,
@@ -60,6 +60,7 @@ export function buildApp(deps: AppDeps): Hono<AppEnv> {
   });
   v1.get("/health", deps.healthController.check);
   v1.get("/me", requireAuth, deps.userController.getUserMe);
+  v1.patch("/me", requireAuth, deps.userController.updateUserMe);
   // admin 専用: requireAuth で認証 → requireAdmin で認可 (role=admin) を確認してから一覧を返す。
   v1.get("/admin/users", requireAuth, requireAdmin, deps.adminController.listUsers);
 
@@ -103,14 +104,16 @@ export async function createApp(env: Env): Promise<CreatedApp> {
 
 
     const userQueryService = new UserQueryService(prisma);
+    const userRepository = new UserPrismaRepository(prisma);
     const getCurrentUserUseCase = new GetCurrentUserUseCase(userQueryService);
     const listUsersUseCase = new ListUsersUseCase(userQueryService);
+    const updateUserProfileUseCase = new UpdateUserProfileUseCase(userRepository);
 
     const app = buildApp({
       env,
       auth,
       healthController: new HealthController(),
-      userController: new UserController(getCurrentUserUseCase),
+      userController: new UserController(getCurrentUserUseCase, updateUserProfileUseCase),
       adminController: new AdminController(listUsersUseCase),
     });
 
