@@ -84,8 +84,9 @@ jobs:
         run: pnpm --filter web exec opennextjs-cloudflare build
         env:
           # ビルド検証用のダミー値。実際の値は deploy-web ジョブで環境ごとに注入される
-          # (NEXT_PUBLIC_API_URL は未設定だと next build が失敗するため必須)。
+          # (NEXT_PUBLIC_API_URL / NEXT_PUBLIC_TURNSTILE_SITE_KEY は未設定だと next build が失敗するため必須)。
           NEXT_PUBLIC_API_URL: "https://api.example.com"
+          NEXT_PUBLIC_TURNSTILE_SITE_KEY: "1x00000000000000000000AA"
 
   # DB マイグレーション。DATABASE_URL は Environment Secret で、Neon の direct (non-pooled)
   # 接続文字列を設定すること (prisma CLI は TCP 直結のため。docs/deployment.md 参照)。
@@ -175,6 +176,7 @@ jobs:
       CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
       CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
       NEXT_PUBLIC_API_URL: ${{ vars.NEXT_PUBLIC_API_URL }}
+      NEXT_PUBLIC_TURNSTILE_SITE_KEY: ${{ vars.NEXT_PUBLIC_TURNSTILE_SITE_KEY }}
       NEXT_PUBLIC_SENTRY_DSN: ${{ vars.NEXT_PUBLIC_SENTRY_DSN }}
       # Sentry の environment タグ用。preview / production はどちらも NODE_ENV=production で
       # ビルドされるため、デプロイ先環境名をビルド時に注入して区別する (GitHub Variables 不要)。
@@ -195,6 +197,10 @@ jobs:
             echo "::error::GitHub Environment Variables の NEXT_PUBLIC_API_URL が未設定です。Settings → Environments → ${{ needs.resolve.outputs.environment }} の Variables に登録してください (docs/deployment.md 参照)"
             exit 1
           fi
+          if [ -z "$NEXT_PUBLIC_TURNSTILE_SITE_KEY" ]; then
+            echo "::error::GitHub Environment Variables の NEXT_PUBLIC_TURNSTILE_SITE_KEY が未設定です。Settings → Environments → ${{ needs.resolve.outputs.environment }} の Variables に登録してください (docs/deployment.md 参照)"
+            exit 1
+          fi
           if [ -n "$API_BASE_URL" ] && [ "$NEXT_PUBLIC_API_URL" != "$API_BASE_URL" ]; then
             echo "::error::NEXT_PUBLIC_API_URL ($NEXT_PUBLIC_API_URL) と API_BASE_URL ($API_BASE_URL) が一致していません。どちらも同じ api Worker の URL を設定してください (docs/deployment.md 参照)"
             exit 1
@@ -212,7 +218,7 @@ jobs:
       # NEXT_PUBLIC_SENTRY_DSN は空文字運用 (Sentry 無効) がありうるため、非空のときだけ渡す。
       - name: Deploy Web to Cloudflare Workers
         run: |
-          extra_vars=(--var "NEXT_PUBLIC_API_URL:${NEXT_PUBLIC_API_URL}")
+          extra_vars=(--var "NEXT_PUBLIC_API_URL:${NEXT_PUBLIC_API_URL}" --var "NEXT_PUBLIC_TURNSTILE_SITE_KEY:${NEXT_PUBLIC_TURNSTILE_SITE_KEY}")
           if [ -n "$NEXT_PUBLIC_SENTRY_DSN" ]; then
             extra_vars+=(--var "NEXT_PUBLIC_SENTRY_DSN:${NEXT_PUBLIC_SENTRY_DSN}")
           fi

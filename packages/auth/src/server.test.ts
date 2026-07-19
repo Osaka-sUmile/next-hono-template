@@ -157,3 +157,40 @@ describe("createAuth / social プロバイダの契約", () => {
     expect(auth.options.socialProviders?.apple?.disableImplicitSignUp).toBe(true);
   });
 });
+
+describe("createAuth / Turnstile captcha (refs #41)", () => {
+  it("turnstile 未設定なら captcha 検証を行わない(トークンなしでも OTP 送信が通る)", async () => {
+    const { auth } = createTestAuth();
+
+    const res = await auth.handler(
+      new Request("http://localhost:8787/api/auth/email-otp/send-verification-otp", {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({ email: "nobody@example.com", type: "sign-in" }),
+      }),
+    );
+
+    expect(res.status).toBe(200);
+  });
+
+  it("turnstile 設定時、保護対象エンドポイントへ x-captcha-response なしでリクエストすると 400 MISSING_RESPONSE を返す", async () => {
+    const db: Record<string, unknown[]> = { user: [], session: [], account: [], verification: [] };
+    const auth = createAuth({
+      ...baseConfig,
+      prisma: fakePrisma,
+      database: memoryAdapter(db),
+      turnstile: { secretKey: "1x0000000000000000000000000000000AA" },
+    });
+
+    const res = await auth.handler(
+      new Request("http://localhost:8787/api/auth/email-otp/send-verification-otp", {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({ email: "nobody@example.com", type: "sign-in" }),
+      }),
+    );
+
+    expect(res.status).toBe(400);
+    expect(await res.json()).toEqual({ message: "Missing CAPTCHA response", code: "MISSING_RESPONSE" });
+  });
+});

@@ -21,6 +21,7 @@ const testEnv: Env = {
   GOOGLE_CLIENT_SECRET: "test-google-client-secret",
   APPLE_CLIENT_ID: "test-apple-client-id",
   APPLE_CLIENT_SECRET: "test-apple-client-secret",
+  TURNSTILE_SECRET_KEY: "test-turnstile-secret-key",
 };
 
 /**

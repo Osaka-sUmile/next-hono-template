@@ -26,7 +26,6 @@
     "@workspace/database": "workspace:^",
     "@workspace/domain": "workspace:^",
     "hono": "^4.12.29",
-    "hono-rate-limiter": "^0.5.3",
     "zod": "^3.25.76"
   },
   "devDependencies": {

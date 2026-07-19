@@ -29,3 +29,8 @@ APPLE_CLIENT_SECRET="your-apple-private-key-pem"
 
 # Sentry (BE error monitoring). 未設定ならエラー監視は無効。
 SENTRY_DSN=""
+
+# Cloudflare Turnstile (captcha, issue #41)。必須。
+# 以下は Cloudflare の公式テストシークレットキー(常に検証成功を返す)。
+# 実運用のキーは docs/deployment.md の Turnstile セットアップ手順を参照して発行すること。
+TURNSTILE_SECRET_KEY="1x0000000000000000000000000000000AA"

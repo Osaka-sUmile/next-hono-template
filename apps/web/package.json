@@ -21,6 +21,7 @@
   "dependencies": {
     "@hugeicons/core-free-icons": "^4.2.2",
     "@hugeicons/react": "^1.1.9",
+    "@marsidev/react-turnstile": "^1.5.3",
     "@opennextjs/cloudflare": "^1.20.1",
     "@sentry/nextjs": "^10.65.0",
     "@workspace/auth": "workspace:*",

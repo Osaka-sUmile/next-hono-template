@@ -1,7 +1,7 @@
 import { betterAuth, type BetterAuthOptions } from "better-auth";
 import { prismaAdapter } from "better-auth/adapters/prisma";
 import { APIError, createAuthMiddleware } from "better-auth/api";
-import { emailOTP } from "better-auth/plugins";
+import { captcha, emailOTP } from "better-auth/plugins";
 import { Resend } from "resend";
 import type { PrismaClient } from "@prisma/client";
 
@@ -27,6 +27,11 @@ interface AuthConfig {
   resendFromEmail: string;
   google: { clientId: string; clientSecret: string };
   apple: { clientId: string; clientSecret: string };
+  /**
+   * Cloudflare Turnstile による captcha 検証(issue #41)。
+   * 未指定の場合(テスト等)は captcha プラグイン自体を組み込まない。
+   */
+  turnstile?: { secretKey: string };
 }
 
 export function createAuth(config: AuthConfig) {
@@ -97,6 +102,20 @@ export function createAuth(config: AuthConfig) {
       }),
     },
     plugins: [
+      ...(config.turnstile
+        ? [
+            captcha({
+              provider: "cloudflare-turnstile",
+              secretKey: config.turnstile.secretKey,
+              // メール送信が発生する未認証エンドポイントのみ保護する(issue #41)。
+              // /email-otp/request-email-change は要セッションのため対象外。
+              endpoints: [
+                "/email-otp/send-verification-otp",
+                "/email-otp/request-password-reset",
+              ],
+            }),
+          ]
+        : []),
       emailOTP({
         changeEmail: { enabled: true },
         async sendVerificationOTP({ email, otp, type }: { email: string; otp: string; type: string }, ctx) {
