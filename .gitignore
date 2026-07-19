@@ -41,3 +41,4 @@ npm-debug.log*
 .claude/settings.local.json
 .claude/memory/
 .claude/worktrees/
+.claude/.plan/
