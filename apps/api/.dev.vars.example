@@ -14,7 +14,9 @@ WEB_BASE_URL="http://localhost:3001"
 # メール OTP を試すときだけ実値が必要（https://resend.com → API Keys, 権限は Sending access）。
 # 試さない間はこのダミー値のままで起動できる（送信時にエラーになるだけ）。
 RESEND_API_KEY="re_xxxxxxxxxxxxxxxxxxxx"
-RESEND_FROM_EMAIL=noreply@example.com
+# Resend のサンドボックス送信元。ドメイン検証なしで送信できる（送信先は Resend アカウント登録メール宛のみ）。
+# 独自ドメインを検証済みなら noreply@<検証済みドメイン> に変更する。
+RESEND_FROM_EMAIL=onboarding@resend.dev
 
 # Google OAuth
 # Google ログインを試すときだけ実値が必要（Google Cloud Console → Credentials → OAuth クライアント ID）。

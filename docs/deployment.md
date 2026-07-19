@@ -77,7 +77,7 @@ Settings → Secrets and variables → Actions → Secrets(リポジトリスコ
 2. 環境ごとにブランチを分ける(例: `production` / `preview`)。Neon のブランチは Postgres のコピーオンライトブランチで、本番データに影響を与えずスキーマ検証ができる。
 3. 各ブランチの接続文字列を **2 種類**取得し、それぞれ登録する:
    - **direct**(非 pooled)→ GitHub の各 Environment の Secret `DATABASE_URL` へ(マイグレーション用)
-   - **pooled** → 手順 6 の `wrangler secret put DATABASE_URL --env <環境>` へ(API ランタイム用)
+   - **pooled** → 手順 7 の `wrangler secret put DATABASE_URL --env <環境>` へ(API ランタイム用)
 
 ### 5. Cloudflare Turnstile ウィジェットの作成
 
@@ -86,11 +86,34 @@ email OTP の送信エンドポイント(送信・パスワードリセット)�
 1. Cloudflare ダッシュボード → **Turnstile** → **Add widget**。
 2. Widget Mode は **Managed** を選択する(通常は非表示で、怪しいリクエストのみチェックボックスを表示する。UX と防御のバランスが良いため採用)。
 3. Hostname に該当環境の web の実ドメイン(例: `web-preview.<subdomain>.workers.dev`)と、ローカル動作確認用に `localhost` を登録する。
-4. 作成後に発行される **Site Key**(公開値)と **Secret Key**(秘匿値)を控える。Site Key は手順 7 の `NEXT_PUBLIC_TURNSTILE_SITE_KEY`、Secret Key は次の手順 6 の `TURNSTILE_SECRET_KEY` に使う。
+4. 作成後に発行される **Site Key**(公開値)と **Secret Key**(秘匿値)を控える。Site Key は手順 8 の `NEXT_PUBLIC_TURNSTILE_SITE_KEY`、Secret Key は手順 7 の `TURNSTILE_SECRET_KEY` に使う。
 
 ローカル開発・CI では、常にチャレンジが自動成功する Cloudflare の公式テストキー(Site Key: `1x00000000000000000000AA` / Secret Key: `1x0000000000000000000000000000000AA`)を使ってよい。`apps/api/.dev.vars.example` と `apps/web/.env.local.example` はこのテストキーで初期化済み。
 
-### 6. Cloudflare ランタイムシークレットの登録
+### 6. Resend 送信元アドレス(RESEND_FROM_EMAIL)の設定
+
+メール OTP・パスワードリセット等の送信元アドレスを設定する。**Resend は未検証ドメインからの送信を拒否する**ため、`wrangler.jsonc` の初期値 `noreply@example.com` のままではデプロイ後に次のエラーになる。
+
+```text
+Domain not verified: Verify example.com or update your from domain.
+```
+
+環境ごとの推奨値は以下の通り。`apps/api/wrangler.jsonc` の各 env の `vars.RESEND_FROM_EMAIL` に設定する(コミット対象・非シークレット)。
+
+| 環境 | 推奨 `RESEND_FROM_EMAIL` | 備考 |
+| :--- | :--- | :--- |
+| preview | `onboarding@resend.dev` | Resend サンドボックス。ドメイン検証不要だが、送信先は Resend アカウント登録メール宛のみ。preview の動作確認には十分。**リポジトリ初期値で設定済み** |
+| production | `noreply@<検証済みドメイン>` | Resend Domains → Add Domain でドメイン検証が必要。`api-production` の `vars` を自分のドメインに変更する |
+
+チェックリスト:
+
+- [ ] `apps/api/wrangler.jsonc` の `env.preview.vars.RESEND_FROM_EMAIL` が `onboarding@resend.dev`(初期値のまま可)
+- [ ] `env.production.vars.RESEND_FROM_EMAIL` を Resend で検証済みのドメインの送信元に変更した
+- [ ] `RESEND_API_KEY` を各環境に `wrangler secret put`(次の手順 7)で登録する
+
+preview で独自ドメインを用意する必要はない。ローカル開発は `apps/api/.dev.vars` の `RESEND_FROM_EMAIL`(`onboarding@resend.dev` 推奨)で上書きする。
+
+### 7. Cloudflare ランタイムシークレットの登録
 
 `api-preview` / `api-production` は別 Worker でシークレットも独立しているため、**必ず `--env` を付けて環境ごとに**登録する。**`--env` を省略すると top-level の Worker `api`(ローカル開発用)に登録され、デプロイされる Worker からは一切参照されない**。登録漏れがあってもデプロイは成功し、ランタイムエラーで発覚する点に注意。
 
@@ -120,9 +143,9 @@ pnpm exec wrangler secret put SENTRY_DSN --env production         # 同上、省
 pnpm exec wrangler secret put TURNSTILE_SECRET_KEY --env production # 手順 5 で発行した Secret Key
 ```
 
-### 7. GitHub Environment Variables の登録
+### 8. GitHub Environment Variables の登録
 
-Settings → Environments → 各環境の Variables に以下を登録する。URL 3 つは手順 8 で確定するため、それまでは仮値(`https://example.com` 等の非空文字列)で可。
+Settings → Environments → 各環境の Variables に以下を登録する。URL 3 つは手順 9 で確定するため、それまでは仮値(`https://example.com` 等の非空文字列)で可。
 
 - `API_BASE_URL`(api Worker 自身の URL)
 - `WEB_BASE_URL`(web Worker の URL。API の CORS / better-auth の許可 origin に使われる)
@@ -132,7 +155,7 @@ Settings → Environments → 各環境の Variables に以下を登録する。
 
 `API_BASE_URL` / `WEB_BASE_URL` / `NEXT_PUBLIC_API_URL` / `NEXT_PUBLIC_TURNSTILE_SITE_KEY` が未設定のままだと該当デプロイジョブがデプロイ前に失敗する(プレースホルダ URL のままデプロイされ、CORS が全リクエストを拒否する事故等を防ぐため)。
 
-### 8. 初回デプロイ
+### 9. 初回デプロイ
 
 develop へ push すると preview 環境へ自動デプロイされる。CI を待たずに確認したい場合はローカルから手動でも実行できる(通常はガードによりブロックされるため `ALLOW_LOCAL_DEPLOY=1` が必要)。GitHub Secrets はローカルシェルには渡らないため、事前に `pnpm exec wrangler login` で認証するか、`CLOUDFLARE_API_TOKEN` / `CLOUDFLARE_ACCOUNT_ID` をローカル環境変数として設定しておくこと。CI と同じく **api → web の順**に、両方デプロイすること:
 
@@ -157,9 +180,9 @@ workers.dev の URL は `https://<Worker 名>.<アカウントのサブドメイ
 
 - web の `WORKER_SELF_REFERENCE` は自分自身への service binding のため、Worker が存在しない初回デプロイで失敗する場合がある。その場合はワークフローを再実行する。
 
-### 9. URL の反映と再デプロイ
+### 10. URL の反映と再デプロイ
 
-手順 8 で確定した URL を **GitHub Environment Variables(手順 7 の仮値)** に反映し、再デプロイする。**preview の URL は Environment `preview` へ、production の URL は Environment `production` へ**設定する(末尾スラッシュなし)。
+手順 9 で確定した URL を **GitHub Environment Variables(手順 8 の仮値)** に反映し、再デプロイする。**preview の URL は Environment `preview` へ、production の URL は Environment `production` へ**設定する(末尾スラッシュなし)。
 
 | 変数 | 設定する値 |
 | :--- | :--- |
@@ -170,7 +193,7 @@ workers.dev の URL は `https://<Worker 名>.<アカウントのサブドメイ
 
 再デプロイは GitHub Actions の Run を re-run するか、workflow_dispatch で手動実行する。`NEXT_PUBLIC_*` はビルド時にクライアントバンドルへインラインされるため、値の変更にはビルドからやり直す再デプロイが必須。
 
-### 10. 動作確認
+### 11. 動作確認
 
 デプロイされた web からログイン等の API 通信ができること、Turnstile ウィジェットが表示・自動パスすること、(Sentry 利用時は)エラーが正しい `environment` タグで届くことを確認する。
 
@@ -207,7 +230,7 @@ workers.dev の URL は `https://<Worker 名>.<アカウントのサブドメイ
 
 | 変数名 | 値の入手方法 | 場所 |
 | :--- | :--- | :--- |
-| `RESEND_FROM_EMAIL` | Resend でドメイン検証(Domains → Add Domain)した送信元アドレスを自分で決める | `apps/api/wrangler.jsonc` の各 env の `vars` |
+| `RESEND_FROM_EMAIL` | preview は `onboarding@resend.dev`(Resend サンドボックス、初期値のまま可)。production は Resend でドメイン検証(Domains → Add Domain)した送信元。詳細は手順 6 参照 | `apps/api/wrangler.jsonc` の各 env の `vars` |
 
 環境ごとの URL(`API_BASE_URL` / `WEB_BASE_URL` / `NEXT_PUBLIC_*`)は `wrangler.jsonc` には定義しない。デプロイ環境の実値は GitHub Environment Variables を唯一のソースとして CI が `--var` で注入し(上の「GitHub 側に登録するもの」参照)、ローカル実行(`wrangler dev` / `pnpm preview`)は `.dev.vars` をソースとする。
 
@@ -266,7 +289,7 @@ DATABASE_URL="<Neon の direct 接続文字列>" \
 
 `pnpm run deploy`(api / web とも)は誤実行ガード(`scripts/ensure-ci-deploy.mjs`)により、CI 以外での実行をデフォルトで拒否する。checks / migrate を経ない野良デプロイ(例: シェルに `CLOUDFLARE_ENV=production` が残ったまま実行して本番を直接上書きする事故)を防ぐため。
 
-デプロイは CI 経由が原則で、ローカルから実行するのは初回セットアップ(セットアップ手順 8)等に限る。意図的に実行する場合のみ `ALLOW_LOCAL_DEPLOY=1` を付ける:
+デプロイは CI 経由が原則で、ローカルから実行するのは初回セットアップ(セットアップ手順 9)等に限る。意図的に実行する場合のみ `ALLOW_LOCAL_DEPLOY=1` を付ける:
 
 ```bash
 ALLOW_LOCAL_DEPLOY=1 CLOUDFLARE_ENV=preview pnpm run deploy

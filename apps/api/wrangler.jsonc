@@ -45,7 +45,9 @@
         // Sentry の environment タグ用。preview も NODE_ENV は production のため、
         // 環境の識別はこの変数で行う (未設定時は NODE_ENV にフォールバック)。
         "SENTRY_ENVIRONMENT": "preview",
-        "RESEND_FROM_EMAIL": "noreply@example.com"
+        // Resend のサンドボックス送信元。ドメイン検証なしで動作確認できる (Resend アカウント
+        // 登録メール宛のみ送信可)。production は必ず検証済みドメインの送信元へ変更すること。
+        "RESEND_FROM_EMAIL": "onboarding@resend.dev"
       },
       "ratelimits": [
         {
