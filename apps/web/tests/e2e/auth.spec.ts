@@ -17,7 +17,7 @@ function corsHeaders(origin: string) {
   return {
     "access-control-allow-origin": origin,
     "access-control-allow-credentials": "true",
-    "access-control-allow-headers": "content-type, x-signup-intent",
+    "access-control-allow-headers": "content-type, x-signup-intent, x-captcha-response",
     "access-control-allow-methods": "GET,POST,OPTIONS",
   };
 }

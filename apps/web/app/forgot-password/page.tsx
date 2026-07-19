@@ -1,8 +1,10 @@
 "use client";
 
-import { useState } from "react";
+import { useRef, useState } from "react";
 import Link from "next/link";
+import type { TurnstileInstance } from "@marsidev/react-turnstile";
 import { Button } from "@workspace/ui/components/button";
+import { TurnstileWidget } from "@/components/turnstile-widget";
 import { authClient } from "@/lib/auth-client";
 
 type Step = "request" | "verify" | "done";
@@ -14,15 +16,24 @@ export default function ForgotPasswordPage() {
   const [password, setPassword] = useState("");
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
+  const [captchaToken, setCaptchaToken] = useState<string | null>(null);
+  const turnstileRef = useRef<TurnstileInstance>(null);
 
   async function handleRequest(e: React.FormEvent) {
     e.preventDefault();
+    if (!captchaToken) return;
     setError(null);
     setLoading(true);
-    const { error } = await authClient.emailOtp.requestPasswordReset({ email });
+    const { error } = await authClient.emailOtp.requestPasswordReset(
+      { email },
+      { headers: { "x-captcha-response": captchaToken } },
+    );
     setLoading(false);
     if (error) {
       setError("送信に失敗しました。しばらく経ってから再試行してください。");
+      // captcha トークンは 1 回限りのため、失敗時は破棄してウィジェットを再取得させる。
+      setCaptchaToken(null);
+      turnstileRef.current?.reset();
       return;
     }
     setStep("verify");
@@ -142,8 +153,13 @@ export default function ForgotPasswordPage() {
               className="w-full rounded-md border border-input bg-background px-3 py-2 text-sm placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-ring"
             />
           </div>
+          <TurnstileWidget
+            ref={turnstileRef}
+            onSuccess={setCaptchaToken}
+            onExpire={() => setCaptchaToken(null)}
+          />
           {error && <p className="text-destructive text-sm">{error}</p>}
-          <Button type="submit" className="w-full" disabled={loading}>
+          <Button type="submit" className="w-full" disabled={loading || !captchaToken}>
             {loading ? "送信中..." : "リセットコードを送信"}
           </Button>
         </form>

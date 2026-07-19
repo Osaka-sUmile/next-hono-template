@@ -1,11 +1,13 @@
 "use client";
 
-import { Suspense, useState } from "react";
+import { Suspense, useRef, useState } from "react";
 import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
 import { HugeiconsIcon } from "@hugeicons/react";
 import { AppleIcon, GoogleIcon } from "@hugeicons/core-free-icons";
+import type { TurnstileInstance } from "@marsidev/react-turnstile";
 import { Button } from "@workspace/ui/components/button";
+import { TurnstileWidget } from "@/components/turnstile-widget";
 import { authClient } from "@/lib/auth-client";
 
 type Step = "request" | "verify";
@@ -45,18 +47,24 @@ function LoginPageContent() {
         : null,
   );
   const [loading, setLoading] = useState(false);
+  const [captchaToken, setCaptchaToken] = useState<string | null>(null);
+  const turnstileRef = useRef<TurnstileInstance>(null);
 
   async function handleRequest(e: React.FormEvent) {
     e.preventDefault();
+    if (!captchaToken) return;
     setError(null);
     setLoading(true);
-    const { error } = await authClient.emailOtp.sendVerificationOtp({
-      email,
-      type: "sign-in",
-    });
+    const { error } = await authClient.emailOtp.sendVerificationOtp(
+      { email, type: "sign-in" },
+      { headers: { "x-captcha-response": captchaToken } },
+    );
     setLoading(false);
     if (error) {
       setError("送信に失敗しました。しばらく経ってから再試行してください。");
+      // captcha トークンは 1 回限りのため、失敗時は破棄してウィジェットを再取得させる。
+      setCaptchaToken(null);
+      turnstileRef.current?.reset();
       return;
     }
     setStep("verify");
@@ -161,8 +169,13 @@ function LoginPageContent() {
               className="w-full rounded-md border border-input bg-background px-3 py-2 text-sm placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-ring"
             />
           </div>
+          <TurnstileWidget
+            ref={turnstileRef}
+            onSuccess={setCaptchaToken}
+            onExpire={() => setCaptchaToken(null)}
+          />
           {error && <p className="text-destructive text-sm">{error}</p>}
-          <Button type="submit" className="w-full" disabled={loading}>
+          <Button type="submit" className="w-full" disabled={loading || !captchaToken}>
             {loading ? "送信中..." : "認証コードを送信"}
           </Button>
         </form>

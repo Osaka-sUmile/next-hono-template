@@ -1,3 +1,4 @@
+import { useEffect } from "react";
 import { describe, it, expect, vi, beforeEach } from "vitest";
 import { render, screen, fireEvent, waitFor } from "@testing-library/react";
 import SignupPage from "./page";
@@ -14,6 +15,16 @@ vi.mock("@/lib/auth-client", () => ({
   authClient: {
     emailOtp: { sendVerificationOtp: mocks.sendVerificationOtp },
     signIn: { emailOtp: mocks.signInEmailOtp, social: mocks.signInSocial },
+  },
+}));
+
+// Turnstile はブラウザでチャレンジを解いた体で、マウント時に即座に onSuccess を呼ぶ。
+vi.mock("@/components/turnstile-widget", () => ({
+  TurnstileWidget: ({ onSuccess }: { onSuccess: (token: string) => void }) => {
+    useEffect(() => {
+      onSuccess("test-captcha-token");
+    }, [onSuccess]);
+    return null;
   },
 }));
 
@@ -59,7 +70,7 @@ describe("SignupPage", () => {
 
     expect(mocks.sendVerificationOtp).toHaveBeenCalledWith(
       { email: "test@example.com", type: "sign-in" },
-      { headers: { "x-signup-intent": "1" } },
+      { headers: { "x-signup-intent": "1", "x-captcha-response": "test-captcha-token" } },
     );
     expect(await screen.findByLabelText("認証コード")).toBeInTheDocument();
   });
