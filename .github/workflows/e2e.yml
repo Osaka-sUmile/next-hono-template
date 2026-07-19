@@ -36,9 +36,12 @@ jobs:
         # NEXT_PUBLIC_API_URL は build 時にインライン化され、未設定だと
         # auth-client が throw してビルドが失敗する。e2e では /api/auth/* を
         # route interception でモックするため、実際に到達しないダミー値でよい。
+        # NEXT_PUBLIC_TURNSTILE_SITE_KEY も同様に未設定だと turnstile-widget が throw する。
+        # Cloudflare の公式テストサイトキー(常にチャレンジが自動成功する)を使う。
         run: cd apps/web && pnpm build
         env:
           NEXT_PUBLIC_API_URL: http://127.0.0.1:8787
+          NEXT_PUBLIC_TURNSTILE_SITE_KEY: "1x00000000000000000000AA"
 
       - name: Install Playwright Browsers
         run: cd apps/web && pnpm exec playwright install --with-deps

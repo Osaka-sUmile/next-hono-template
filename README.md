@@ -35,8 +35,9 @@
    - `AUTH_SECRET`: `openssl rand -base64 32` で生成した値に置き換える
    - `RESEND_API_KEY` / `GOOGLE_*` / `APPLE_*`: メール OTP・ソーシャルログインを試すときだけ実値が必要。それまでは example のダミー値のままで起動できます
    - `SENTRY_DSN`: 空のままで OK（エラー監視が無効になるだけ）
+   - `TURNSTILE_SECRET_KEY`（`apps/api/.dev.vars`）/ `NEXT_PUBLIC_TURNSTILE_SITE_KEY`（`apps/web/.env.local`）: example は Cloudflare の公式テストキー（常にチャレンジが自動成功する）なので編集不要。実際のウィジェット作成手順は `docs/deployment.md` を参照してください
 
-   preview / production 環境の整備（Cloudflare / Neon / GitHub Secrets）は `docs/deployment.md` のセットアップチェックリストを参照してください。
+   preview / production 環境の整備（Cloudflare / Neon / GitHub Secrets、Turnstile ウィジェットの作成）は `docs/deployment.md` のセットアップチェックリストを参照してください。
 
 3. **データベースの起動 (Docker)**
    Docker を使ってローカルの PostgreSQL と、Neon serverless driver 用の wsproxy を起動します。

@@ -77,9 +77,20 @@ Settings → Secrets and variables → Actions → Secrets(リポジトリスコ
 2. 環境ごとにブランチを分ける(例: `production` / `preview`)。Neon のブランチは Postgres のコピーオンライトブランチで、本番データに影響を与えずスキーマ検証ができる。
 3. 各ブランチの接続文字列を **2 種類**取得し、それぞれ登録する:
    - **direct**(非 pooled)→ GitHub の各 Environment の Secret `DATABASE_URL` へ(マイグレーション用)
-   - **pooled** → 手順 5 の `wrangler secret put DATABASE_URL --env <環境>` へ(API ランタイム用)
+   - **pooled** → 手順 6 の `wrangler secret put DATABASE_URL --env <環境>` へ(API ランタイム用)
 
-### 5. Cloudflare ランタイムシークレットの登録
+### 5. Cloudflare Turnstile ウィジェットの作成
+
+email OTP の送信エンドポイント(送信・パスワードリセット)を分散ボットのメール乱用から守るため、better-auth の captcha プラグイン経由で Cloudflare Turnstile を使う(issue #41)。preview / production で別ウィジェット(別サイトキー)を作ることを推奨する。
+
+1. Cloudflare ダッシュボード → **Turnstile** → **Add widget**。
+2. Widget Mode は **Managed** を選択する(通常は非表示で、怪しいリクエストのみチェックボックスを表示する。UX と防御のバランスが良いため採用)。
+3. Hostname に該当環境の web の実ドメイン(例: `web-preview.<subdomain>.workers.dev`)と、ローカル動作確認用に `localhost` を登録する。
+4. 作成後に発行される **Site Key**(公開値)と **Secret Key**(秘匿値)を控える。Site Key は手順 7 の `NEXT_PUBLIC_TURNSTILE_SITE_KEY`、Secret Key は次の手順 6 の `TURNSTILE_SECRET_KEY` に使う。
+
+ローカル開発・CI では、常にチャレンジが自動成功する Cloudflare の公式テストキー(Site Key: `1x00000000000000000000AA` / Secret Key: `1x0000000000000000000000000000000AA`)を使ってよい。`apps/api/.dev.vars.example` と `apps/web/.env.local.example` はこのテストキーで初期化済み。
+
+### 6. Cloudflare ランタイムシークレットの登録
 
 `api-preview` / `api-production` は別 Worker でシークレットも独立しているため、**必ず `--env` を付けて環境ごとに**登録する。**`--env` を省略すると top-level の Worker `api`(ローカル開発用)に登録され、デプロイされる Worker からは一切参照されない**。登録漏れがあってもデプロイは成功し、ランタイムエラーで発覚する点に注意。
 
@@ -95,6 +106,7 @@ pnpm exec wrangler secret put GOOGLE_CLIENT_SECRET --env preview
 pnpm exec wrangler secret put APPLE_CLIENT_ID --env preview
 pnpm exec wrangler secret put APPLE_CLIENT_SECRET --env preview
 pnpm exec wrangler secret put SENTRY_DSN --env preview           # Sentry を使わないなら登録不要(このコマンドは省略可)
+pnpm exec wrangler secret put TURNSTILE_SECRET_KEY --env preview # 手順 5 で発行した Secret Key
 
 # production
 pnpm exec wrangler secret put DATABASE_URL --env production      # Neon の pooled 接続文字列
@@ -105,20 +117,22 @@ pnpm exec wrangler secret put GOOGLE_CLIENT_SECRET --env production
 pnpm exec wrangler secret put APPLE_CLIENT_ID --env production
 pnpm exec wrangler secret put APPLE_CLIENT_SECRET --env production
 pnpm exec wrangler secret put SENTRY_DSN --env production         # 同上、省略可
+pnpm exec wrangler secret put TURNSTILE_SECRET_KEY --env production # 手順 5 で発行した Secret Key
 ```
 
-### 6. GitHub Environment Variables の登録
+### 7. GitHub Environment Variables の登録
 
-Settings → Environments → 各環境の Variables に以下を登録する。URL 3 つは手順 7 で確定するため、それまでは仮値(`https://example.com` 等の非空文字列)で可。
+Settings → Environments → 各環境の Variables に以下を登録する。URL 3 つは手順 8 で確定するため、それまでは仮値(`https://example.com` 等の非空文字列)で可。
 
 - `API_BASE_URL`(api Worker 自身の URL)
 - `WEB_BASE_URL`(web Worker の URL。API の CORS / better-auth の許可 origin に使われる)
 - `NEXT_PUBLIC_API_URL`(api Worker の URL。web のクライアントバンドルにインラインされる)
+- `NEXT_PUBLIC_TURNSTILE_SITE_KEY`(手順 5 で発行した Site Key)
 - `NEXT_PUBLIC_SENTRY_DSN`(Sentry を使わないなら空文字)
 
-`API_BASE_URL` / `WEB_BASE_URL` が未設定のままだと deploy-api ジョブがデプロイ前に失敗する(プレースホルダ URL のままデプロイされ、CORS が全リクエストを拒否する事故を防ぐため)。
+`API_BASE_URL` / `WEB_BASE_URL` / `NEXT_PUBLIC_TURNSTILE_SITE_KEY` が未設定のままだと該当デプロイジョブがデプロイ前に失敗する(プレースホルダ URL のままデプロイされ、CORS が全リクエストを拒否する事故等を防ぐため)。
 
-### 7. 初回デプロイ
+### 8. 初回デプロイ
 
 develop へ push すると preview 環境へ自動デプロイされる。CI を待たずに確認したい場合はローカルから手動でも実行できる(通常はガードによりブロックされるため `ALLOW_LOCAL_DEPLOY=1` が必要)。GitHub Secrets はローカルシェルには渡らないため、事前に `pnpm exec wrangler login` で認証するか、`CLOUDFLARE_API_TOKEN` / `CLOUDFLARE_ACCOUNT_ID` をローカル環境変数として設定しておくこと。CI と同じく **api → web の順**に、両方デプロイすること:
 
@@ -143,9 +157,9 @@ workers.dev の URL は `https://<Worker 名>.<アカウントのサブドメイ
 
 - web の `WORKER_SELF_REFERENCE` は自分自身への service binding のため、Worker が存在しない初回デプロイで失敗する場合がある。その場合はワークフローを再実行する。
 
-### 8. URL の反映と再デプロイ
+### 9. URL の反映と再デプロイ
 
-手順 7 で確定した URL を **GitHub Environment Variables(手順 6 の仮値)** に反映し、再デプロイする。**preview の URL は Environment `preview` へ、production の URL は Environment `production` へ**設定する(末尾スラッシュなし)。
+手順 8 で確定した URL を **GitHub Environment Variables(手順 7 の仮値)** に反映し、再デプロイする。**preview の URL は Environment `preview` へ、production の URL は Environment `production` へ**設定する(末尾スラッシュなし)。
 
 | 変数 | 設定する値 |
 | :--- | :--- |
@@ -156,9 +170,9 @@ workers.dev の URL は `https://<Worker 名>.<アカウントのサブドメイ
 
 再デプロイは GitHub Actions の Run を re-run するか、workflow_dispatch で手動実行する。`NEXT_PUBLIC_*` はビルド時にクライアントバンドルへインラインされるため、値の変更にはビルドからやり直す再デプロイが必須。
 
-### 9. 動作確認
+### 10. 動作確認
 
-デプロイされた web からログイン等の API 通信ができること、(Sentry 利用時は)エラーが正しい `environment` タグで届くことを確認する。
+デプロイされた web からログイン等の API 通信ができること、Turnstile ウィジェットが表示・自動パスすること、(Sentry 利用時は)エラーが正しい `environment` タグで届くことを確認する。
 
 ## 環境変数リファレンス
 
@@ -174,6 +188,7 @@ workers.dev の URL は `https://<Worker 名>.<アカウントのサブドメイ
 | `API_BASE_URL` | 初回デプロイ後に確定する api Worker の URL(例: `https://api-preview.<subdomain>.workers.dev`)。**末尾スラッシュなし**。CI が `wrangler deploy --var` で api Worker に注入する | Environment Variable | はい |
 | `WEB_BASE_URL` | 初回デプロイ後に確定する web Worker の URL(例: `https://web-preview.<subdomain>.workers.dev`)。**末尾スラッシュなし**。API の CORS / better-auth の許可 origin に使われる | Environment Variable | はい |
 | `NEXT_PUBLIC_API_URL` | `API_BASE_URL` と同じ値(api Worker の URL)。web のビルド時にクライアントバンドルへインラインされる | Environment Variable | はい |
+| `NEXT_PUBLIC_TURNSTILE_SITE_KEY` | 手順 5 で作成した Turnstile ウィジェットの Site Key。web のビルド時にクライアントバンドルへインラインされる | Environment Variable | はい |
 | `NEXT_PUBLIC_SENTRY_DSN` | [sentry.io](https://sentry.io) → web 用プロジェクト(Platform: Next.js)→ Settings → Client Keys (DSN)。**使わないなら空文字で可** | Environment Variable | はい(共通でも可) |
 
 ### Cloudflare 側に登録するもの(`wrangler secret put <NAME> --env <preview|production>`)
@@ -186,6 +201,7 @@ workers.dev の URL は `https://<Worker 名>.<アカウントのサブドメイ
 | `GOOGLE_CLIENT_ID` / `GOOGLE_CLIENT_SECRET` | Google Cloud Console → APIs & Services → Credentials → OAuth クライアント ID を作成。リダイレクト URI に `{API の URL}/api/auth/callback/google` を登録 | 環境ごとに分けるのを推奨 |
 | `APPLE_CLIENT_ID` / `APPLE_CLIENT_SECRET` | Apple Developer → Certificates, Identifiers & Profiles で Services ID と秘密鍵を作成。コールバックは `{API の URL}/api/auth/callback/apple` | 環境ごとに分けるのを推奨 |
 | `SENTRY_DSN` | [sentry.io](https://sentry.io) → api 用プロジェクト(Platform: Cloudflare Workers)→ Settings → Client Keys (DSN)。**使わないなら登録しなくてよい** | はい(共通でも可) |
+| `TURNSTILE_SECRET_KEY` | 手順 5 で作成した Turnstile ウィジェットの Secret Key。**必須**(未設定だと env.ts の Zod 検証で API 起動時に失敗する) | 環境ごとに分けるのを推奨 |
 
 ### `wrangler.jsonc` の `vars` で管理するもの(コミット対象・非シークレット)
 
@@ -194,6 +210,18 @@ workers.dev の URL は `https://<Worker 名>.<アカウントのサブドメイ
 | `RESEND_FROM_EMAIL` | Resend でドメイン検証(Domains → Add Domain)した送信元アドレスを自分で決める | `apps/api/wrangler.jsonc` の各 env の `vars` |
 
 環境ごとの URL(`API_BASE_URL` / `WEB_BASE_URL` / `NEXT_PUBLIC_*`)は `wrangler.jsonc` には定義しない。デプロイ環境の実値は GitHub Environment Variables を唯一のソースとして CI が `--var` で注入し(上の「GitHub 側に登録するもの」参照)、ローカル実行(`wrangler dev` / `pnpm preview`)は `.dev.vars` をソースとする。
+
+### `wrangler.jsonc` の `ratelimits` で管理するもの(コミット対象・シークレット不要)
+
+Cloudflare Workers Rate Limiting binding(issue #41)。認証系のメール送信・サインイン・パスワードリセットエンドポイントを対象に、単一 IP からの高速な試行を防ぐ。シークレットではなく `apps/api/wrangler.jsonc` の top-level / `env.preview` / `env.production` に直接コミットされており、追加の登録作業は不要。
+
+| 設定項目 | 内容 |
+| :--- | :--- |
+| `name` | binding 名(`AUTH_RATE_LIMITER`)。コード側の参照名と一致させる |
+| `namespace_id` | Cloudflare アカウント内で一意な正の整数。環境間でカウンターが混ざらないよう env ごとに別の値を割り当てている |
+| `simple.limit` / `simple.period` | 上限リクエスト数 / 期間(秒)。`period` は 10 か 60 のみ指定可能 |
+
+binding は colo 単位の eventual consistent な近似カウントであり、in-memory store と異なり複数インスタンス間でも共有される。
 
 ### 設定不要(自動供給されるもの)
 
@@ -238,7 +266,7 @@ DATABASE_URL="<Neon の direct 接続文字列>" \
 
 `pnpm run deploy`(api / web とも)は誤実行ガード(`scripts/ensure-ci-deploy.mjs`)により、CI 以外での実行をデフォルトで拒否する。checks / migrate を経ない野良デプロイ(例: シェルに `CLOUDFLARE_ENV=production` が残ったまま実行して本番を直接上書きする事故)を防ぐため。
 
-デプロイは CI 経由が原則で、ローカルから実行するのは初回セットアップ(セットアップ手順 7)等に限る。意図的に実行する場合のみ `ALLOW_LOCAL_DEPLOY=1` を付ける:
+デプロイは CI 経由が原則で、ローカルから実行するのは初回セットアップ(セットアップ手順 8)等に限る。意図的に実行する場合のみ `ALLOW_LOCAL_DEPLOY=1` を付ける:
 
 ```bash
 ALLOW_LOCAL_DEPLOY=1 CLOUDFLARE_ENV=preview pnpm run deploy
