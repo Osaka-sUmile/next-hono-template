@@ -15,5 +15,6 @@ properties:
       - SESSION_FETCH_FAILED # Session retrieval failed (500)
       - FORBIDDEN            # Insufficient permissions (403)
       - RATE_LIMIT_EXCEEDED  # Too many requests (429)
+      - VALIDATION_ERROR     # Request validation failed: malformed JSON or schema mismatch (400)
       - INTERNAL_ERROR       # Unexpected server error (500)
     description: Machine-readable error code for client-side handling. See enum comments for details.

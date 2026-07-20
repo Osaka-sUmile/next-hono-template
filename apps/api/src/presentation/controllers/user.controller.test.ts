@@ -132,7 +132,7 @@ describe("PATCH /api/v1/me", () => {
     expect(updateProfile).not.toHaveBeenCalled();
   });
 
-  it("returns 500 INTERNAL_ERROR when displayName exceeds max length", async () => {
+  it("returns 400 VALIDATION_ERROR when displayName exceeds max length", async () => {
     const updateProfile = vi.fn();
     const { app } = createTestApp({
       getSession: vi.fn().mockResolvedValue(session),
@@ -145,12 +145,12 @@ describe("PATCH /api/v1/me", () => {
       body: JSON.stringify({ displayName: "a".repeat(101) }),
     });
 
-    expect(res.status).toBe(500);
-    expect((await res.json<{ code: string }>()).code).toBe(ErrorCodes.INTERNAL_ERROR);
+    expect(res.status).toBe(400);
+    expect((await res.json<{ code: string }>()).code).toBe(ErrorCodes.VALIDATION_ERROR);
     expect(updateProfile).not.toHaveBeenCalled();
   });
 
-  it("returns 500 INTERNAL_ERROR when displayName is missing from the body", async () => {
+  it("returns 400 VALIDATION_ERROR when displayName is missing from the body", async () => {
     const updateProfile = vi.fn();
     const { app } = createTestApp({
       getSession: vi.fn().mockResolvedValue(session),
@@ -163,8 +163,26 @@ describe("PATCH /api/v1/me", () => {
       body: JSON.stringify({}),
     });
 
-    expect(res.status).toBe(500);
-    expect((await res.json<{ code: string }>()).code).toBe(ErrorCodes.INTERNAL_ERROR);
+    expect(res.status).toBe(400);
+    expect((await res.json<{ code: string }>()).code).toBe(ErrorCodes.VALIDATION_ERROR);
+    expect(updateProfile).not.toHaveBeenCalled();
+  });
+
+  it("returns 400 VALIDATION_ERROR when the request body is malformed JSON", async () => {
+    const updateProfile = vi.fn();
+    const { app } = createTestApp({
+      getSession: vi.fn().mockResolvedValue(session),
+      updateProfile,
+    });
+
+    const res = await app.request("/api/v1/me", {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: "{",
+    });
+
+    expect(res.status).toBe(400);
+    expect((await res.json<{ code: string }>()).code).toBe(ErrorCodes.VALIDATION_ERROR);
     expect(updateProfile).not.toHaveBeenCalled();
   });
 

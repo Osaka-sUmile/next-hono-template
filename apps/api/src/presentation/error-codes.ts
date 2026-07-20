@@ -9,6 +9,8 @@ export const ErrorCodes = {
   FORBIDDEN: "FORBIDDEN",
   // Rate limit errors
   RATE_LIMIT_EXCEEDED: "RATE_LIMIT_EXCEEDED",
+  // Validation errors
+  VALIDATION_ERROR: "VALIDATION_ERROR",
   // Generic errors
   INTERNAL_ERROR: "INTERNAL_ERROR",
 } as const;

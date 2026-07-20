@@ -72,6 +72,15 @@ patch:
               displayName:
                 type: string
                 nullable: true
+    '400':
+      description: >-
+        Request validation failed (VALIDATION_ERROR). Returned when the request
+        body is malformed JSON or fails schema validation (e.g. displayName is
+        missing or exceeds the maximum length).
+      content:
+        application/json:
+          schema:
+            $ref: '../components/schemas/Error.yaml'
     '401':
       description: Unauthorized
       content:
@@ -79,10 +88,7 @@ patch:
           schema:
             $ref: '../components/schemas/Error.yaml'
     '500':
-      description: >-
-        Internal server error. Note that request-body validation failures are
-        also surfaced here as INTERNAL_ERROR, since the central error handler
-        maps all thrown errors (including ZodError) to 500.
+      description: Unexpected internal server error (INTERNAL_ERROR).
       content:
         application/json:
           schema:
