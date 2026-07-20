@@ -41,9 +41,15 @@ export function DisplayNameForm({ initialDisplayName }: { initialDisplayName: st
         }
         throw new Error(`update failed with status ${res.status}`);
       }
-      // better-auth セッションの user.displayName を最新化して UI に反映する。
-      await refetch();
+      // 更新自体は成功済み。ここで成功を確定させ、セッション再取得の失敗を
+      // 「更新失敗」として扱わない（refetch 失敗は別途 reportError するのみ）。
       setSaved(true);
+      try {
+        // better-auth セッションの user.displayName を最新化して UI に反映する。
+        await refetch();
+      } catch (refetchError) {
+        reportError(refetchError);
+      }
     } catch (error) {
       reportError(error);
       setError("表示名の更新に失敗しました。ログイン済みか確認してください。");
