@@ -57,6 +57,7 @@ patch:
               - email
               - name
               - role
+              - displayName
             properties:
               id:
                 type: string

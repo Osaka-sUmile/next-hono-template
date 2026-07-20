@@ -149,4 +149,39 @@ describe("PATCH /api/v1/me", () => {
     expect((await res.json<{ code: string }>()).code).toBe(ErrorCodes.INTERNAL_ERROR);
     expect(updateProfile).not.toHaveBeenCalled();
   });
+
+  it("returns 500 INTERNAL_ERROR when displayName is missing from the body", async () => {
+    const updateProfile = vi.fn();
+    const { app } = createTestApp({
+      getSession: vi.fn().mockResolvedValue(session),
+      updateProfile,
+    });
+
+    const res = await app.request("/api/v1/me", {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({}),
+    });
+
+    expect(res.status).toBe(500);
+    expect((await res.json<{ code: string }>()).code).toBe(ErrorCodes.INTERNAL_ERROR);
+    expect(updateProfile).not.toHaveBeenCalled();
+  });
+
+  it("returns 500 via onError when the update use case throws", async () => {
+    const updateProfile = vi.fn().mockRejectedValue(new Error("Unexpected error"));
+    const { app } = createTestApp({
+      getSession: vi.fn().mockResolvedValue(session),
+      updateProfile,
+    });
+
+    const res = await app.request("/api/v1/me", {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ displayName: "New Name" }),
+    });
+
+    expect(res.status).toBe(500);
+    expect((await res.json<{ code: string }>()).code).toBe(ErrorCodes.INTERNAL_ERROR);
+  });
 });
