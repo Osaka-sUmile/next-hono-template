@@ -1,7 +1,7 @@
 import { z } from "zod";
 import type { Context } from "hono";
 import { GetCurrentUserUseCase, UpdateUserProfileUseCase } from "../../application";
-import { InvalidJsonBodyError } from "../errors";
+import { readJsonBody } from "../http";
 import type { AuthVariables } from "../middleware/require-auth.middleware";
 
 const getUserMeRequestSchema = z.object({
@@ -13,17 +13,6 @@ const getUserMeRequestSchema = z.object({
 });
 
 const DISPLAY_NAME_MAX_LENGTH = 100;
-
-// c.req.json() の失敗（不正・破損した JSON ボディ）だけを専用エラーへ変換する。
-// これにより onError では不正 JSON のみを 400 に写像でき、アプリケーション内部で
-// 発生する SyntaxError は従来どおり 500 + Sentry のまま扱える。
-async function readJsonBody(c: Context): Promise<unknown> {
-  try {
-    return await c.req.json();
-  } catch (error) {
-    throw new InvalidJsonBodyError(error);
-  }
-}
 
 // 表示名の更新リクエストボディ。空文字は「表示名なし」を意味する null に正規化する。
 const updateUserMeBodySchema = z.object({

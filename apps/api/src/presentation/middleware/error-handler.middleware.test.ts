@@ -72,7 +72,13 @@ describe("onError (createErrorHandler) via GET /api/v1/me", () => {
     const res = await app.request("/api/v1/me");
 
     expect(res.status).toBe(500);
-    expect((await res.json<{ code: string }>()).code).toBe(ErrorCodes.INTERNAL_ERROR);
+    // 必須キー `error`（文字列）と `code` の両方を検証する。
+    expect(await res.json()).toEqual(
+      expect.objectContaining({
+        error: expect.any(String),
+        code: ErrorCodes.INTERNAL_ERROR,
+      }),
+    );
     expect(Sentry.captureException).toHaveBeenCalledOnce();
   });
 });
