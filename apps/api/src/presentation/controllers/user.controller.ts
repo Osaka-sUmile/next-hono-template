@@ -1,6 +1,7 @@
 import { z } from "zod";
 import type { Context } from "hono";
 import { GetCurrentUserUseCase, UpdateUserProfileUseCase } from "../../application";
+import { InvalidJsonBodyError } from "../errors";
 import type { AuthVariables } from "../middleware/require-auth.middleware";
 
 const getUserMeRequestSchema = z.object({
@@ -12,6 +13,17 @@ const getUserMeRequestSchema = z.object({
 });
 
 const DISPLAY_NAME_MAX_LENGTH = 100;
+
+// c.req.json() の失敗（不正・破損した JSON ボディ）だけを専用エラーへ変換する。
+// これにより onError では不正 JSON のみを 400 に写像でき、アプリケーション内部で
+// 発生する SyntaxError は従来どおり 500 + Sentry のまま扱える。
+async function readJsonBody(c: Context): Promise<unknown> {
+  try {
+    return await c.req.json();
+  } catch (error) {
+    throw new InvalidJsonBodyError(error);
+  }
+}
 
 // 表示名の更新リクエストボディ。空文字は「表示名なし」を意味する null に正規化する。
 const updateUserMeBodySchema = z.object({
@@ -45,8 +57,9 @@ export class UserController {
   // PATCH /me: 認証済みユーザーが自分の表示名を更新する（Command 側の実装見本）。
   updateUserMe = async (c: Context<{ Variables: AuthVariables }>) => {
     const { auth } = getUserMeRequestSchema.parse({ auth: c.get("auth") });
-    // 入力（Presentation 境界）は Zod で検証する。失敗時は throw され onError に委譲される。
-    const body = updateUserMeBodySchema.parse(await c.req.json());
+    // 入力（Presentation 境界）は Zod で検証する。JSON パース失敗は InvalidJsonBodyError、
+    // スキーマ不一致は ZodError として throw され、onError で 400 VALIDATION_ERROR に写像される。
+    const body = updateUserMeBodySchema.parse(await readJsonBody(c));
     const updated = await this.updateUserProfileUseCase.execute({
       userId: auth.user.id,
       displayName: body.displayName,

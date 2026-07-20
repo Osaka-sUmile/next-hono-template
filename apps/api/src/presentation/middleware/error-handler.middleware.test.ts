@@ -59,4 +59,20 @@ describe("onError (createErrorHandler) via GET /api/v1/me", () => {
       code: ErrorCodes.INTERNAL_ERROR,
     });
   });
+
+  it("keeps an application-originated SyntaxError as 500 INTERNAL_ERROR and reports it", async () => {
+    // 不正 JSON ボディ由来ではない SyntaxError（例: ユースケースが外部データを
+    // JSON.parse して失敗）は想定外の障害として 500 + Sentry のまま扱う。
+    const { app } = createTestApp({
+      getSession: vi.fn().mockResolvedValue(session),
+      execute: vi.fn().mockRejectedValue(new SyntaxError("Unexpected token in app-internal data")),
+      env: { NODE_ENV: "development" },
+    });
+
+    const res = await app.request("/api/v1/me");
+
+    expect(res.status).toBe(500);
+    expect((await res.json<{ code: string }>()).code).toBe(ErrorCodes.INTERNAL_ERROR);
+    expect(Sentry.captureException).toHaveBeenCalledOnce();
+  });
 });
