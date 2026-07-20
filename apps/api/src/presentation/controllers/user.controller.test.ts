@@ -182,6 +182,10 @@ describe("PATCH /api/v1/me", () => {
     });
 
     expect(res.status).toBe(500);
-    expect((await res.json<{ code: string }>()).code).toBe(ErrorCodes.INTERNAL_ERROR);
+    // onError のレスポンス契約（必須の `error` キー + `code`）を JSON 全体で検証する。
+    expect(await res.json()).toMatchObject({
+      error: expect.any(String),
+      code: ErrorCodes.INTERNAL_ERROR,
+    });
   });
 });
