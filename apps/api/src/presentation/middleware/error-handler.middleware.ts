@@ -3,8 +3,8 @@ import * as Sentry from "@sentry/cloudflare";
 import { ZodError } from "zod";
 import { logger } from "../../infrastructure";
 import type { Env } from "../../infrastructure";
-import { ErrorCodes } from "../error-codes";
-import { InvalidJsonBodyError } from "../errors";
+import { ErrorCodes, InvalidJsonBodyError } from "../errors";
+import { errorResponse } from "../http";
 
 /**
  * ZodError の issues を「path: message」形式の簡潔な要約文字列へ整形する。
@@ -34,25 +34,24 @@ export function createErrorHandler(nodeEnv: Env["NODE_ENV"]): ErrorHandler {
     // リクエストボディのスキーマ検証失敗（Presentation 境界の Zod .parse()）。
     if (err instanceof ZodError) {
       logger.info({ err }, "[errorHandler] Request validation failed");
-      return c.json({ error: formatZodError(err), code: ErrorCodes.VALIDATION_ERROR }, 400);
+      return errorResponse(c, 400, ErrorCodes.VALIDATION_ERROR, formatZodError(err));
     }
 
     // 不正・破損した JSON ボディ（c.req.json() の失敗を専用エラーに変換したもの）。
     // 汎用の SyntaxError は拾わない（アプリ由来の SyntaxError を 400 と誤判定しないため）。
     if (err instanceof InvalidJsonBodyError) {
       logger.info({ err }, "[errorHandler] Malformed JSON request body");
-      return c.json({ error: err.message, code: ErrorCodes.VALIDATION_ERROR }, 400);
+      return errorResponse(c, 400, ErrorCodes.VALIDATION_ERROR, err.message);
     }
 
     // 予期しないエラー。Sentry へ送信（DSN 未設定なら withSentry が初期化しないため no-op）。
     Sentry.captureException(err);
     logger.error({ err }, "[errorHandler] Unhandled error");
-    return c.json(
-      {
-        error: nodeEnv === "production" ? "Internal Server Error" : err.message,
-        code: ErrorCodes.INTERNAL_ERROR,
-      },
+    return errorResponse(
+      c,
       500,
+      ErrorCodes.INTERNAL_ERROR,
+      nodeEnv === "production" ? "Internal Server Error" : err.message,
     );
   };
 }

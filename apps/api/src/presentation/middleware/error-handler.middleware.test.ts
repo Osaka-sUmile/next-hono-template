@@ -1,7 +1,7 @@
 import { describe, expect, it, vi, beforeEach } from "vitest";
 import * as Sentry from "@sentry/cloudflare";
 import { createTestApp } from "../../test-utils";
-import { ErrorCodes } from "../error-codes";
+import { ErrorCodes } from "../errors";
 import type { Env } from "../../infrastructure";
 
 vi.mock("@sentry/cloudflare", () => ({

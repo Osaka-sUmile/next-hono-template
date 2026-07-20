@@ -1,6 +1,7 @@
 import type { MiddlewareHandler } from "hono";
 import type { AuthInstance } from "@workspace/auth/server";
-import { ErrorCodes } from "../error-codes";
+import { ErrorCodes } from "../errors";
+import { errorResponse } from "../http";
 
 export type AuthSession = NonNullable<Awaited<ReturnType<AuthInstance["api"]["getSession"]>>>;
 
@@ -41,12 +42,11 @@ export function createRequireAuth(
       // 想定内: better-auth が 401 を返すケースはここでレスポンスを返す（Sentry 送信対象外）。
       if (isBetterAuthAPIError(err) && err.statusCode === 401) {
         const isExpired = err.body?.code === "SESSION_EXPIRED";
-        return c.json(
-          {
-            error: isExpired ? "Session expired" : "Unauthorized",
-            code: isExpired ? ErrorCodes.SESSION_EXPIRED : ErrorCodes.SESSION_INVALID,
-          },
+        return errorResponse(
+          c,
           401,
+          isExpired ? ErrorCodes.SESSION_EXPIRED : ErrorCodes.SESSION_INVALID,
+          isExpired ? "Session expired" : "Unauthorized",
         );
       }
       // 想定外エラーは onError に委譲（ログ・Sentry 送信はそこで一元化）。
@@ -54,7 +54,7 @@ export function createRequireAuth(
     }
 
     if (!session) {
-      return c.json({ error: "Unauthorized", code: ErrorCodes.SESSION_INVALID }, 401);
+      return errorResponse(c, 401, ErrorCodes.SESSION_INVALID, "Unauthorized");
     }
     c.set("auth", session);
     await next();
