@@ -19,12 +19,12 @@
 ## エラーコードの追加手順
 エラーコードを追加する際は、以下の **3 箇所を同時に更新** すること。順序を守り、どちらか一方だけの更新を防ぐ。
 
-1. **`apps/api/src/presentation/error-codes.ts`** - ErrorCodes 定数オブジェクトに追加
+1. **`apps/api/src/presentation/errors/error-codes.ts`** - ErrorCodes 定数オブジェクトに追加
    ```typescript
    RESOURCE_NOT_FOUND: "RESOURCE_NOT_FOUND",
    ```
 
-2. **`apps/api/src/presentation/error-codes.ts`** - ErrorCode 型に union を追加
+2. **`apps/api/src/presentation/errors/error-codes.ts`** - ErrorCode 型に union を追加
    ```typescript
    export type ErrorCode = "USER_NOT_FOUND" | ... | "RESOURCE_NOT_FOUND";
    ```

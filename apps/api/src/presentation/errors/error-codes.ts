@@ -16,3 +16,9 @@ export const ErrorCodes = {
 } as const;
 
 export type ErrorCode = (typeof ErrorCodes)[keyof typeof ErrorCodes];
+
+/**
+ * エラーレスポンスの body 形状。OpenAPI の `Error.yaml`（required: error, code）と一致させる。
+ * この形の手組みを各所に散らさないよう、errorResponse ヘルパーの戻り値として一元管理する。
+ */
+export type ErrorResponseBody = { error: string; code: ErrorCode };

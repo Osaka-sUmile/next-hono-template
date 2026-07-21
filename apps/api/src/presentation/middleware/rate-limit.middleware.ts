@@ -1,6 +1,7 @@
 import type { MiddlewareHandler } from "hono";
 import type { WorkerRateLimitBindings } from "../../infrastructure";
-import { ErrorCodes } from "../error-codes";
+import { ErrorCodes } from "../errors";
+import { errorResponse } from "../http";
 
 type AuthLimiterEnv = { Bindings: WorkerRateLimitBindings };
 
@@ -24,7 +25,7 @@ export function createAuthLimiter(): MiddlewareHandler<AuthLimiterEnv> {
     const key = c.req.header("cf-connecting-ip") ?? "unknown";
     const { success } = await limiter.limit({ key });
     if (!success) {
-      return c.json({ error: "Too many requests", code: ErrorCodes.RATE_LIMIT_EXCEEDED }, 429);
+      return errorResponse(c, 429, ErrorCodes.RATE_LIMIT_EXCEEDED, "Too many requests");
     }
 
     await next();

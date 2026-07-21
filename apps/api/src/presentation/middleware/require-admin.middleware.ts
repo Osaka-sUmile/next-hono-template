@@ -1,6 +1,7 @@
 import type { MiddlewareHandler } from "hono";
 import type { AuthVariables } from "./require-auth.middleware";
-import { ErrorCodes } from "../error-codes";
+import { ErrorCodes } from "../errors";
+import { errorResponse } from "../http";
 
 /**
  * admin ロールを要求するミドルウェア。
@@ -15,7 +16,7 @@ import { ErrorCodes } from "../error-codes";
 export const requireAdmin: MiddlewareHandler<{ Variables: AuthVariables }> = async (c, next) => {
   const role = c.get("auth")?.user?.role;
   if (role !== "admin") {
-    return c.json({ error: "Forbidden", code: ErrorCodes.FORBIDDEN }, 403);
+    return errorResponse(c, 403, ErrorCodes.FORBIDDEN, "Forbidden");
   }
   await next();
 };
