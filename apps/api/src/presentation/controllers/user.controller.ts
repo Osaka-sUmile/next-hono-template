@@ -1,6 +1,7 @@
 import { z } from "zod";
 import type { Context } from "hono";
 import { GetCurrentUserUseCase, UpdateUserProfileUseCase } from "../../application";
+import { readJsonBody } from "../http";
 import type { AuthVariables } from "../middleware/require-auth.middleware";
 
 const getUserMeRequestSchema = z.object({
@@ -45,8 +46,9 @@ export class UserController {
   // PATCH /me: 認証済みユーザーが自分の表示名を更新する（Command 側の実装見本）。
   updateUserMe = async (c: Context<{ Variables: AuthVariables }>) => {
     const { auth } = getUserMeRequestSchema.parse({ auth: c.get("auth") });
-    // 入力（Presentation 境界）は Zod で検証する。失敗時は throw され onError に委譲される。
-    const body = updateUserMeBodySchema.parse(await c.req.json());
+    // 入力（Presentation 境界）は Zod で検証する。JSON パース失敗は InvalidJsonBodyError、
+    // スキーマ不一致は ZodError として throw され、onError で 400 VALIDATION_ERROR に写像される。
+    const body = updateUserMeBodySchema.parse(await readJsonBody(c));
     const updated = await this.updateUserProfileUseCase.execute({
       userId: auth.user.id,
       displayName: body.displayName,

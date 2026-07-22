@@ -1,7 +1,7 @@
 import { describe, expect, it, vi, beforeEach } from "vitest";
 import * as Sentry from "@sentry/cloudflare";
 import { createTestApp } from "../../test-utils";
-import { ErrorCodes } from "../error-codes";
+import { ErrorCodes } from "../errors";
 import type { Env } from "../../infrastructure";
 
 vi.mock("@sentry/cloudflare", () => ({
@@ -58,5 +58,27 @@ describe("onError (createErrorHandler) via GET /api/v1/me", () => {
       error: "Internal Server Error",
       code: ErrorCodes.INTERNAL_ERROR,
     });
+  });
+
+  it("keeps an application-originated SyntaxError as 500 INTERNAL_ERROR and reports it", async () => {
+    // 不正 JSON ボディ由来ではない SyntaxError（例: ユースケースが外部データを
+    // JSON.parse して失敗）は想定外の障害として 500 + Sentry のまま扱う。
+    const { app } = createTestApp({
+      getSession: vi.fn().mockResolvedValue(session),
+      execute: vi.fn().mockRejectedValue(new SyntaxError("Unexpected token in app-internal data")),
+      env: { NODE_ENV: "development" },
+    });
+
+    const res = await app.request("/api/v1/me");
+
+    expect(res.status).toBe(500);
+    // 必須キー `error`（文字列）と `code` の両方を検証する。
+    expect(await res.json()).toEqual(
+      expect.objectContaining({
+        error: expect.any(String),
+        code: ErrorCodes.INTERNAL_ERROR,
+      }),
+    );
+    expect(Sentry.captureException).toHaveBeenCalledOnce();
   });
 });
