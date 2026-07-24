@@ -1,6 +1,10 @@
 import { vi } from "vitest";
 import type { AuthInstance } from "@workspace/auth/server";
-import type { GetCurrentUserUseCase, ListUsersUseCase } from "../application";
+import type {
+  GetCurrentUserUseCase,
+  ListUsersUseCase,
+  UpdateUserProfileUseCase,
+} from "../application";
 import { buildApp } from "../composition/create-app";
 import { AdminController, HealthController, UserController } from "../presentation";
 import type { Env } from "../infrastructure";
@@ -33,12 +37,14 @@ export function createTestApp(
   overrides: {
     getSession?: ReturnType<typeof vi.fn>;
     execute?: ReturnType<typeof vi.fn>;
+    updateProfile?: ReturnType<typeof vi.fn>;
     listUsers?: ReturnType<typeof vi.fn>;
     env?: Partial<Env>;
   } = {},
 ) {
   const getSession = overrides.getSession ?? vi.fn();
   const execute = overrides.execute ?? vi.fn();
+  const updateProfile = overrides.updateProfile ?? vi.fn();
   const listUsers = overrides.listUsers ?? vi.fn();
 
   const auth = {
@@ -47,15 +53,16 @@ export function createTestApp(
   } as unknown as AuthInstance;
 
   const useCase = { execute } as unknown as GetCurrentUserUseCase;
+  const updateUserProfileUseCase = { execute: updateProfile } as unknown as UpdateUserProfileUseCase;
   const listUsersUseCase = { execute: listUsers } as unknown as ListUsersUseCase;
 
   const app = buildApp({
     env: { ...testEnv, ...overrides.env },
     auth,
     healthController: new HealthController(),
-    userController: new UserController(useCase),
+    userController: new UserController(useCase, updateUserProfileUseCase),
     adminController: new AdminController(listUsersUseCase),
   });
 
-  return { app, getSession, execute, listUsers };
+  return { app, getSession, execute, updateProfile, listUsers };
 }

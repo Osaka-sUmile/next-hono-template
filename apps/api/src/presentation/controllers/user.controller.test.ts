@@ -1,7 +1,7 @@
 import { describe, expect, it, vi } from "vitest";
 import type { UserResponseDto } from "../../application";
 import { createTestApp } from "../../test-utils";
-import { ErrorCodes } from "../error-codes";
+import { ErrorCodes } from "../errors";
 
 vi.mock("../../infrastructure/logger", () => ({
   logger: { error: vi.fn(), info: vi.fn(), debug: vi.fn(), warn: vi.fn() },
@@ -59,5 +59,166 @@ describe("GET /api/v1/me", () => {
 
     expect(res.status).toBe(500);
     expect((await res.json<{ code: string }>()).code).toBe(ErrorCodes.INTERNAL_ERROR);
+  });
+});
+
+describe("PATCH /api/v1/me", () => {
+  it("returns 200 with updated profile and the v1 private cache header", async () => {
+    const updated = {
+      id: "user-1",
+      email: "test@example.com",
+      name: "Test User",
+      role: "user" as const,
+      displayName: "New Name",
+    };
+    const updateProfile = vi.fn().mockResolvedValue(updated);
+    const { app } = createTestApp({
+      getSession: vi.fn().mockResolvedValue(session),
+      updateProfile,
+    });
+
+    const res = await app.request("/api/v1/me", {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ displayName: "New Name" }),
+    });
+
+    expect(res.status).toBe(200);
+    expect(await res.json()).toEqual(updated);
+    expect(updateProfile).toHaveBeenCalledWith({ userId: "user-1", displayName: "New Name" });
+    expect(res.headers.get("Cache-Control")).toBe(
+      "private, no-cache, no-store, must-revalidate",
+    );
+  });
+
+  it("normalizes empty displayName to null before calling updateProfile", async () => {
+    const updateProfile = vi.fn().mockResolvedValue({
+      id: "user-1",
+      email: "test@example.com",
+      name: "Test User",
+      role: "user",
+      displayName: null,
+    });
+    const { app } = createTestApp({
+      getSession: vi.fn().mockResolvedValue(session),
+      updateProfile,
+    });
+
+    const res = await app.request("/api/v1/me", {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ displayName: "" }),
+    });
+
+    expect(res.status).toBe(200);
+    expect(updateProfile).toHaveBeenCalledWith({ userId: "user-1", displayName: null });
+  });
+
+  it("returns 401 SESSION_INVALID when unauthenticated and does not call updateProfile", async () => {
+    const updateProfile = vi.fn();
+    const { app } = createTestApp({
+      getSession: vi.fn().mockResolvedValue(null),
+      updateProfile,
+    });
+
+    const res = await app.request("/api/v1/me", {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ displayName: "New Name" }),
+    });
+
+    expect(res.status).toBe(401);
+    expect((await res.json<{ code: string }>()).code).toBe(ErrorCodes.SESSION_INVALID);
+    expect(updateProfile).not.toHaveBeenCalled();
+  });
+
+  it("returns 400 VALIDATION_ERROR when displayName exceeds max length", async () => {
+    const updateProfile = vi.fn();
+    const { app } = createTestApp({
+      getSession: vi.fn().mockResolvedValue(session),
+      updateProfile,
+    });
+
+    const res = await app.request("/api/v1/me", {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ displayName: "a".repeat(101) }),
+    });
+
+    expect(res.status).toBe(400);
+    expect(await res.json()).toEqual(
+      expect.objectContaining({
+        error: expect.any(String),
+        code: ErrorCodes.VALIDATION_ERROR,
+      }),
+    );
+    expect(updateProfile).not.toHaveBeenCalled();
+  });
+
+  it("returns 400 VALIDATION_ERROR when displayName is missing from the body", async () => {
+    const updateProfile = vi.fn();
+    const { app } = createTestApp({
+      getSession: vi.fn().mockResolvedValue(session),
+      updateProfile,
+    });
+
+    const res = await app.request("/api/v1/me", {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({}),
+    });
+
+    expect(res.status).toBe(400);
+    expect(await res.json()).toEqual(
+      expect.objectContaining({
+        error: expect.any(String),
+        code: ErrorCodes.VALIDATION_ERROR,
+      }),
+    );
+    expect(updateProfile).not.toHaveBeenCalled();
+  });
+
+  it("returns 400 VALIDATION_ERROR when the request body is malformed JSON", async () => {
+    const updateProfile = vi.fn();
+    const { app } = createTestApp({
+      getSession: vi.fn().mockResolvedValue(session),
+      updateProfile,
+    });
+
+    const res = await app.request("/api/v1/me", {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: "{",
+    });
+
+    expect(res.status).toBe(400);
+    expect(await res.json()).toEqual(
+      expect.objectContaining({
+        error: expect.any(String),
+        code: ErrorCodes.VALIDATION_ERROR,
+      }),
+    );
+    expect(updateProfile).not.toHaveBeenCalled();
+  });
+
+  it("returns 500 via onError when the update use case throws", async () => {
+    const updateProfile = vi.fn().mockRejectedValue(new Error("Unexpected error"));
+    const { app } = createTestApp({
+      getSession: vi.fn().mockResolvedValue(session),
+      updateProfile,
+    });
+
+    const res = await app.request("/api/v1/me", {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ displayName: "New Name" }),
+    });
+
+    expect(res.status).toBe(500);
+    // onError のレスポンス契約（必須の `error` キー + `code`）を JSON 全体で検証する。
+    expect(await res.json()).toMatchObject({
+      error: expect.any(String),
+      code: ErrorCodes.INTERNAL_ERROR,
+    });
   });
 });

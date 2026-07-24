@@ -1,7 +1,7 @@
 import { Hono } from "hono";
 import { describe, expect, it, vi } from "vitest";
 import { createAuthLimiter } from "./rate-limit.middleware";
-import { ErrorCodes } from "../error-codes";
+import { ErrorCodes } from "../errors";
 import type { WorkerRateLimitBindings } from "../../infrastructure";
 
 function buildTestApp() {
