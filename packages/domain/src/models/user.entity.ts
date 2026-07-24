@@ -43,4 +43,13 @@ export class UserEntity extends BaseEntity<string> {
   ): UserEntity {
     return new UserEntity(id, email, name, role, displayName);
   }
+
+  /**
+   * 表示名を変更した新しい UserEntity を返す（このインスタンスは変更しない）。
+   * Entity は不変（すべて readonly）に保つため、更新はコピーを返す形で表現する。
+   * 長さ等の整合性チェックはコンストラクタに集約されているため、new を通すことで自動的に検証される。
+   */
+  changeDisplayName(displayName: string | null): UserEntity {
+    return new UserEntity(this.id, this.email, this.name, this.role, displayName);
+  }
 }

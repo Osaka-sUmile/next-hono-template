@@ -1,6 +1,7 @@
 "use client";
 
 import { authClient } from "@/lib/auth-client";
+import { DisplayNameForm } from "@/components/display-name-form";
 
 /**
  * 認証ガード付き保護ルートの実装例。
@@ -36,6 +37,15 @@ export default function DashboardPage() {
           <dd className="text-sm font-medium">{user.role}</dd>
         </div>
       </dl>
+      <div className="space-y-3 rounded-lg border p-4">
+        <div className="space-y-1">
+          <h2 className="text-lg font-semibold">表示名を変更</h2>
+          <p className="text-muted-foreground text-sm">
+            PATCH /api/v1/me を呼び出す Command 系の実装例です。
+          </p>
+        </div>
+        <DisplayNameForm initialDisplayName={user.displayName ?? null} />
+      </div>
     </div>
   );
 }

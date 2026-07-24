@@ -1,1 +1,1 @@
-export type { UserResponseDto } from "./user.response.dto";
+export type { UserResponseDto, UserProfileResponseDto } from "./user.response.dto";

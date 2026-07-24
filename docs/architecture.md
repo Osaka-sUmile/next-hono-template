@@ -45,7 +45,9 @@ next-hono-template/
 │   │       ├── infrastructure/       # env, Swagger 等の基盤
 │   │       ├── presentation/
 │   │       │   ├── controllers/      # コントローラー・リクエスト検証
-│   │       │   └── middleware/       # 認証・認可ミドルウェア
+│   │       │   ├── middleware/       # 認証・認可ミドルウェア
+│   │       │   ├── errors/           # Presentation エラー型・エラーコード定数
+│   │       │   └── http/             # HTTP 入出力ヘルパー (リクエスト読取・レスポンス構築)
 │   │       └── test-utils/           # テスト共通ヘルパー
 │   └── web/                          # Next.js フロントエンド
 │       ├── app/                      # App Router (page / layout)
@@ -110,7 +112,7 @@ packages/database  →  packages/domain
 - `apps/api/src/application/`: `dtos/`, `errors/`
 - `apps/api/src/infrastructure/`: `env/`, `swagger/`, `db/`
 - `apps/api/src/composition/`: `create-app/`, `bootstrap/`
-- `apps/api/src/presentation/`: `middleware/`
+- `apps/api/src/presentation/`: `controllers/`, `middleware/`, `errors/`, `http/`
 - `packages/common/`: `utils/`, `types/`
 
 ## tests の配置ルール

@@ -1,7 +1,7 @@
 import path from "node:path";
 import SwaggerParser from "@apidevtools/swagger-parser";
 import type { OpenAPIV3 } from "openapi-types";
-import { ErrorCodes } from "../src/presentation/error-codes";
+import { ErrorCodes } from "../src/presentation/errors";
 
 /**
  * `error-codes.ts` の ErrorCodes と `Error.yaml` の enum を突合し、
@@ -56,7 +56,7 @@ async function main() {
   console.error(
     "エラーコード追加時は CLAUDE.md の「エラーコードの追加手順」を参照し、以下の2箇所を同時に更新してください" +
       "(ErrorCode 型は ErrorCodes から自動導出されるため更新不要です):\n" +
-      "  1. apps/api/src/presentation/error-codes.ts の ErrorCodes 定数\n" +
+      "  1. apps/api/src/presentation/errors/error-codes.ts の ErrorCodes 定数\n" +
       "  2. apps/api/docs/components/schemas/Error.yaml の enum",
   );
   process.exit(1);

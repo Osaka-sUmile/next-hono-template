@@ -1,6 +1,6 @@
 import { describe, expect, it, vi } from "vitest";
 import { createTestApp } from "../../test-utils";
-import { ErrorCodes } from "../error-codes";
+import { ErrorCodes } from "../errors";
 
 vi.mock("../../infrastructure/logger", () => ({
   logger: { error: vi.fn(), info: vi.fn(), debug: vi.fn(), warn: vi.fn() },
