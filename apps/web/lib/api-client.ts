@@ -1,4 +1,6 @@
+import createClient from "openapi-fetch";
 import { apiBaseUrl } from "./auth-client";
+import type { paths } from "./api-schema";
 
 /**
  * API が 2xx 以外を返したことを表すエラー。
@@ -15,50 +17,47 @@ export class ApiError extends Error {
   }
 }
 
-type RequestOptions = {
-  /** 追加ヘッダー。Content-Type は body があるとき自動で付くため通常は不要。 */
-  headers?: Record<string, string>;
-};
-
-async function request<T>(
-  path: string,
-  method: string,
-  body: unknown,
-  options: RequestOptions = {},
-): Promise<T> {
-  const hasBody = body !== undefined;
-  const res = await fetch(`${apiBaseUrl}${path}`, {
-    method,
-    // Cookie セッション認証のため必須。忘れると理由の分かりにくい 401 になるので
-    // ここで一元化し、呼び出し側からは上書きできないようにする。
-    credentials: "include",
-    headers: {
-      ...(hasBody ? { "Content-Type": "application/json" } : {}),
-      ...options.headers,
-    },
-    ...(hasBody ? { body: JSON.stringify(body) } : {}),
-  });
-
-  // エラー本文の形に依存しないよう、status だけを持って投げる。
-  if (!res.ok) throw new ApiError(res.status);
-  // 204 No Content は本文が空で res.json() が失敗するため読まない。
-  if (res.status === 204) return undefined as T;
-  return (await res.json()) as T;
-}
-
 /**
  * バックエンド (apps/api) 呼び出しの唯一の入口。
  * コンポーネント・hooks から fetch を直接呼ばず、必ずここを経由すること
  * (docs/frontend-guidelines.md「データフェッチ・API 呼び出し」)。
  *
+ * `apps/api/openapi.json` から生成した型 (`lib/api-schema.d.ts`) を openapi-fetch に
+ * 渡すことで、パス・メソッド・リクエスト/レスポンスの形が API の実装とズレなくなる
+ * (docs/architecture.md「API 型の共有方針」)。
+ *
  * better-auth のエンドポイントは authClient (lib/auth-client.ts) が担当するため対象外。
+ *
+ * Cookie セッション認証のため `credentials: "include"` は必須。忘れると理由の分かりにくい
+ * 401 になるので、ここで一元化し呼び出し側からは上書きできないようにする
+ * （呼び出し側で個別に `credentials` を指定してもここで固定した値が優先されるよう、
+ * openapi-fetch のインスタンスオプションとして渡す）。
  */
-export const apiClient = {
-  get: <T>(path: string, options?: RequestOptions) => request<T>(path, "GET", undefined, options),
-  post: <T>(path: string, body?: unknown, options?: RequestOptions) =>
-    request<T>(path, "POST", body, options),
-  patch: <T>(path: string, body?: unknown, options?: RequestOptions) =>
-    request<T>(path, "PATCH", body, options),
-  delete: <T>(path: string, options?: RequestOptions) =>
-    request<T>(path, "DELETE", undefined, options),
-};
+export const apiClient = createClient<paths>({
+  baseUrl: apiBaseUrl,
+  credentials: "include",
+  // openapi-fetch は createClient() 呼び出し時点の globalThis.fetch を既定値として
+  // キャプチャする。ここを省略すると、テストで `global.fetch` を後から差し替えても
+  // （モジュール読み込みが先に走るため）反映されない。呼び出し時に globalThis.fetch を
+  // 都度引くラッパーにして、モック可能な状態を保つ。
+  fetch: (request) => fetch(request),
+});
+
+/**
+ * openapi-fetch の `{ data, error, response }` を「成功なら data、失敗なら throw」に畳む。
+ *
+ * `Res` を `apiClient.GET/POST/...` が返す Promise の実際の型から推論させることで、
+ * 戻り値 `NonNullable<Res["data"]>` がエンドポイントごとのレスポンス型を保つ
+ * （`any` へのキャストや `@ts-expect-error` は使わない）。
+ *
+ * 内部の `data as NonNullable<Res["data"]>` は、`response.ok` が true の分岐では
+ * openapi-fetch の判別共用体上 data が必ず存在することを型システムでは表現しきれないために
+ * 必要な最小限のキャスト（`unwrap` の外からは効かない）。
+ */
+export async function unwrap<Res extends { data?: unknown; error?: unknown; response: Response }>(
+  promise: Promise<Res>,
+): Promise<NonNullable<Res["data"]>> {
+  const { data, response } = await promise;
+  if (!response.ok) throw new ApiError(response.status);
+  return data as NonNullable<Res["data"]>;
+}

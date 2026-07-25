@@ -10,16 +10,19 @@ const mocks = vi.hoisted(() => ({
 }));
 
 vi.mock("@/lib/auth-client", () => ({
+  // api-client.ts がモジュール読み込み時に openapi-fetch の createClient() へ渡すため必要。
+  // 実際の fetch 呼び出しは apiClient.PATCH 自体をモックしているため値そのものは使われない。
+  apiBaseUrl: "http://localhost:8080",
   authClient: {
     useSession: () => ({ refetch: mocks.refetch }),
   },
 }));
 
-// apiClient のみ差し替え、ApiError は実体を使う（instanceof 判定を本物で検証するため）。
+// apiClient のみ差し替え、ApiError / unwrap は実体を使う（instanceof 判定を本物で検証するため）。
 // fetch の詳細（baseUrl / credentials / Content-Type）は lib/api-client.test.ts が担う。
 vi.mock("@/lib/api-client", async (importOriginal) => ({
   ...(await importOriginal<typeof import("@/lib/api-client")>()),
-  apiClient: { patch: mocks.patch },
+  apiClient: { PATCH: mocks.patch },
 }));
 
 vi.mock("@sentry/nextjs", () => ({
@@ -29,7 +32,9 @@ vi.mock("@sentry/nextjs", () => ({
 describe("DisplayNameForm", () => {
   beforeEach(() => {
     vi.clearAllMocks();
-    mocks.patch.mockResolvedValue(undefined);
+    // apiClient.PATCH は openapi-fetch と同じ形（{ data, response }）で解決する。
+    // unwrap がこれを畳んで成功なら data を返す。
+    mocks.patch.mockResolvedValue({ data: undefined, response: new Response(null, { status: 200 }) });
   });
 
   it("保存成功時に api-client 経由で PATCH を呼び refetch して成功メッセージを表示する", async () => {
@@ -39,7 +44,7 @@ describe("DisplayNameForm", () => {
     fireEvent.click(screen.getByRole("button", { name: "表示名を保存" }));
 
     await waitFor(() => {
-      expect(mocks.patch).toHaveBeenCalledWith("/api/v1/me", { displayName: "太郎" });
+      expect(mocks.patch).toHaveBeenCalledWith("/api/v1/me", { body: { displayName: "太郎" } });
     });
     expect(mocks.refetch).toHaveBeenCalled();
     expect(await screen.findByText("保存しました。")).toBeInTheDocument();
@@ -52,7 +57,7 @@ describe("DisplayNameForm", () => {
     fireEvent.click(screen.getByRole("button", { name: "表示名を保存" }));
 
     await waitFor(() => {
-      expect(mocks.patch).toHaveBeenCalledWith("/api/v1/me", { displayName: "太郎" });
+      expect(mocks.patch).toHaveBeenCalledWith("/api/v1/me", { body: { displayName: "太郎" } });
     });
   });
 
@@ -63,7 +68,7 @@ describe("DisplayNameForm", () => {
     fireEvent.click(screen.getByRole("button", { name: "表示名を保存" }));
 
     await waitFor(() => {
-      expect(mocks.patch).toHaveBeenCalledWith("/api/v1/me", { displayName: null });
+      expect(mocks.patch).toHaveBeenCalledWith("/api/v1/me", { body: { displayName: null } });
     });
   });
 
