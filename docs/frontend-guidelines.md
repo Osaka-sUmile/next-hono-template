@@ -32,7 +32,9 @@
 
 ## データフェッチ・API 呼び出し
 - `fetch` をコンポーネント内に直接書かないこと。`apps/web/lib/` 配下に API クライアントを集約する。
-- クライアント側からのバックエンド呼び出しは `apps/web/lib/api-client.ts` を経由すること（未作成の場合は新規作成する）。
+- クライアント側からのバックエンド呼び出しは `apps/web/lib/api-client.ts` の `apiClient` を経由すること。
+- API が 4xx / 5xx を返すと `apiClient` は、HTTP ステータスを保持する `ApiError` を投げる。
+- 4xx がユーザー操作で当然起きうる想定内エラーかどうかは、呼び出し側でエンドポイントごとに判断する。想定内の場合のみ catch 節で `ExpectedError` に変換し、それ以外はそのまま `reportError` に渡す。
 
 ## エラーハンドリング・Sentry
 
