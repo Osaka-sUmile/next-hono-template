@@ -2,7 +2,8 @@
 
 import { useState } from "react";
 import { Button } from "@workspace/ui/components/button";
-import { apiBaseUrl, authClient } from "@/lib/auth-client";
+import { ApiError, apiClient } from "@/lib/api-client";
+import { authClient } from "@/lib/auth-client";
 import { ExpectedError, reportError } from "@/lib/report-error";
 
 const DISPLAY_NAME_MAX_LENGTH = 100;
@@ -11,7 +12,8 @@ const DISPLAY_NAME_MAX_LENGTH = 100;
  * 表示名を更新するフォーム（Command 系 API 呼び出しの実装見本）。
  *
  * better-auth のプラグイン経由ではなく、自前の REST エンドポイント `PATCH /api/v1/me` を
- * 直接呼ぶ例。認証は Cookie セッションで行うため `credentials: "include"` が必須。
+ * 呼ぶ例。fetch を直接書かず `lib/api-client.ts` を経由する（Cookie セッション認証に必要な
+ * `credentials: "include"` は api-client が一元的に付与する）。
  */
 export function DisplayNameForm({ initialDisplayName }: { initialDisplayName: string | null }) {
   const { refetch } = authClient.useSession();
@@ -27,20 +29,8 @@ export function DisplayNameForm({ initialDisplayName }: { initialDisplayName: st
     setLoading(true);
     try {
       const trimmed = displayName.trim();
-      const res = await fetch(`${apiBaseUrl}/api/v1/me`, {
-        method: "PATCH",
-        credentials: "include",
-        headers: { "Content-Type": "application/json" },
-        // 空文字はサーバ側で null（表示名なし）に正規化される。
-        body: JSON.stringify({ displayName: trimmed === "" ? null : trimmed }),
-      });
-      if (!res.ok) {
-        // ユーザー操作で当然起きうる 4xx（未ログイン等）は想定内として Sentry 送信を抑制する。
-        if (res.status === 400 || res.status === 401) {
-          throw new ExpectedError(`update failed with status ${res.status}`);
-        }
-        throw new Error(`update failed with status ${res.status}`);
-      }
+      // 空文字はサーバ側で null（表示名なし）に正規化される。
+      await apiClient.patch("/api/v1/me", { displayName: trimmed === "" ? null : trimmed });
       // 更新自体は成功済み。ここで成功を確定させ、セッション再取得の失敗を
       // 「更新失敗」として扱わない（refetch 失敗は別途 reportError するのみ）。
       setSaved(true);
@@ -51,7 +41,13 @@ export function DisplayNameForm({ initialDisplayName }: { initialDisplayName: st
         reportError(refetchError);
       }
     } catch (error) {
-      reportError(error);
+      // ユーザー操作で当然起きうる 4xx（入力不正・未ログイン）は想定内として Sentry 送信を抑制する。
+      // 何を想定内とみなすかは api-client ではなく呼び出し側が決める（fail-loud 原則）。
+      if (error instanceof ApiError && (error.status === 400 || error.status === 401)) {
+        reportError(new ExpectedError(error.message));
+      } else {
+        reportError(error);
+      }
       setError("表示名の更新に失敗しました。ログイン済みか確認してください。");
     } finally {
       setLoading(false);
