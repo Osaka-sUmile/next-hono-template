@@ -5,50 +5,26 @@
 1. **Domain (packages/domain)**: エンティティ・リポジトリインターフェース (`*.entity.ts`, `*.repository.ts`)
 2. **Database (packages/database)**: リポジトリ実装・クエリサービス (`*.prisma-repository.ts`, `*.query-service.ts`)
 3. **Application (apps/api/src/application)**: ユースケース (`*.use-case.ts`) (Command / Query を分離し、Command は副作用あり、Query は参照のみ)
-4. **Presentation (apps/api/src/presentation)**: リクエストバリデーション(Zod)・コントローラー (`*.controller.ts`)
+4. **Presentation (apps/api/src/presentation)**: `routes/` に `createRoute` と入出力 Zod スキーマ、`controllers/` にハンドラーを実装する
 
 ## CQRS の使い分け
 - **Command**: 副作用ありの処理。必要なら UseCase 内で `prisma.$transaction` を張る。
 - **Query**: 参照のみの処理。原則として読み取り専用 DTO を返し、Entity の復元は必須ではない。
 
 ## DTO / エラーの責務
-- **Request DTO**: Presentation で Zod から生成する。
-- **Response DTO**: Application で組み立てる。
+- **Request DTO**: `presentation/routes/` の `createRoute.request` Zod スキーマから `c.req.valid()` で得る。
+- **Response DTO**: Application で組み立て、その形を `routes/` の Zod レスポンススキーマで宣言する。
 - **Domain Error / Application Error**: `apps/api/src/application/errors/` に集約し、Presentation で HTTP エラーへ変換する。
 
 ## エラーコードの追加手順
-エラーコードを追加する際は、以下の **2 箇所を同時に更新** すること。順序を守り、どちらか一方だけの更新を防ぐ。
+`apps/api/src/presentation/errors/error-codes.ts` の `ErrorCodes` に 1 行追加するだけでよい。
+`ErrorCode` 型と OpenAPI の enum は `presentation/openapi/error.schema.ts` の `z.enum(ErrorCodes)` から導出されるため、同期させる箇所は存在しない。
 
-> `ErrorCode` 型は `ErrorCodes` 定数から自動導出される（`(typeof ErrorCodes)[keyof typeof ErrorCodes]`）ため、型の手動更新は不要。
-
-1. **`apps/api/src/presentation/errors/error-codes.ts`** - ErrorCodes 定数オブジェクトに追加
-   ```typescript
-   RESOURCE_NOT_FOUND: "RESOURCE_NOT_FOUND",
-   ```
-
-2. **`apps/api/docs/components/schemas/Error.yaml`** - enum に追加
-   ```yaml
-   enum:
-     - USER_NOT_FOUND       # User-related errors
-     - RESOURCE_NOT_FOUND   # Resource-related errors
-   ```
-
-**理由**: 定数とドキュメントの enum が同期していないと、クライアント実装が破綻する。`apps/api` の `pnpm run check:error-codes`（CI の lint ワークフローで実行）が `ErrorCodes` ↔ `Error.yaml` enum の一致を検証する。
-
-**チェックリスト**: エラーコード追加時は以下を確認すること
-- [ ] `error-codes.ts` の ErrorCodes 定数に追加されている
-- [ ] `Error.yaml` の enum に同じコード（大文字スネークケース）で追加されている
-- [ ] エラーレスポンスのキー名が `error` であることを確認（OpenAPI スキーマ Error.yaml と一致）
-
-## エラーコード追加のブランチ戦略
-エラーコードを追加する際は、必ず `develop` から専用ブランチを派生させて PR を作成すること。フィーチャーブランチへの同梱は禁止。
-
-```text
-# 例
-develop
-  └── chore/add-post-error-codes  ← 別にブランチを分ける
-  └── feat/post
-```
+## エンドポイントの追加手順
+1. `presentation/routes/<resource>.route.ts` に `createRoute` と request/response の Zod スキーマを書く。
+2. `presentation/controllers/<resource>.controller.ts` にハンドラーを足し、`c.req.valid("json")` で型付き入力を取る。
+3. `composition/create-app.ts` に `v1.openapi(<route>, deps.<controller>.<handler>)` を 1 行足す。認証・認可が必要なら `v1.use(path, ...)` も追加する。
+4. co-located テストへ正常系・異常系を追加する。
 
 ## テスト配置
 - **Vitest**: 実装と同じ階層に `*.test.ts` / `*.test.tsx` を co-located で置く。
@@ -76,7 +52,7 @@ develop
 - 詳細は `docs/frontend-guidelines.md` の「エラーハンドリング・Sentry」セクションを参照すること。
 
 ## バリデーション境界
-- **入力 (Presentation)**: Zodで型と形式を検証。
+- **入力 (Presentation)**: `createRoute.request` の Zod スキーマ（zValidator）で型と形式を検証する。`routes/` と `openapi/` では `@hono/zod-openapi` の `z` を使う。
 - **ビジネス (Domain)**: エンティティメソッド内で整合性を検証。
 
 ## エクスポート/インポート規則 (Barrel Pattern)

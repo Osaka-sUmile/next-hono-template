@@ -1,29 +1,17 @@
 import type { ErrorHandler } from "hono";
+import { HTTPException } from "hono/http-exception";
 import * as Sentry from "@sentry/cloudflare";
 import { ZodError } from "zod";
 import { logger } from "../../infrastructure";
 import type { Env } from "../../infrastructure";
-import { ErrorCodes, InvalidJsonBodyError } from "../errors";
-import { errorResponse } from "../http";
-
-/**
- * ZodError の issues を「path: message」形式の簡潔な要約文字列へ整形する。
- * 検証エラーは利用者の入力起因で機微情報ではないため、環境に依らずクライアントへ返す。
- */
-function formatZodError(err: ZodError): string {
-  return err.issues
-    .map((issue) => {
-      const path = issue.path.join(".");
-      return path ? `${path}: ${issue.message}` : issue.message;
-    })
-    .join("; ");
-}
+import { ErrorCodes } from "../errors";
+import { errorResponse, formatZodError } from "../http";
 
 /**
  * 未処理エラーを捕捉するグローバルエラーハンドラーを生成する（Hono の app.onError に登録する）。
  *
- * - リクエスト検証エラー（Zod スキーマ不一致 = ZodError / 不正 JSON ボディ =
- *   InvalidJsonBodyError）は利用者の入力起因の想定内エラーとして 400 VALIDATION_ERROR で返す。
+ * - リクエスト検証エラー（Zod スキーマ不一致 = ZodError / Hono validator の不正 JSON）は
+ *   利用者の入力起因の想定内エラーとして 400 VALIDATION_ERROR で返す。
  *   リトライ不能な入力不備を内部障害として扱わないよう Sentry には送信しない。
  * - それ以外の予期しない例外は従来どおり 500 INTERNAL_ERROR として Sentry へ送信する
  *   （アプリケーション内部で発生する SyntaxError もここに含まれる）。
@@ -37,9 +25,9 @@ export function createErrorHandler(nodeEnv: Env["NODE_ENV"]): ErrorHandler {
       return errorResponse(c, 400, ErrorCodes.VALIDATION_ERROR, formatZodError(err));
     }
 
-    // 不正・破損した JSON ボディ（c.req.json() の失敗を専用エラーに変換したもの）。
-    // 汎用の SyntaxError は拾わない（アプリ由来の SyntaxError を 400 と誤判定しないため）。
-    if (err instanceof InvalidJsonBodyError) {
+    // Hono の JSON validator はパース失敗時に HTTPException(400) を送出する。
+    // 汎用 SyntaxError は拾わないため、アプリ内部由来の例外は引き続き 500 + Sentry になる。
+    if (err instanceof HTTPException && err.status === 400) {
       logger.info({ err }, "[errorHandler] Malformed JSON request body");
       return errorResponse(c, 400, ErrorCodes.VALIDATION_ERROR, err.message);
     }

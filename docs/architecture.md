@@ -7,17 +7,16 @@
 - 複雑なDIコンテナは不使用。「Pure DI (手動コンストラクタ注入)」を徹底すること。
 
 ## API の構成レイヤー
-- `apps/api/src/infrastructure/`: 環境変数、Swagger 設定、Prisma などの基盤処理。
+- `apps/api/src/infrastructure/`: 環境変数、Swagger UI 設定、Prisma などの基盤処理。
 - `apps/api/src/composition/`: Application / Presentation / Infrastructure を束ねる起動配線。
 
 ## 起動シーケンスのポリシー
 - apps/api は Cloudflare Workers ランタイムで動作する。エントリーポイント (`src/index.ts`) は
-  `ExportedHandler.fetch(req, env, ctx)` を実装し、isolate ごとに最初のリクエストで
-  `createApp(parseEnv(env))` を一度だけ呼び出してアプリを構築・キャッシュする（Workers の FS 非対応・
-  isolate 再利用という制約に合わせた lazy 初期化）。
-- Swagger の **fail-fast** はビルド時に移動した。`bundle-openapi` スクリプトが OpenAPI YAML を
-  dereference して `src/generated/openapi.json` に書き出し、失敗時は非0終了でビルドを止める。
-  実行時は Cloudflare Workers に FS が無いため、この JSON を静的 import して同期的に配信するのみ。
+  `ExportedHandler.fetch(req, env, ctx)` を実装し、リクエストごとに
+  `createApp(parseEnv(env))` を呼び出してアプリを構築する。Neon の WebSocket 接続は Workers で
+  リクエストをまたいで利用できないため、レスポンス後に Prisma を切断する。
+- OpenAPI は `presentation/routes/` の Zod スキーマから `OpenAPIHono` が実行時に生成する。
+  Cloudflare Workers の FS に依存せず、`/api-docs/openapi.json` と Swagger UI で配信する。
 - Sentry は `@sentry/cloudflare` の `withSentry` でエントリーポイントをラップする方式に変更した。
   `SENTRY_DSN` が未設定の場合は無効のままにする（ローカル開発などでノイズを出さない）。
 
@@ -33,9 +32,6 @@
 next-hono-template/
 ├── apps/
 │   ├── api/                          # Hono バックエンド
-│   │   ├── docs/                     # OpenAPI 定義 (YAML)
-│   │   │   ├── components/schemas/
-│   │   │   └── paths/
 │   │   └── src/
 │   │       ├── index.ts              # エントリーポイント (bootstrap)
 │   │       ├── application/          # ユースケース層 (CQRS)
@@ -44,10 +40,12 @@ next-hono-template/
 │   │       ├── composition/          # DI 配線・アプリ組み立て
 │   │       ├── infrastructure/       # env, Swagger 等の基盤
 │   │       ├── presentation/
-│   │       │   ├── controllers/      # コントローラー・リクエスト検証
+│   │       │   ├── controllers/      # コントローラーハンドラー
+│   │       │   ├── routes/           # OpenAPI route 定義・入出力 Zod スキーマ
+│   │       │   ├── openapi/          # OpenAPI 共通スキーマ・validation hook
 │   │       │   ├── middleware/       # 認証・認可ミドルウェア
 │   │       │   ├── errors/           # Presentation エラー型・エラーコード定数
-│   │       │   └── http/             # HTTP 入出力ヘルパー (リクエスト読取・レスポンス構築)
+│   │       │   └── http/             # HTTP レスポンス・エラー整形ヘルパー
 │   │       └── test-utils/           # テスト共通ヘルパー
 │   └── web/                          # Next.js フロントエンド
 │       ├── app/                      # App Router (page / layout)
@@ -112,7 +110,7 @@ packages/database  →  packages/domain
 - `apps/api/src/application/`: `dtos/`, `errors/`
 - `apps/api/src/infrastructure/`: `env/`, `swagger/`, `db/`
 - `apps/api/src/composition/`: `create-app/`, `bootstrap/`
-- `apps/api/src/presentation/`: `controllers/`, `middleware/`, `errors/`, `http/`
+- `apps/api/src/presentation/`: `controllers/`, `routes/`, `openapi/`, `middleware/`, `errors/`, `http/`
 - `packages/common/`: `utils/`, `types/`
 
 ## tests の配置ルール

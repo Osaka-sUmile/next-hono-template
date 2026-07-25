@@ -1,8 +1,8 @@
 import { z } from "zod";
-import type { Context } from "hono";
+import type { RouteHandler } from "@hono/zod-openapi";
 import { GetCurrentUserUseCase, UpdateUserProfileUseCase } from "../../application";
-import { readJsonBody } from "../http";
-import type { AuthVariables } from "../middleware/require-auth.middleware";
+import type { AppEnv } from "../app-env";
+import type { getUserMeRoute, updateUserMeRoute } from "../routes";
 
 const getUserMeRequestSchema = z.object({
   auth: z.object({
@@ -12,25 +12,13 @@ const getUserMeRequestSchema = z.object({
   }),
 });
 
-const DISPLAY_NAME_MAX_LENGTH = 100;
-
-// 表示名の更新リクエストボディ。空文字は「表示名なし」を意味する null に正規化する。
-const updateUserMeBodySchema = z.object({
-  displayName: z
-    .string()
-    .trim()
-    .max(DISPLAY_NAME_MAX_LENGTH)
-    .nullable()
-    .transform((value) => (value === "" ? null : value)),
-});
-
 export class UserController {
   constructor(
     private readonly getCurrentUserUseCase: GetCurrentUserUseCase,
     private readonly updateUserProfileUseCase: UpdateUserProfileUseCase,
   ) {}
 
-  getUserMe = async (c: Context<{ Variables: AuthVariables }>) => {
+  getUserMe: RouteHandler<typeof getUserMeRoute, AppEnv> = async (c) => {
     const dto = getUserMeRequestSchema.parse({ auth: c.get("auth") });
     const user = await this.getCurrentUserUseCase.execute({ userId: dto.auth.user.id });
     if (!user) {
@@ -40,19 +28,17 @@ export class UserController {
         `user not found despite valid session (userId=${dto.auth.user.id}) — data inconsistency`,
       );
     }
-    return c.json(user);
+    return c.json(user, 200);
   };
 
   // PATCH /me: 認証済みユーザーが自分の表示名を更新する（Command 側の実装見本）。
-  updateUserMe = async (c: Context<{ Variables: AuthVariables }>) => {
+  updateUserMe: RouteHandler<typeof updateUserMeRoute, AppEnv> = async (c) => {
     const { auth } = getUserMeRequestSchema.parse({ auth: c.get("auth") });
-    // 入力（Presentation 境界）は Zod で検証する。JSON パース失敗は InvalidJsonBodyError、
-    // スキーマ不一致は ZodError として throw され、onError で 400 VALIDATION_ERROR に写像される。
-    const body = updateUserMeBodySchema.parse(await readJsonBody(c));
+    const { displayName } = c.req.valid("json");
     const updated = await this.updateUserProfileUseCase.execute({
       userId: auth.user.id,
-      displayName: body.displayName,
+      displayName,
     });
-    return c.json(updated);
+    return c.json(updated, 200);
   };
 }

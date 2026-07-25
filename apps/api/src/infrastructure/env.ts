@@ -1,7 +1,6 @@
 import { z } from "zod";
 
 const originUrlSchema = z
-  .string()
   .url()
   .refine((value) => {
     const u = new URL(value);
@@ -13,16 +12,17 @@ export const envSchema = z.object({
   NODE_ENV: z.enum(["development", "test", "production"]),
   DATABASE_URL: z.string().min(1),
   AUTH_SECRET: z.string().min(32),
+  // Zod v4 defaults short-circuit transforms; keep this default as a canonical origin.
   API_BASE_URL: originUrlSchema.default("http://localhost:8080"),
   WEB_BASE_URL: originUrlSchema.default("http://localhost:3001"),
   RESEND_API_KEY: z.string().min(1),
-  RESEND_FROM_EMAIL: z.string().email(),
+  RESEND_FROM_EMAIL: z.email(),
   GOOGLE_CLIENT_ID: z.string().min(1),
   GOOGLE_CLIENT_SECRET: z.string().min(1),
   APPLE_CLIENT_ID: z.string().min(1),
   APPLE_CLIENT_SECRET: z.string().min(1),
   // Sentry DSN. 未設定ならエラー監視は無効（ローカル開発などでノイズを出さない）。
-  SENTRY_DSN: z.string().url().optional(),
+  SENTRY_DSN: z.url().optional(),
   // Sentry の environment タグ。preview / production はどちらも NODE_ENV=production の
   // ため、環境の識別にはこちらを使う（未設定なら NODE_ENV にフォールバック）。
   // 空文字は設定ミスとして起動時に弾く（SENTRY_DSN の url 検証と同じ fail-fast 方針）。

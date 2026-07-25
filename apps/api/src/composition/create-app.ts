@@ -1,4 +1,4 @@
-import { Hono } from "hono";
+import { OpenAPIHono } from "@hono/zod-openapi";
 import { cors } from "hono/cors";
 import { secureHeaders } from "hono/secure-headers";
 import { createAuth } from "@workspace/auth/server";
@@ -13,11 +13,14 @@ import {
   createErrorHandler,
   createRequireAuth,
   requireAdmin,
-  type AuthVariables,
+  healthRoute,
+  getUserMeRoute,
+  updateUserMeRoute,
+  listUsersRoute,
+  validationErrorHook,
+  type AppEnv,
 } from "../presentation";
 import { setupSwagger, type Env } from "../infrastructure";
-
-export type AppEnv = { Variables: AuthVariables };
 
 export type AppDeps = {
   env: Env;
@@ -31,8 +34,8 @@ export type AppDeps = {
  * 依存を受け取り Hono アプリを組み立てる。
  * 実依存の構築は createApp() が担い、テストではモック依存を渡して app.request() で検証する。
  */
-export function buildApp(deps: AppDeps): Hono<AppEnv> {
-  const app = new Hono<AppEnv>();
+export function buildApp(deps: AppDeps): OpenAPIHono<AppEnv> {
+  const app = new OpenAPIHono<AppEnv>({ defaultHook: validationErrorHook });
 
   // 未処理エラーは onError で一元的に捕捉する（Sentry 送信・ログもここで実施）。
   app.onError(createErrorHandler(deps.env.NODE_ENV));
@@ -52,17 +55,19 @@ export function buildApp(deps: AppDeps): Hono<AppEnv> {
 
   const requireAuth = createRequireAuth(deps.auth);
 
-  const v1 = new Hono<AppEnv>();
+  const v1 = new OpenAPIHono<AppEnv>({ defaultHook: validationErrorHook });
   // v1 配下のデフォルトキャッシュ方針。個別ハンドラが上書き可能なよう next() より前に設定する。
   v1.use(async (c, next) => {
     c.header("Cache-Control", "private, no-cache, no-store, must-revalidate");
     await next();
   });
-  v1.get("/health", deps.healthController.check);
-  v1.get("/me", requireAuth, deps.userController.getUserMe);
-  v1.patch("/me", requireAuth, deps.userController.updateUserMe);
-  // admin 専用: requireAuth で認証 → requireAdmin で認可 (role=admin) を確認してから一覧を返す。
-  v1.get("/admin/users", requireAuth, requireAdmin, deps.adminController.listUsers);
+  // 認証・認可は composition に集約し、入出力契約は routes/ が担う。
+  v1.use("/me", requireAuth);
+  v1.use("/admin/users", requireAuth, requireAdmin);
+  v1.openapi(healthRoute, deps.healthController.check);
+  v1.openapi(getUserMeRoute, deps.userController.getUserMe);
+  v1.openapi(updateUserMeRoute, deps.userController.updateUserMe);
+  v1.openapi(listUsersRoute, deps.adminController.listUsers);
 
   app.route("/api/v1", v1);
 
@@ -79,7 +84,7 @@ export function buildApp(deps: AppDeps): Hono<AppEnv> {
  * 呼び出し側 (index.ts) がクリーンアップできるよう prisma も併せて返す。
  */
 export type CreatedApp = {
-  app: Hono<AppEnv>;
+  app: OpenAPIHono<AppEnv>;
   prisma: ReturnType<typeof createPrismaClient>;
 };
 
