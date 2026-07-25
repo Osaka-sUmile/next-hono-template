@@ -158,7 +158,7 @@ Hono には `hc` という RPC クライアントがあり、`apps/api` のル�
 このテンプレートは「将来 api / web を別リポジトリに分割する」派生プロジェクトを想定しており、web→api の直接のコード依存を作らないことを優先した。
 
 ### 生成の流れ
-```
+```text
 apps/api/src/presentation/routes/*.route.ts (Zod スキーマ)
   → OpenAPIHono が実行時に OpenAPI ドキュメントを構築
   → apps/api/scripts/dump-openapi.mts が /api-docs/openapi.json を取得しファイルへ書き出す
