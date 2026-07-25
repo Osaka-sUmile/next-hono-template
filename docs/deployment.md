@@ -35,7 +35,7 @@ checks (typecheck / test / api・web の dry-run ビルド)
 ```
 
 - wrangler の環境選択は CI がジョブ環境変数 `CLOUDFLARE_ENV` で行う(wrangler は `--env` 未指定時にこの変数を参照する)。
-- Sentry の `environment` タグは `NODE_ENV` ではなく環境名(`preview` / `production`)で付与される。api は `wrangler.jsonc` の各 env の `SENTRY_ENVIRONMENT`、web は CI がビルド時に注入する `NEXT_PUBLIC_SENTRY_ENVIRONMENT` で識別する(いずれも手動設定は不要)。Sentry 側のアラートルールを `environment:production` に絞れば、preview のイベントは収集しつつ通知だけを本番に限定できる。
+- Sentry の `environment` タグは `NODE_ENV` ではなく環境名(`preview` / `production`)で付与される。api は `wrangler.jsonc` の各 env の `SENTRY_ENVIRONMENT`、web は CI がビルド時に注入する `NEXT_PUBLIC_SENTRY_ENVIRONMENT` で識別する(いずれも手動設定は不要)。Sentry 側のアラートルールを `environment:production` に絞れば、preview のイベントは収集しつつ通知だけを本番に限定できる。トレーシングの送信率は production で 0.1、preview で 0.2 を既定とし、必要な場合だけ環境変数で上書きできる。
 
 ### 環境変数の格納場所と役割分担
 
@@ -152,6 +152,7 @@ Settings → Environments → 各環境の Variables に以下を登録する。
 - `NEXT_PUBLIC_API_URL`(api Worker の URL。web のクライアントバンドルにインラインされる)
 - `NEXT_PUBLIC_TURNSTILE_SITE_KEY`(手順 5 で発行した Site Key)
 - `NEXT_PUBLIC_SENTRY_DSN`(Sentry を使わないなら空文字)
+- `NEXT_PUBLIC_SENTRY_TRACES_SAMPLE_RATE`(任意。web のトレーシング送信率を 0〜1 で上書きする場合のみ)
 
 `API_BASE_URL` / `WEB_BASE_URL` / `NEXT_PUBLIC_API_URL` / `NEXT_PUBLIC_TURNSTILE_SITE_KEY` が未設定のままだと該当デプロイジョブがデプロイ前に失敗する(プレースホルダ URL のままデプロイされ、CORS が全リクエストを拒否する事故等を防ぐため)。
 
@@ -213,6 +214,7 @@ workers.dev の URL は `https://<Worker 名>.<アカウントのサブドメイ
 | `NEXT_PUBLIC_API_URL` | `API_BASE_URL` と同じ値(api Worker の URL)。web のビルド時にクライアントバンドルへインラインされる | Environment Variable | はい |
 | `NEXT_PUBLIC_TURNSTILE_SITE_KEY` | 手順 5 で作成した Turnstile ウィジェットの Site Key。web のビルド時にクライアントバンドルへインラインされる | Environment Variable | はい |
 | `NEXT_PUBLIC_SENTRY_DSN` | [sentry.io](https://sentry.io) → web 用プロジェクト(Platform: Next.js)→ Settings → Client Keys (DSN)。**使わないなら空文字で可** | Environment Variable | はい(共通でも可) |
+| `NEXT_PUBLIC_SENTRY_TRACES_SAMPLE_RATE` | web のトレーシング送信率を上書きする 0〜1 の値。**通常は未設定でよい**(production は 0.1、preview は 0.2) | Environment Variable | はい |
 
 ### Cloudflare 側に登録するもの(`wrangler secret put <NAME> --env <preview|production>`)
 
@@ -224,6 +226,7 @@ workers.dev の URL は `https://<Worker 名>.<アカウントのサブドメイ
 | `GOOGLE_CLIENT_ID` / `GOOGLE_CLIENT_SECRET` | Google Cloud Console → APIs & Services → Credentials → OAuth クライアント ID を作成。リダイレクト URI に `{API の URL}/api/auth/callback/google` を登録 | 環境ごとに分けるのを推奨 |
 | `APPLE_CLIENT_ID` / `APPLE_CLIENT_SECRET` | Apple Developer → Certificates, Identifiers & Profiles で Services ID と秘密鍵を作成。コールバックは `{API の URL}/api/auth/callback/apple` | 環境ごとに分けるのを推奨 |
 | `SENTRY_DSN` | [sentry.io](https://sentry.io) → api 用プロジェクト(Platform: Cloudflare Workers)→ Settings → Client Keys (DSN)。**使わないなら登録しなくてよい** | はい(共通でも可) |
+| `SENTRY_TRACES_SAMPLE_RATE` | api のトレーシング送信率を上書きする 0〜1 の値。**通常は登録不要**(production は 0.1、preview は 0.2) | はい |
 | `TURNSTILE_SECRET_KEY` | 手順 5 で作成した Turnstile ウィジェットの Secret Key。**必須**(未設定だと env.ts の Zod 検証で API 起動時に失敗する) | 環境ごとに分けるのを推奨 |
 
 ### `wrangler.jsonc` の `vars` で管理するもの(コミット対象・非シークレット)
@@ -254,7 +257,6 @@ binding は colo 単位の eventual consistent な近似カウントであり、
 | `SENTRY_ENVIRONMENT` | `apps/api/wrangler.jsonc` の各 env の `vars` に定義済み |
 | `NEXT_PUBLIC_SENTRY_ENVIRONMENT` | CI(deploy.yml)がデプロイ先環境名をビルド時に自動注入 |
 | `CLOUDFLARE_ENV` | CI(deploy.yml)がジョブ環境変数として自動設定 |
-| `SENTRY_TRACES_SAMPLE_RATE` / `NEXT_PUBLIC_SENTRY_TRACES_SAMPLE_RATE` | 既定値をコードが環境名から決めるため設定不要。率を変えたいときだけ設定する(後述) |
 
 ## 補足: Neon の接続文字列が 2 種類ある理由
 
@@ -268,54 +270,6 @@ Neon はプールされた接続とプールされていない接続の 2 種類
 `packages/database/src/client.ts` は Neon serverless driver (`PrismaNeon` アダプタ)を使うため pooled 接続文字列を渡す。一方 `prisma migrate deploy` などの CLI コマンドは Prisma のマイグレーションエンジンが直接 TCP 接続するため、pooled 接続文字列(PgBouncer 経由)ではサポート外のプリペアドステートメント等でエラーになることがある。**マイグレーションには必ず direct 接続文字列を使うこと**。
 
 ## 運用
-
-### Sentry のトレーシングとサンプリング方針
-
-Sentry には2つの役割がある。**エラー監視**は例外が起きた瞬間を記録し、**トレーシング**は正常時も含めた所要時間を記録する。後者を有効にしないと「壊れたことは分かるが、遅くなったことには気づけない」状態になる。
-
-| 概念 | 意味 |
-| :--- | :--- |
-| トランザクション | 1 リクエスト(api)または 1 ページ遷移(web)の所要時間の記録。Sentry の Performance で p50 / p95 / 時系列が見える |
-| `tracesSampleRate` | トランザクションを何割 Sentry に送るか。`1.0` = 全件、`0.1` = 10% |
-
-**トランザクションはエラーと違い正常時も毎回発生する**ため、全件送るとイベントクォータを消費し CPU も僅かに食う。そのため環境ごとに率を変える。
-
-| 環境 | `tracesSampleRate` | 理由 |
-| :--- | :--- | :--- |
-| `production` | `0.1` | 実トラフィックがあるため 10% で傾向は十分見える |
-| `preview` | `0.2` | トラフィックが少なく件数が稼げないので高めにする |
-| それ以外(`development` / 環境名未設定) | `1.0` | ローカルでは全件見たい。そもそも DSN 未設定なら送信自体されない |
-
-環境の識別には `NODE_ENV` ではなく **`SENTRY_ENVIRONMENT`**(api) / **`NEXT_PUBLIC_SENTRY_ENVIRONMENT`**(web)を使う。preview / production はどちらも `NODE_ENV=production` でビルド・デプロイされるため `NODE_ENV` では区別できない。
-
-**この既定値はコード側に持っている。設定は不要。**
-
-| 対象 | 既定値の定義場所 |
-| :--- | :--- |
-| api / web 共通 | `packages/common/src/sentry-traces-sample-rate.ts`（`resolveTracesSampleRate`） |
-
-api（`@sentry/cloudflare`）と web（`@sentry/nextjs`）は SDK が異なるが、率の解釈自体は文字列と数値だけを扱う純関数のため Sentry SDK に依存せず共有できる。両者は `packages/common` のこの単一の関数を呼び出しているだけなので、値は 1 箇所で決まり、api / web 間で値が食い違う心配はない。**率を変えるときはこのファイルとこの表を合わせること。**
-
-`wrangler.jsonc` の `vars` に置かなかったのは、`vars` が env に継承されない(non-inheritable)ためキーを増やすと top-level / preview / production の 3 箇所に書く保守負債が増えるから。
-
-#### 率を変えたいとき
-
-既定値を上書きしたい場合のみ、以下を設定する。無効な値(非数値・0〜1 の範囲外・空文字)は黙って既定値にフォールバックするため、設定ミスでトレースが完全に止まることはない。
-
-```bash
-# api: Cloudflare の var または secret として設定
-pnpm exec wrangler secret put SENTRY_TRACES_SAMPLE_RATE --env production
-
-# web: NEXT_PUBLIC_* はビルド時にインライン化されるため、
-# GitHub Environment Variables に登録して再ビルド(再デプロイ)が必要
-#   NEXT_PUBLIC_SENTRY_TRACES_SAMPLE_RATE
-```
-
-#### 確認方法
-
-デプロイ後、[sentry.io](https://sentry.io) → 該当プロジェクト → **Performance / Traces** を開く。数リクエスト投げると `GET /api/v1/me` などのトランザクションが一覧に出る。`environment` タグで `preview` / `production` を絞り込める。
-
-トランザクションの**内訳**(DB アクセスが何 ms か等)は自動計装の範囲までしか見えない。より細かく見たい場合は `Sentry.startSpan` による手動計測を追加する(本テンプレートでは未実装。issue #109 のスコープ外)。
 
 ### 本番マイグレーション
 
