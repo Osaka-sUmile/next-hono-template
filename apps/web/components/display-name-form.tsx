@@ -1,11 +1,12 @@
-"use client";
+"use client"
 
-import { useState } from "react";
-import { Button } from "@workspace/ui/components/button";
-import { apiBaseUrl, authClient } from "@/lib/auth-client";
-import { ExpectedError, reportError } from "@/lib/report-error";
+import { useState } from "react"
+import { Button } from "@workspace/ui/components/button"
+import { ApiError, apiClient } from "@/lib/api-client"
+import { authClient } from "@/lib/auth-client"
+import { ExpectedError, reportError } from "@/lib/report-error"
 
-const DISPLAY_NAME_MAX_LENGTH = 100;
+const DISPLAY_NAME_MAX_LENGTH = 100
 
 /**
  * 表示名を更新するフォーム（Command 系 API 呼び出しの実装見本）。
@@ -13,48 +14,46 @@ const DISPLAY_NAME_MAX_LENGTH = 100;
  * better-auth のプラグイン経由ではなく、自前の REST エンドポイント `PATCH /api/v1/me` を
  * 直接呼ぶ例。認証は Cookie セッションで行うため `credentials: "include"` が必須。
  */
-export function DisplayNameForm({ initialDisplayName }: { initialDisplayName: string | null }) {
-  const { refetch } = authClient.useSession();
-  const [displayName, setDisplayName] = useState(initialDisplayName ?? "");
-  const [error, setError] = useState<string | null>(null);
-  const [saved, setSaved] = useState(false);
-  const [loading, setLoading] = useState(false);
+export function DisplayNameForm({
+  initialDisplayName,
+}: {
+  initialDisplayName: string | null
+}) {
+  const { refetch } = authClient.useSession()
+  const [displayName, setDisplayName] = useState(initialDisplayName ?? "")
+  const [error, setError] = useState<string | null>(null)
+  const [saved, setSaved] = useState(false)
+  const [loading, setLoading] = useState(false)
 
   async function handleSubmit(e: React.FormEvent) {
-    e.preventDefault();
-    setError(null);
-    setSaved(false);
-    setLoading(true);
+    e.preventDefault()
+    setError(null)
+    setSaved(false)
+    setLoading(true)
     try {
-      const trimmed = displayName.trim();
-      const res = await fetch(`${apiBaseUrl}/api/v1/me`, {
-        method: "PATCH",
-        credentials: "include",
-        headers: { "Content-Type": "application/json" },
-        // 空文字はサーバ側で null（表示名なし）に正規化される。
-        body: JSON.stringify({ displayName: trimmed === "" ? null : trimmed }),
-      });
-      if (!res.ok) {
-        // ユーザー操作で当然起きうる 4xx（未ログイン等）は想定内として Sentry 送信を抑制する。
-        if (res.status === 400 || res.status === 401) {
-          throw new ExpectedError(`update failed with status ${res.status}`);
-        }
-        throw new Error(`update failed with status ${res.status}`);
-      }
+      const trimmed = displayName.trim()
+      // 空文字はサーバ側で null（表示名なし）に正規化される。
+      await apiClient.patch("/api/v1/me", {
+        displayName: trimmed === "" ? null : trimmed,
+      })
       // 更新自体は成功済み。ここで成功を確定させ、セッション再取得の失敗を
       // 「更新失敗」として扱わない（refetch 失敗は別途 reportError するのみ）。
-      setSaved(true);
+      setSaved(true)
       try {
         // better-auth セッションの user.displayName を最新化して UI に反映する。
-        await refetch();
+        await refetch()
       } catch (refetchError) {
-        reportError(refetchError);
+        reportError(refetchError)
       }
     } catch (error) {
-      reportError(error);
-      setError("表示名の更新に失敗しました。ログイン済みか確認してください。");
+      // 4xx（未ログイン・入力不正）はユーザー操作で当然起きうるため Sentry 送信を抑制する。
+      const expected =
+        error instanceof ApiError &&
+        (error.status === 400 || error.status === 401)
+      reportError(expected ? new ExpectedError(error.message) : error)
+      setError("表示名の更新に失敗しました。ログイン済みか確認してください。")
     } finally {
-      setLoading(false);
+      setLoading(false)
     }
   }
 
@@ -70,18 +69,18 @@ export function DisplayNameForm({ initialDisplayName }: { initialDisplayName: st
           value={displayName}
           maxLength={DISPLAY_NAME_MAX_LENGTH}
           onChange={(e) => {
-            setDisplayName(e.target.value);
-            setSaved(false);
+            setDisplayName(e.target.value)
+            setSaved(false)
           }}
           placeholder="表示名を入力（空にすると未設定になります）"
-          className="w-full rounded-md border border-input bg-background px-3 py-2 text-sm placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-ring"
+          className="w-full rounded-md border border-input bg-background px-3 py-2 text-sm placeholder:text-muted-foreground focus:ring-2 focus:ring-ring focus:outline-none"
         />
       </div>
-      {error && <p className="text-destructive text-sm">{error}</p>}
+      {error && <p className="text-sm text-destructive">{error}</p>}
       {saved && <p className="text-sm text-muted-foreground">保存しました。</p>}
       <Button type="submit" disabled={loading}>
         {loading ? "保存中..." : "表示名を保存"}
       </Button>
     </form>
-  );
+  )
 }
