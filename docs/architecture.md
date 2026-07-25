@@ -19,6 +19,12 @@
   Cloudflare Workers の FS に依存せず、`/api-docs/openapi.json` と Swagger UI で配信する。
 - Sentry は `@sentry/cloudflare` の `withSentry` でエントリーポイントをラップする方式に変更した。
   `SENTRY_DSN` が未設定の場合は無効のままにする（ローカル開発などでノイズを出さない）。
+- `withSentry` のオプション組み立ては `infrastructure/sentry-options.ts` の `resolveSentryOptions` に
+  集約する。`withSentry` のコールバックは `parseEnv` を通す**前**の生 binding を受け取るため、
+  envSchema に項目を足してもここからは使えない。Sentry 関連の値の解釈はこの関数だけで行い、
+  二重の検証経路を作らない。
+- トレーシング（`tracesSampleRate`）は環境ごとに率を変える。既定値はコード側に持ち設定を不要にしてある。
+  方針の詳細は `docs/deployment.md`「Sentry のトレーシングとサンプリング方針」を参照。
 
 ## バリデーションの境界
 | 種類 | 実行場所 | 目的 |

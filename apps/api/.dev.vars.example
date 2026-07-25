@@ -29,8 +29,12 @@ GOOGLE_CLIENT_SECRET="your-google-client-secret"
 APPLE_CLIENT_ID="your-apple-client-id"
 APPLE_CLIENT_SECRET="your-apple-private-key-pem"
 
-# Sentry (BE error monitoring). 未設定ならエラー監視は無効。
+# Sentry (BE error monitoring). 未設定ならエラー監視・トレーシングは無効。
 SENTRY_DSN=""
+# トレースのサンプリング率 (0〜1) の上書き。通常は設定不要。
+# 既定値は環境名から決まる (production 0.1 / preview 0.2 / それ以外 1.0)。
+# 詳細は docs/deployment.md「Sentry のトレーシングとサンプリング方針」を参照。
+# SENTRY_TRACES_SAMPLE_RATE=""
 
 # Cloudflare Turnstile (captcha, issue #41)。必須。
 # 以下は Cloudflare の公式テストシークレットキー(常に検証成功を返す)。

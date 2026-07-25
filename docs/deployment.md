@@ -254,6 +254,7 @@ binding は colo 単位の eventual consistent な近似カウントであり、
 | `SENTRY_ENVIRONMENT` | `apps/api/wrangler.jsonc` の各 env の `vars` に定義済み |
 | `NEXT_PUBLIC_SENTRY_ENVIRONMENT` | CI(deploy.yml)がデプロイ先環境名をビルド時に自動注入 |
 | `CLOUDFLARE_ENV` | CI(deploy.yml)がジョブ環境変数として自動設定 |
+| `SENTRY_TRACES_SAMPLE_RATE` / `NEXT_PUBLIC_SENTRY_TRACES_SAMPLE_RATE` | 既定値をコードが環境名から決めるため設定不要。率を変えたいときだけ設定する(後述) |
 
 ## 補足: Neon の接続文字列が 2 種類ある理由
 
@@ -267,6 +268,53 @@ Neon はプールされた接続とプールされていない接続の 2 種類
 `packages/database/src/client.ts` は Neon serverless driver (`PrismaNeon` アダプタ)を使うため pooled 接続文字列を渡す。一方 `prisma migrate deploy` などの CLI コマンドは Prisma のマイグレーションエンジンが直接 TCP 接続するため、pooled 接続文字列(PgBouncer 経由)ではサポート外のプリペアドステートメント等でエラーになることがある。**マイグレーションには必ず direct 接続文字列を使うこと**。
 
 ## 運用
+
+### Sentry のトレーシングとサンプリング方針
+
+Sentry には2つの役割がある。**エラー監視**は例外が起きた瞬間を記録し、**トレーシング**は正常時も含めた所要時間を記録する。後者を有効にしないと「壊れたことは分かるが、遅くなったことには気づけない」状態になる。
+
+| 概念 | 意味 |
+| :--- | :--- |
+| トランザクション | 1 リクエスト(api)または 1 ページ遷移(web)の所要時間の記録。Sentry の Performance で p50 / p95 / 時系列が見える |
+| `tracesSampleRate` | トランザクションを何割 Sentry に送るか。`1.0` = 全件、`0.1` = 10% |
+
+**トランザクションはエラーと違い正常時も毎回発生する**ため、全件送るとイベントクォータを消費し CPU も僅かに食う。そのため環境ごとに率を変える。
+
+| 環境 | `tracesSampleRate` | 理由 |
+| :--- | :--- | :--- |
+| `production` | `0.1` | 実トラフィックがあるため 10% で傾向は十分見える |
+| `preview` | `0.2` | トラフィックが少なく件数が稼げないので高めにする |
+| それ以外(`development` / 環境名未設定) | `1.0` | ローカルでは全件見たい。そもそも DSN 未設定なら送信自体されない |
+
+環境の識別には `NODE_ENV` ではなく **`SENTRY_ENVIRONMENT`**(api) / **`NEXT_PUBLIC_SENTRY_ENVIRONMENT`**(web)を使う。preview / production はどちらも `NODE_ENV=production` でビルド・デプロイされるため `NODE_ENV` では区別できない。
+
+**この既定値はコード側に持っている。設定は不要。**
+
+| 対象 | 既定値の定義場所 |
+| :--- | :--- |
+| api | `apps/api/src/infrastructure/sentry-options.ts` |
+| web | `apps/web/lib/sentry-traces-sample-rate.ts` |
+
+`wrangler.jsonc` の `vars` に置かなかったのは、`vars` が env に継承されない(non-inheritable)ためキーを増やすと top-level / preview / production の 3 箇所に書く保守負債が増えるから。api / web で値が重複しているのは、web が `@sentry/nextjs`、api が `@sentry/cloudflare` を使い共有パッケージを持てないため。**率を変えるときは両方とこの表を合わせること。**
+
+#### 率を変えたいとき
+
+既定値を上書きしたい場合のみ、以下を設定する。無効な値(非数値・0〜1 の範囲外・空文字)は黙って既定値にフォールバックするため、設定ミスでトレースが完全に止まることはない。
+
+```bash
+# api: Cloudflare の var または secret として設定
+pnpm exec wrangler secret put SENTRY_TRACES_SAMPLE_RATE --env production
+
+# web: NEXT_PUBLIC_* はビルド時にインライン化されるため、
+# GitHub Environment Variables に登録して再ビルド(再デプロイ)が必要
+#   NEXT_PUBLIC_SENTRY_TRACES_SAMPLE_RATE
+```
+
+#### 確認方法
+
+デプロイ後、[sentry.io](https://sentry.io) → 該当プロジェクト → **Performance / Traces** を開く。数リクエスト投げると `GET /api/v1/me` などのトランザクションが一覧に出る。`environment` タグで `preview` / `production` を絞り込める。
+
+トランザクションの**内訳**(DB アクセスが何 ms か等)は自動計装の範囲までしか見えない。より細かく見たい場合は `Sentry.startSpan` による手動計測を追加する(本テンプレートでは未実装。issue #109 のスコープ外)。
 
 ### 本番マイグレーション
 
