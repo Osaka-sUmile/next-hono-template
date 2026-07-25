@@ -115,4 +115,19 @@ describe("apiClient", () => {
       headers: { "Accept-Language": "ja" },
     });
   });
+
+  it("body があるとき Content-Type は呼び出し側から上書きできない", async () => {
+    fetchMock.mockResolvedValue(jsonResponse({}));
+
+    await apiClient.patch(
+      "/api/v1/me",
+      { displayName: "太郎" },
+      { headers: { "Content-Type": "text/plain", "Accept-Language": "ja" } },
+    );
+
+    expect(fetchMock.mock.calls[0]?.[1]?.headers).toEqual({
+      "Content-Type": "application/json",
+      "Accept-Language": "ja",
+    });
+  });
 });

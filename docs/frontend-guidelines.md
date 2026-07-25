@@ -58,6 +58,9 @@ await apiClient.patch("/api/v1/me", { displayName: "太郎" });
 api-client は「4xx は全部想定内」とは決めない。それを決めると `reportError` の fail-loud 原則（後述）に反し、観測漏れを生むため。`status` を見て `ExpectedError` に包み替えるかは呼び出し側が判断する。
 
 ```typescript
+import { ApiError, apiClient } from "@/lib/api-client";
+import { ExpectedError, reportError } from "@/lib/report-error";
+
 try {
   await apiClient.patch("/api/v1/me", { displayName });
 } catch (error) {

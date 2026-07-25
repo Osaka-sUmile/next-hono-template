@@ -16,7 +16,7 @@ export class ApiError extends Error {
 }
 
 type RequestOptions = {
-  /** 追加ヘッダー。Content-Type は body があるとき自動で付くため通常は不要。 */
+  /** 追加ヘッダー。body があるときの Content-Type は固定で、ここからは上書きできない。 */
   headers?: Record<string, string>;
 };
 
@@ -33,8 +33,9 @@ async function request<T>(
     // ここで一元化し、呼び出し側からは上書きできないようにする。
     credentials: "include",
     headers: {
-      ...(hasBody ? { "Content-Type": "application/json" } : {}),
       ...options.headers,
+      // body は必ず JSON.stringify するため、Content-Type は後に置いて上書きを防ぐ。
+      ...(hasBody ? { "Content-Type": "application/json" } : {}),
     },
     ...(hasBody ? { body: JSON.stringify(body) } : {}),
   });
