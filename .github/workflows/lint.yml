@@ -23,3 +23,9 @@ jobs:
 
       - name: Run Lint
         run: pnpm run lint
+
+      - name: Verify generated OpenAPI document and API types are up to date
+        run: |
+          echo "If this step fails, run 'pnpm run openapi:generate' locally and commit the resulting diff in apps/api/openapi.json and apps/web/lib/api-schema.d.ts."
+          pnpm run openapi:generate
+          git diff --exit-code -- apps/api/openapi.json apps/web/lib/api-schema.d.ts
