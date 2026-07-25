@@ -19,6 +19,13 @@ describe("resolveTracesSampleRate", () => {
     it("未知の環境名なら 1", () => {
       expect(resolveTracesSampleRate(undefined, "staging")).toBe(1);
     });
+
+    it.each(["constructor", "__proto__", "toString"])(
+      "継承プロパティ名の environment=%s なら 1",
+      (environment) => {
+        expect(resolveTracesSampleRate(undefined, environment)).toBe(1);
+      },
+    );
   });
 
   describe("上書き値", () => {

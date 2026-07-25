@@ -41,6 +41,9 @@ export function resolveTracesSampleRate(
     if (Number.isFinite(parsed) && parsed >= 0 && parsed <= 1) return parsed;
     // 設定ミスでトレースを失うより既定値で動くほうが安全なため、無効値は黙って捨てる。
   }
-  const byEnvironment = environment === undefined ? undefined : DEFAULT_TRACES_SAMPLE_RATE[environment];
+  const byEnvironment =
+    environment !== undefined && Object.hasOwn(DEFAULT_TRACES_SAMPLE_RATE, environment)
+      ? DEFAULT_TRACES_SAMPLE_RATE[environment]
+      : undefined;
   return byEnvironment ?? FALLBACK_TRACES_SAMPLE_RATE;
 }
