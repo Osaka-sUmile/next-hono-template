@@ -9,12 +9,14 @@ import { resolveTracesSampleRate } from "@/lib/sentry-traces-sample-rate";
 // `||` で空文字も NODE_ENV へフォールバックさせる (API 側の実装と挙動を揃える)。
 // tracesSampleRate は環境ごとに変える（既定値は lib/sentry-traces-sample-rate.ts）。
 // これを設定して初めてページ遷移やブラウザ側の計測がトランザクションとして送られる。
+const environment = process.env.NEXT_PUBLIC_SENTRY_ENVIRONMENT || process.env.NODE_ENV;
+
 Sentry.init({
   dsn: process.env.NEXT_PUBLIC_SENTRY_DSN,
-  environment: process.env.NEXT_PUBLIC_SENTRY_ENVIRONMENT || process.env.NODE_ENV,
+  environment,
   tracesSampleRate: resolveTracesSampleRate(
-    process.env.NEXT_PUBLIC_SENTRY_ENVIRONMENT || process.env.NODE_ENV,
     process.env.NEXT_PUBLIC_SENTRY_TRACES_SAMPLE_RATE,
+    environment,
   ),
 });
 

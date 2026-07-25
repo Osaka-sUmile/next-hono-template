@@ -24,14 +24,14 @@ const FALLBACK_TRACES_SAMPLE_RATE = 1;
  * （instrumentation-client.ts / instrumentation.ts）で `process.env` を直接参照し、
  * この関数は解釈だけを担う純関数にしてテスト可能にしている。
  *
+ * @param rawValue `NEXT_PUBLIC_SENTRY_TRACES_SAMPLE_RATE`（運用で率を変えたいときのみ設定）
  * @param environment `NEXT_PUBLIC_SENTRY_ENVIRONMENT` または `NODE_ENV`
- * @param override `NEXT_PUBLIC_SENTRY_TRACES_SAMPLE_RATE`（運用で率を変えたいときのみ設定）
  */
 export function resolveTracesSampleRate(
+  rawValue: string | undefined,
   environment: string | undefined,
-  override: string | undefined,
 ): number {
-  const trimmed = override?.trim();
+  const trimmed = rawValue?.trim();
   if (trimmed !== undefined && trimmed !== "") {
     const parsed = Number(trimmed);
     // 0 と 1 は有効な指定なので、falsy 判定ではなく範囲で判定する。
