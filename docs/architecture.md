@@ -25,6 +25,8 @@
   二重の検証経路を作らない。
 - トレーシング（`tracesSampleRate`）は環境ごとに率を変える。既定値はコード側に持ち設定を不要にしてある。
   方針の詳細は `docs/deployment.md`「Sentry のトレーシングとサンプリング方針」を参照。
+- 率の解釈（環境別既定値・上書き値のバリデーション）は `packages/common` の
+  `resolveTracesSampleRate` に集約しており、api / web はこの単一のソースを共有する。
 
 ## バリデーションの境界
 | 種類 | 実行場所 | 目的 |
@@ -81,6 +83,9 @@ next-hono-template/
 │   │       ├── hooks/
 │   │       ├── lib/utils.ts          # cn() 等のユーティリティ
 │   │       └── styles/globals.css    # Tailwind + デザイントークン
+│   ├── common/                       # api / web 共有の純粋関数（外部依存ゼロ）
+│   │   └── src/
+│   │       └── sentry-traces-sample-rate.ts  # Sentry tracesSampleRate 解釈ロジック
 │   ├── eslint-config/                # 共有 ESLint 設定
 │   └── typescript-config/            # 共有 tsconfig
 ├── docs/
@@ -99,9 +104,11 @@ next-hono-template/
 ```
 apps/web        →  packages/ui
                 →  packages/auth (client)
+                →  packages/common
 apps/api        →  packages/domain
                 →  packages/database
                 →  packages/auth (server)
+                →  packages/common
 packages/auth   →  better-auth, resend (外部ライブラリ)
 packages/database  →  packages/domain
 ```
@@ -117,7 +124,7 @@ packages/database  →  packages/domain
 - `apps/api/src/infrastructure/`: `env/`, `swagger/`, `db/`
 - `apps/api/src/composition/`: `create-app/`, `bootstrap/`
 - `apps/api/src/presentation/`: `controllers/`, `routes/`, `openapi/`, `middleware/`, `errors/`, `http/`
-- `packages/common/`: `utils/`, `types/`
+- `packages/common/`: 既存（`sentry-traces-sample-rate.ts`）。追加予定のサブフォルダ: `utils/`, `types/`
 
 ## tests の配置ルール
 - Vitest は co-located な `*.test.ts` / `*.test.tsx` を採用する。

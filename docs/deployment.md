@@ -292,10 +292,11 @@ Sentry には2つの役割がある。**エラー監視**は例外が起きた�
 
 | 対象 | 既定値の定義場所 |
 | :--- | :--- |
-| api | `apps/api/src/infrastructure/sentry-options.ts` |
-| web | `apps/web/lib/sentry-traces-sample-rate.ts` |
+| api / web 共通 | `packages/common/src/sentry-traces-sample-rate.ts`（`resolveTracesSampleRate`） |
 
-`wrangler.jsonc` の `vars` に置かなかったのは、`vars` が env に継承されない(non-inheritable)ためキーを増やすと top-level / preview / production の 3 箇所に書く保守負債が増えるから。api / web で値が重複しているのは、共有できないからではない。この計算は文字列と数値だけを扱う純関数で共有自体は可能だが、12 行のために両アプリが依存する共通パッケージ(`packages/common`)を新設するほうがテンプレートとしてのコストが高いと判断した。代償として同期を人手で守る必要がある。**率を変えるときは両方とこの表を合わせること。**
+api（`@sentry/cloudflare`）と web（`@sentry/nextjs`）は SDK が異なるが、率の解釈自体は文字列と数値だけを扱う純関数のため Sentry SDK に依存せず共有できる。両者は `packages/common` のこの単一の関数を呼び出しているだけなので、値は 1 箇所で決まり、api / web 間で値が食い違う心配はない。**率を変えるときはこのファイルとこの表を合わせること。**
+
+`wrangler.jsonc` の `vars` に置かなかったのは、`vars` が env に継承されない(non-inheritable)ためキーを増やすと top-level / preview / production の 3 箇所に書く保守負債が増えるから。
 
 #### 率を変えたいとき
 
