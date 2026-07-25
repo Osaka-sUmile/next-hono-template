@@ -84,6 +84,10 @@ reviews:
 
     - path: "apps/web/**/*.{ts,tsx}"
       instructions: |
+        コンポーネント・hooks 内で fetch を直接呼んでいないか、apps/web/lib/api-client.ts を
+        経由しているかを確認してください（docs/frontend-guidelines.md「データフェッチ・API 呼び出し」）。
+        baseUrl の組み立て・credentials: "include"・Content-Type をコンポーネント側で書いている場合は
+        api-client への集約を指摘すること。better-auth の authClient 経由の呼び出しはこの対象外です。
         catch 節では reportError(error)（apps/web/lib/report-error.ts）を呼んでいるか確認してください。
         想定内エラーのみ ExpectedError で抑制し、それ以外は Sentry に送る（fail-loud）方針です。
         判断に迷うものは送信側に倒すこと。
