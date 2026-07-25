@@ -36,30 +36,33 @@
 
 ### api-client が引き受けること
 
-`apiClient.get / post / patch / delete` を使うと、以下が自動で付く。呼び出し側で書き直さないこと。
+`apiClient` は [openapi-fetch](https://github.com/openapi-ts/openapi-typescript) の `createClient<paths>()` インスタンスで、`paths` は `apps/api/openapi.json`（API の OpenAPI ドキュメント）から `openapi-typescript` が生成した型（`apps/web/lib/api-schema.d.ts`）。パス・メソッド・リクエスト/レスポンスの形が API の実装と自動で一致する（詳細は `docs/architecture.md`「API 型の共有方針」）。
+
+`apiClient.GET / POST / PATCH / DELETE` を使うと、以下が自動で付く。呼び出し側で書き直さないこと。
 
 | 項目 | 内容 |
 | :--- | :--- |
 | ベース URL | `apiBaseUrl`（`NEXT_PUBLIC_API_URL`）を前置する |
 | 認証 | `credentials: "include"`。Cookie セッション認証に必須で、落とすと原因の分かりにくい 401 になる |
 | ヘッダー | body があるとき `Content-Type: application/json` |
-| エラー | 2xx 以外は `ApiError`（`status` を保持）を throw する |
-| 空レスポンス | 204 は `res.json()` を呼ばず `undefined` を返す |
+| 型 | パスごとの request/response の型が `openapi-typescript` の生成物から効く |
+
+`apiClient.GET/POST/...` は 2xx 以外でも例外を投げず `{ data, error, response }` を返す（openapi-fetch の仕様）。「成功なら `data`、失敗なら `ApiError`（`status` を保持）を throw」という形に畳むのが `unwrap()`。
 
 ```typescript
-import { ApiError, apiClient } from "@/lib/api-client";
+import { ApiError, apiClient, unwrap } from "@/lib/api-client";
 
-const user = await apiClient.get<UserProfile>("/api/v1/me");
-await apiClient.patch("/api/v1/me", { displayName: "太郎" });
+const user = await unwrap(apiClient.GET("/api/v1/me"));
+await unwrap(apiClient.PATCH("/api/v1/me", { body: { displayName: "太郎" } }));
 ```
 
 ### 想定内かどうかの判断は呼び出し側に置く
 
-api-client は「4xx は全部想定内」とは決めない。それを決めると `reportError` の fail-loud 原則（後述）に反し、観測漏れを生むため。`status` を見て `ExpectedError` に包み替えるかは呼び出し側が判断する。
+api-client（および `unwrap`）は「4xx は全部想定内」とは決めない。それを決めると `reportError` の fail-loud 原則（後述）に反し、観測漏れを生むため。`status` を見て `ExpectedError` に包み替えるかは呼び出し側が判断する。
 
 ```typescript
 try {
-  await apiClient.patch("/api/v1/me", { displayName });
+  await unwrap(apiClient.PATCH("/api/v1/me", { body: { displayName } }));
 } catch (error) {
   // このエンドポイントでは 400 / 401 がユーザー操作で当然起きうるので想定内扱いにする。
   if (error instanceof ApiError && (error.status === 400 || error.status === 401)) {
@@ -72,6 +75,14 @@ try {
 ```
 
 実装見本は `apps/web/components/display-name-form.tsx`。
+
+### API のルート定義を変更したら
+
+`apps/api/src/presentation/routes/` の Zod スキーマを変更したら、以下を実行して生成物を再生成し、`apps/api/openapi.json` と `apps/web/lib/api-schema.d.ts` の両方をコミットする。忘れると CI（`.github/workflows/lint.yml`）の差分チェックで落ちる。
+
+```bash
+pnpm run openapi:generate
+```
 
 ## エラーハンドリング・Sentry
 

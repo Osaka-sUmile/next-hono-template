@@ -25,6 +25,7 @@
 2. `presentation/controllers/<resource>.controller.ts` にハンドラーを足し、`c.req.valid("json")` で型付き入力を取る。
 3. `composition/create-app.ts` に `v1.openapi(<route>, deps.<controller>.<handler>)` を 1 行足す。認証・認可が必要なら `v1.use(path, ...)` も追加する。
 4. co-located テストへ正常系・異常系を追加する。
+5. `pnpm run openapi:generate` を実行し、生成された `apps/api/openapi.json` と `apps/web/lib/api-schema.d.ts` をコミットする。
 
 ## テスト配置
 - **Vitest**: 実装と同じ階層に `*.test.ts` / `*.test.tsx` を co-located で置く。
