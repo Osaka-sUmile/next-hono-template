@@ -1,4 +1,4 @@
-import { resolveTracesSampleRate } from "@workspace/common";
+import { resolveSentryEnvironment, resolveTracesSampleRate } from "@workspace/common";
 import type { WorkerBindings } from "./env";
 
 export type SentryOptions = {
@@ -36,8 +36,7 @@ export function resolveSentryOptions(rawEnv: WorkerBindings): SentryOptions | un
 
   // preview / production はどちらも NODE_ENV=production のため、環境の識別には
   // SENTRY_ENVIRONMENT (wrangler.jsonc の env ごとの vars) を優先する。
-  const environment =
-    readNonEmptyString(rawEnv.SENTRY_ENVIRONMENT) ?? readNonEmptyString(rawEnv.NODE_ENV);
+  const environment = resolveSentryEnvironment(rawEnv.SENTRY_ENVIRONMENT, rawEnv.NODE_ENV);
 
   return {
     dsn,

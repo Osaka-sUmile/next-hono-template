@@ -41,6 +41,15 @@ describe("resolveSentryOptions", () => {
       expect(options?.environment).toBe("development");
     });
 
+    it("SENTRY_ENVIRONMENT が空白のみなら trim して NODE_ENV にフォールバックする", () => {
+      const options = resolveSentryOptions({
+        SENTRY_DSN: DSN,
+        SENTRY_ENVIRONMENT: "   ",
+        NODE_ENV: " production ",
+      });
+      expect(options?.environment).toBe("production");
+    });
+
     it("どちらも未設定なら environment は undefined", () => {
       expect(resolveSentryOptions({ SENTRY_DSN: DSN })?.environment).toBeUndefined();
     });
