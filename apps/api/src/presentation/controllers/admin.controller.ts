@@ -1,14 +1,15 @@
-import type { Context } from "hono";
+import type { RouteHandler } from "@hono/zod-openapi";
 import { ListUsersUseCase } from "../../application";
-import type { AuthVariables } from "../middleware/require-auth.middleware";
+import type { AppEnv } from "../app-env";
+import type { listUsersRoute } from "../routes";
 
 /** admin 向け API のコントローラ。 */
 export class AdminController {
   constructor(private readonly listUsersUseCase: ListUsersUseCase) {}
 
   /** 全ユーザー一覧を JSON で返す。requireAdmin ミドルウェア通過後にのみ到達する。 */
-  listUsers = async (c: Context<{ Variables: AuthVariables }>) => {
+  listUsers: RouteHandler<typeof listUsersRoute, AppEnv> = async (c) => {
     const users = await this.listUsersUseCase.execute();
-    return c.json(users);
+    return c.json(users, 200);
   };
 }

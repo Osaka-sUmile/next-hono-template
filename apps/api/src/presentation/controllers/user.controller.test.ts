@@ -192,12 +192,10 @@ describe("PATCH /api/v1/me", () => {
     });
 
     expect(res.status).toBe(400);
-    expect(await res.json()).toEqual(
-      expect.objectContaining({
-        error: expect.any(String),
-        code: ErrorCodes.VALIDATION_ERROR,
-      }),
-    );
+    expect(await res.json()).toEqual({
+      error: "Malformed JSON in request body",
+      code: ErrorCodes.VALIDATION_ERROR,
+    });
     expect(updateProfile).not.toHaveBeenCalled();
   });
 
