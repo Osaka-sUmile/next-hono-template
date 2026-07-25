@@ -29,18 +29,21 @@ export class ApiError extends Error {
  * better-auth のエンドポイントは authClient (lib/auth-client.ts) が担当するため対象外。
  *
  * Cookie セッション認証のため `credentials: "include"` は必須。忘れると理由の分かりにくい
- * 401 になるので、ここで一元化し呼び出し側からは上書きできないようにする
- * （呼び出し側で個別に `credentials` を指定してもここで固定した値が優先されるよう、
- * openapi-fetch のインスタンスオプションとして渡す）。
+ * 401 になるので、ここで一元化し呼び出し側からは上書きできないようにする。
  */
 export const apiClient = createClient<paths>({
   baseUrl: apiBaseUrl,
   credentials: "include",
-  // openapi-fetch は createClient() 呼び出し時点の globalThis.fetch を既定値として
-  // キャプチャする。ここを省略すると、テストで `global.fetch` を後から差し替えても
-  // （モジュール読み込みが先に走るため）反映されない。呼び出し時に globalThis.fetch を
-  // 都度引くラッパーにして、モック可能な状態を保つ。
-  fetch: (request) => fetch(request),
+  // fetch をラップする理由が 2 つある。
+  //
+  // 1. openapi-fetch は createClient() 呼び出し時点の globalThis.fetch をキャプチャする。
+  //    省略するとテストで `global.fetch` を後から差し替えても（モジュール読み込みが先に
+  //    走るため）反映されない。呼び出し時に都度引くことでモック可能な状態を保つ。
+  // 2. openapi-fetch はリクエスト個別のオプションをインスタンスオプションへ上書きマージする。
+  //    そのため上の `credentials: "include"` だけでは、呼び出し側が `credentials: "omit"` を
+  //    渡すと Cookie が送られなくなる（= 認証が静かに壊れ、分かりにくい 401 になる）。
+  //    ここで Request を作り直して include を強制し、上書きを効かなくする。
+  fetch: (request) => fetch(new Request(request, { credentials: "include" })),
 });
 
 /**

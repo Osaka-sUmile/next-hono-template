@@ -57,6 +57,16 @@ describe("apiClient / unwrap", () => {
     expect(await request.clone().json()).toEqual({ displayName: null });
   });
 
+  it("呼び出し側が credentials を上書きしようとしても include が維持される", async () => {
+    fetchMock.mockResolvedValue(jsonResponse({ status: "ok" }));
+
+    // Cookie セッション認証が静かに壊れるのを防ぐため、呼び出し側からは無効化できない。
+    await unwrap(apiClient.GET("/api/v1/health", { credentials: "omit" }));
+
+    const request = fetchMock.mock.calls[0]?.[0] as Request;
+    expect(request.credentials).toBe("include");
+  });
+
   it("unwrap は 4xx で ApiError を投げ status を保持する", async () => {
     fetchMock.mockImplementation(() => Promise.resolve(jsonResponse({}, 401)));
 
