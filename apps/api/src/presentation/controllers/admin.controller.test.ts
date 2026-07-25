@@ -1,5 +1,6 @@
 import { describe, expect, it, vi } from "vitest";
 import { createTestApp } from "../../test-utils";
+import { ErrorCodes } from "../errors";
 
 const adminSession = { user: { id: "admin-1", role: "admin" }, session: { id: "sess-1" } };
 const userSession = { user: { id: "user-1", role: "user" }, session: { id: "sess-2" } };
@@ -30,6 +31,7 @@ describe("GET /api/v1/admin/users", () => {
     const res = await app.request("/api/v1/admin/users");
 
     expect(res.status).toBe(401);
+    expect(await res.json()).toEqual({ error: "Unauthorized", code: ErrorCodes.SESSION_INVALID });
     expect(listUsers).not.toHaveBeenCalled();
   });
 
@@ -41,6 +43,7 @@ describe("GET /api/v1/admin/users", () => {
     const res = await app.request("/api/v1/admin/users");
 
     expect(res.status).toBe(403);
+    expect(await res.json()).toEqual({ error: "Forbidden", code: ErrorCodes.FORBIDDEN });
     expect(listUsers).not.toHaveBeenCalled();
   });
 });

@@ -23,6 +23,13 @@ describe("ErrorSchema", () => {
 
     const document = app.getOpenAPIDocument({ openapi: "3.0.3", info: { title: "Test", version: "1" } });
 
-    expect(document.components?.schemas?.Error).toBeDefined();
+    expect(document.components?.schemas?.Error).toMatchObject({
+      type: "object",
+      required: expect.arrayContaining(["error", "code"]),
+      properties: expect.objectContaining({
+        error: expect.any(Object),
+        code: expect.objectContaining({ enum: expect.arrayContaining(Object.values(ErrorCodes)) }),
+      }),
+    });
   });
 });
