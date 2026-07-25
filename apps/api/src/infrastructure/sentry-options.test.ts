@@ -46,33 +46,17 @@ describe("resolveSentryOptions", () => {
     });
   });
 
-  describe("tracesSampleRate の既定値", () => {
-    it.each([
-      ["production", 0.1],
-      ["preview", 0.2],
-      ["development", 1],
-    ])("SENTRY_ENVIRONMENT=%s なら %s", (environment, expected) => {
-      const options = resolveSentryOptions({ SENTRY_DSN: DSN, SENTRY_ENVIRONMENT: environment });
-      expect(options?.tracesSampleRate).toBe(expected);
+  describe("tracesSampleRate", () => {
+    // 率の解釈そのもの（環境別既定値・境界値・無効値のフォールバック）は
+    // @workspace/common の resolveTracesSampleRate 側でテスト済みのため、ここでは
+    // api 固有の責務（生 binding からの変換、共有関数との結線）だけを確認する。
+
+    it("SENTRY_ENVIRONMENT=production なら 0.1 になる（共有関数との結線確認）", () => {
+      const options = resolveSentryOptions({ SENTRY_DSN: DSN, SENTRY_ENVIRONMENT: "production" });
+      expect(options?.tracesSampleRate).toBe(0.1);
     });
 
-    it("environment が未設定なら 1（開発扱いで全件送る）", () => {
-      expect(resolveSentryOptions({ SENTRY_DSN: DSN })?.tracesSampleRate).toBe(1);
-    });
-
-    it("preview / production の既定値は NODE_ENV ではなく SENTRY_ENVIRONMENT で決まる", () => {
-      // preview / production はどちらも NODE_ENV=production のため、NODE_ENV では区別できない。
-      const options = resolveSentryOptions({
-        SENTRY_DSN: DSN,
-        SENTRY_ENVIRONMENT: "preview",
-        NODE_ENV: "production",
-      });
-      expect(options?.tracesSampleRate).toBe(0.2);
-    });
-  });
-
-  describe("SENTRY_TRACES_SAMPLE_RATE による上書き", () => {
-    it("有効な値なら環境の既定値を上書きする", () => {
+    it("SENTRY_TRACES_SAMPLE_RATE が有効な文字列なら上書きされる（共有関数との結線確認）", () => {
       const options = resolveSentryOptions({
         SENTRY_DSN: DSN,
         SENTRY_ENVIRONMENT: "production",
@@ -82,32 +66,18 @@ describe("resolveSentryOptions", () => {
     });
 
     it.each([
-      ["0", 0],
-      ["1", 1],
-    ])("境界値 %s を受け付ける", (raw, expected) => {
-      const options = resolveSentryOptions({
-        SENTRY_DSN: DSN,
-        SENTRY_ENVIRONMENT: "production",
-        SENTRY_TRACES_SAMPLE_RATE: raw,
-      });
-      expect(options?.tracesSampleRate).toBe(expected);
-    });
-
-    it.each([
-      ["非数値", "abc"],
-      ["空文字", ""],
-      ["負の値", "-0.1"],
-      ["1 超過", "1.5"],
-      ["空白のみ", "   "],
-      ["文字列でない", 0.5],
+      ["数値", 0.5],
       ["null", null],
-    ])("%s は無効として既定値にフォールバックする", (_label, raw) => {
-      const options = resolveSentryOptions({
-        SENTRY_DSN: DSN,
-        SENTRY_ENVIRONMENT: "production",
-        SENTRY_TRACES_SAMPLE_RATE: raw,
-      });
-      expect(options?.tracesSampleRate).toBe(0.1);
-    });
+    ])(
+      "SENTRY_TRACES_SAMPLE_RATE が文字列でない（%s）場合は readNonEmptyString で undefined に変換され既定値になる",
+      (_label, raw) => {
+        const options = resolveSentryOptions({
+          SENTRY_DSN: DSN,
+          SENTRY_ENVIRONMENT: "production",
+          SENTRY_TRACES_SAMPLE_RATE: raw,
+        });
+        expect(options?.tracesSampleRate).toBe(0.1);
+      },
+    );
   });
 });

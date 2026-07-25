@@ -22,6 +22,7 @@
     "@prisma/client": "^7.8.0",
     "@sentry/cloudflare": "^10.65.0",
     "@workspace/auth": "workspace:^",
+    "@workspace/common": "workspace:^",
     "@workspace/database": "workspace:^",
     "@workspace/domain": "workspace:^",
     "hono": "^4.12.29",
