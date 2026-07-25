@@ -10,6 +10,10 @@ import type { WorkerBindings } from "./env";
  * 値をここ（コード側）に持つ理由: wrangler.jsonc の `vars` は env に継承されないため、
  * キーを増やすと top-level / preview / production の 3 箇所に書く保守負債が増える。
  * 運用で率を変えたいときだけ `SENTRY_TRACES_SAMPLE_RATE` で上書きできるようにしてある。
+ *
+ * 同じテーブルと解釈ロジックが web 側（apps/web/lib/sentry-traces-sample-rate.ts）にも
+ * ある。共通パッケージを新設するコストを避けて意図的に重複させているため、値を変えるときは
+ * 両方と docs/deployment.md を合わせること（理由の詳細は web 側のコメントに記載）。
  */
 const DEFAULT_TRACES_SAMPLE_RATE: Record<string, number> = {
   production: 0.1,

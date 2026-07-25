@@ -5,9 +5,15 @@
  * 毎回発生するため、全件送るとクォータを消費する。本番はサンプリングし、トラフィックの
  * 少ない preview は少し高め、ローカル開発は全件にする。
  *
- * api 側（apps/api/src/infrastructure/sentry-options.ts）と同じ値を意図的に重複させている。
- * web は @sentry/nextjs、api は @sentry/cloudflare を使い共有パッケージを持てないため。
- * 値を変えるときは両方と docs/deployment.md を合わせること。
+ * api 側（apps/api/src/infrastructure/sentry-options.ts）とテーブル・解釈ロジックを
+ * 意図的に重複させている。共有できない技術的な理由はない。この関数は文字列と数値だけを
+ * 扱う純関数で Sentry SDK に依存しないため、SDK が web=@sentry/nextjs /
+ * api=@sentry/cloudflare と異なることは共有の障害にならない。12 行のために両アプリが
+ * 依存する共通パッケージ（packages/common）を新設するほうが、テンプレートとしての
+ * コストが高いと判断した結果である。
+ *
+ * 代償として「2 箇所を人手で同期させる」規約が 1 つ増えている。値を変えるときは
+ * api 側と docs/deployment.md も必ず合わせること。
  */
 const DEFAULT_TRACES_SAMPLE_RATE: Record<string, number> = {
   production: 0.1,

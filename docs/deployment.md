@@ -295,7 +295,7 @@ Sentry には2つの役割がある。**エラー監視**は例外が起きた�
 | api | `apps/api/src/infrastructure/sentry-options.ts` |
 | web | `apps/web/lib/sentry-traces-sample-rate.ts` |
 
-`wrangler.jsonc` の `vars` に置かなかったのは、`vars` が env に継承されない(non-inheritable)ためキーを増やすと top-level / preview / production の 3 箇所に書く保守負債が増えるから。api / web で値が重複しているのは、web が `@sentry/nextjs`、api が `@sentry/cloudflare` を使い共有パッケージを持てないため。**率を変えるときは両方とこの表を合わせること。**
+`wrangler.jsonc` の `vars` に置かなかったのは、`vars` が env に継承されない(non-inheritable)ためキーを増やすと top-level / preview / production の 3 箇所に書く保守負債が増えるから。api / web で値が重複しているのは、共有できないからではない。この計算は文字列と数値だけを扱う純関数で共有自体は可能だが、12 行のために両アプリが依存する共通パッケージ(`packages/common`)を新設するほうがテンプレートとしてのコストが高いと判断した。代償として同期を人手で守る必要がある。**率を変えるときは両方とこの表を合わせること。**
 
 #### 率を変えたいとき
 
