@@ -124,6 +124,7 @@ packages/database  →  packages/domain
 - `apps/api/src/infrastructure/`: `env/`, `swagger/`, `db/`
 - `apps/api/src/composition/`: `create-app/`, `bootstrap/`
 - `apps/api/src/presentation/`: `controllers/`, `routes/`, `openapi/`, `middleware/`, `errors/`, `http/`
+- `packages/common/`: 追加予定のサブフォルダ: `utils/`, `types/`
 
 ## tests の配置ルール
 - Vitest は co-located な `*.test.ts` / `*.test.tsx` を採用する。
