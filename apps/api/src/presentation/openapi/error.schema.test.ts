@@ -27,7 +27,7 @@ describe("ErrorSchema", () => {
       type: "object",
       required: expect.arrayContaining(["error", "code"]),
       properties: expect.objectContaining({
-        error: expect.any(Object),
+        error: expect.objectContaining({ type: "string" }),
         code: expect.objectContaining({ enum: expect.arrayContaining(Object.values(ErrorCodes)) }),
       }),
     });
