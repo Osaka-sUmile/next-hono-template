@@ -88,6 +88,9 @@ reviews:
         想定内エラーのみ ExpectedError で抑制し、それ以外は Sentry に送る（fail-loud）方針です。
         判断に迷うものは送信側に倒すこと。
         better-auth クライアントが返す { error } は想定内扱いのため reportError 不要です。
+        コンポーネント・hooks 内で fetch を直接呼んでいないか、apps/web/lib/api-client.ts を
+        経由しているかを確認してください（docs/frontend-guidelines.md「データフェッチ・API 呼び出し」）。
+        better-auth の authClient 経由の呼び出しはこの対象外です。
         【テストの十分性】コンポーネント・hooks・lib を追加・変更した場合、co-located の
         単体テスト（Vitest + React Testing Library）が追加・更新されているか確認してください。
         画面をまたぐフロー（認証・ページ遷移）を追加した場合は apps/web/tests/e2e/ の
