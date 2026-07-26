@@ -76,6 +76,9 @@ reviews:
       instructions: |
         Application の Response DTO と OpenAPI の Zod レスポンススキーマが一致しているか確認してください。
         この二重定義は API 契約のために残しているため、フィールド・nullable・日時の表現に差異がないか特に確認してください。
+        ルート定義や Zod スキーマを変更した PR には、再生成された `apps/api/openapi.json` と
+        `apps/web/lib/api-schema.d.ts` の差分が含まれているか確認してください（`pnpm run openapi:generate`
+        で生成。含まれていなければ CI の差分チェックで落ちるため、コミット漏れを指摘すること）。
 
     - path: "**/*.test.{ts,tsx}"
       instructions: |

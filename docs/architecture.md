@@ -149,3 +149,18 @@ packages/database  →  packages/domain
 - **Use Cases**: `*.use-case.ts`
 - **Controllers**: `*.controller.ts`
 - **Query Services**: `*.query-service.ts`
+
+## API 型の共有方針
+
+`apps/api` の Zod スキーマから生成した OpenAPI ドキュメントを web / api 間の契約とし、`openapi-typescript` と `openapi-fetch` で型安全な API クライアントを構築する。
+
+Hono RPC（`hc`）は web が api のソースコードを直接 import するため採用しない。OpenAPI を境界にすることで、web と api の直接依存を避け、将来リポジトリや実装言語を分けても同じ契約を利用できる。
+
+```text
+apps/api/src/presentation/routes/*.route.ts (Zod スキーマ)
+  → apps/api/openapi.json (OpenAPI ドキュメント)
+  → apps/web/lib/api-schema.d.ts
+  → apps/web/lib/api-client.ts
+```
+
+生成物は web の型チェックと API 契約の差分レビューに必要なため Git 管理する。CI で再生成して差分を検査し、更新漏れを防ぐ。

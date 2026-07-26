@@ -11,7 +11,8 @@
     "test": "vitest run",
     "test:watch": "vitest",
     "test:coverage": "vitest run --coverage",
-    "lint": "eslint ."
+    "lint": "eslint .",
+    "openapi:dump": "tsx scripts/dump-openapi.mts"
   },
   "keywords": [],
   "author": "",

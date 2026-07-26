@@ -6,8 +6,10 @@ const mocks = vi.hoisted(() => ({
   useSession: vi.fn(),
 }));
 
-// auth-client は import 時に NEXT_PUBLIC_API_URL を要求して throw するため、モジュールごと差し替える
+// auth-client は import 時に NEXT_PUBLIC_API_URL を要求して throw するため、モジュールごと差し替える。
+// apiBaseUrl は api-client.ts がモジュール読み込み時に openapi-fetch の createClient() へ渡すため必要。
 vi.mock("@/lib/auth-client", () => ({
+  apiBaseUrl: "http://localhost:8080",
   authClient: { useSession: mocks.useSession },
 }));
 

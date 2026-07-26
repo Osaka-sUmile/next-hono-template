@@ -36,21 +36,25 @@
 
 ### api-client が引き受けること
 
-`apiClient.get / post / patch / delete` を使うと、以下が自動で付く。呼び出し側で書き直さないこと。
+`apiClient` は [openapi-fetch](https://github.com/openapi-ts/openapi-typescript) を内部で使うアダプター。`paths` は `apps/api/openapi.json`（API の OpenAPI ドキュメント）から `openapi-typescript` が生成した型（`apps/web/lib/api-schema.d.ts`）で、パス・メソッド・リクエスト/レスポンスの形が API の実装と自動で一致する（詳細は `docs/architecture.md`「API 型の共有方針」）。
+
+`apiClient.get / post / put / patch / delete` を使うと、以下が自動で付く。呼び出し側で書き直さないこと。
+第 2 引数には OpenAPI 定義に応じて `body` と `params`（`query` / `path` / `header` / `cookie`）を渡せ、必須・任意も生成型から決まる。
 
 | 項目 | 内容 |
 | :--- | :--- |
 | ベース URL | `apiBaseUrl`（`NEXT_PUBLIC_API_URL`）を前置する |
 | 認証 | `credentials: "include"`。Cookie セッション認証に必須で、落とすと原因の分かりにくい 401 になる |
 | ヘッダー | body があるとき `Content-Type: application/json` |
-| エラー | 2xx 以外は `ApiError`（`status` を保持）を throw する |
-| 空レスポンス | 204 は `res.json()` を呼ばず `undefined` を返す |
+| 型 | パスごとの request/response の型が `openapi-typescript` の生成物から効く |
+
+openapi-fetch 固有の uppercase メソッドと `{ data, error, response }` は api-client 内部に閉じ込める。公開メソッドは成功時に型付けされたレスポンスを直接返し、2xx 以外では `status` と、サーバのエラーボディ（`{ error, code }`）を `body` に保持する `ApiError` を throw する。
 
 ```typescript
 import { ApiError, apiClient } from "@/lib/api-client";
 
-const user = await apiClient.get<UserProfile>("/api/v1/me");
-await apiClient.patch("/api/v1/me", { displayName: "太郎" });
+const user = await apiClient.get("/api/v1/me");
+await apiClient.patch("/api/v1/me", { body: { displayName: "太郎" } });
 ```
 
 ### 想定内かどうかの判断は呼び出し側に置く
@@ -62,7 +66,7 @@ import { ApiError, apiClient } from "@/lib/api-client";
 import { ExpectedError, reportError } from "@/lib/report-error";
 
 try {
-  await apiClient.patch("/api/v1/me", { displayName });
+  await apiClient.patch("/api/v1/me", { body: { displayName } });
 } catch (error) {
   // このエンドポイントでは 400 / 401 がユーザー操作で当然起きうるので想定内扱いにする。
   if (error instanceof ApiError && (error.status === 400 || error.status === 401)) {
@@ -75,6 +79,14 @@ try {
 ```
 
 実装見本は `apps/web/components/display-name-form.tsx`。
+
+### API のルート定義を変更したら
+
+`apps/api/src/presentation/routes/` の Zod スキーマを変更したら、以下を実行して生成物を再生成し、`apps/api/openapi.json` と `apps/web/lib/api-schema.d.ts` の両方をコミットする。忘れると CI（`.github/workflows/lint.yml`）の差分チェックで落ちる。
+
+```bash
+pnpm run openapi:generate
+```
 
 ## エラーハンドリング・Sentry
 
