@@ -181,6 +181,8 @@ jobs:
       # Sentry の environment タグ用。preview / production はどちらも NODE_ENV=production で
       # ビルドされるため、デプロイ先環境名をビルド時に注入して区別する (GitHub Variables 不要)。
       NEXT_PUBLIC_SENTRY_ENVIRONMENT: ${{ needs.resolve.outputs.environment }}
+      # 任意の上書き値。未設定・空文字ならアプリ側で環境別の既定値を使う。
+      NEXT_PUBLIC_SENTRY_TRACES_SAMPLE_RATE: ${{ vars.NEXT_PUBLIC_SENTRY_TRACES_SAMPLE_RATE }}
       # deploy-api で使った値との不一致検知用 (docs 上は両者とも同じ api Worker の URL)。
       API_BASE_URL: ${{ vars.API_BASE_URL }}
     steps:

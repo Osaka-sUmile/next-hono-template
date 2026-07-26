@@ -1,6 +1,6 @@
 import * as Sentry from "@sentry/cloudflare";
 import { createApp } from "./composition";
-import { parseEnv, type WorkerBindings } from "./infrastructure";
+import { parseEnv, resolveSentryOptions, type WorkerBindings } from "./infrastructure";
 
 // rawEnv は Cloudflare Workers から渡される未検証の生 binding。
 // 検証は parseEnv で行い、検証済みの Env はアプリ構築にのみ渡す。
@@ -21,29 +21,7 @@ const handler = {
   },
 } satisfies ExportedHandler<WorkerBindings>;
 
-export default Sentry.withSentry<WorkerBindings>(
-  (rawEnv) => {
-    // ここでの rawEnv は未検証の生 binding のため、値は string | undefined として扱う。
-    const sentryDsn = rawEnv.SENTRY_DSN;
-    const sentryEnvironment = rawEnv.SENTRY_ENVIRONMENT;
-    const nodeEnv = rawEnv.NODE_ENV;
-    // SENTRY_DSN が未設定の場合は undefined を返し、Sentry を無効のままにする
-    // （ローカル開発などで本番 Sentry にノイズを送らないため）。
-    if (typeof sentryDsn !== "string" || !sentryDsn) {
-      return undefined;
-    }
-    // preview / production はどちらも NODE_ENV=production のため、環境の識別には
-    // SENTRY_ENVIRONMENT (wrangler.jsonc の env ごとの vars) を優先する。
-    const environment =
-      typeof sentryEnvironment === "string" && sentryEnvironment
-        ? sentryEnvironment
-        : typeof nodeEnv === "string"
-          ? nodeEnv
-          : undefined;
-    return {
-      dsn: sentryDsn,
-      environment,
-    };
-  },
-  handler,
-);
+// オプションの組み立ては infrastructure/sentry-options.ts に集約している。
+// withSentry のコールバックは parseEnv を通す前の生 binding を受け取るため、
+// 値の解釈（DSN の有無・環境名・サンプリング率）はそちらでテスト可能な形にしてある。
+export default Sentry.withSentry<WorkerBindings>(resolveSentryOptions, handler);

@@ -35,7 +35,7 @@ checks (typecheck / test / api・web の dry-run ビルド)
 ```
 
 - wrangler の環境選択は CI がジョブ環境変数 `CLOUDFLARE_ENV` で行う(wrangler は `--env` 未指定時にこの変数を参照する)。
-- Sentry の `environment` タグは `NODE_ENV` ではなく環境名(`preview` / `production`)で付与される。api は `wrangler.jsonc` の各 env の `SENTRY_ENVIRONMENT`、web は CI がビルド時に注入する `NEXT_PUBLIC_SENTRY_ENVIRONMENT` で識別する(いずれも手動設定は不要)。Sentry 側のアラートルールを `environment:production` に絞れば、preview のイベントは収集しつつ通知だけを本番に限定できる。
+- Sentry の `environment` タグは `NODE_ENV` ではなく環境名(`preview` / `production`)で付与される。api は `wrangler.jsonc` の各 env の `SENTRY_ENVIRONMENT`、web は CI がビルド時に注入する `NEXT_PUBLIC_SENTRY_ENVIRONMENT` で識別する(いずれも手動設定は不要)。Sentry 側のアラートルールを `environment:production` に絞れば、preview のイベントは収集しつつ通知だけを本番に限定できる。トレーシングの送信率は production で 0.1、preview で 0.2 を既定とし、必要な場合だけ環境変数で上書きできる。
 
 ### 環境変数の格納場所と役割分担
 
@@ -152,6 +152,7 @@ Settings → Environments → 各環境の Variables に以下を登録する。
 - `NEXT_PUBLIC_API_URL`(api Worker の URL。web のクライアントバンドルにインラインされる)
 - `NEXT_PUBLIC_TURNSTILE_SITE_KEY`(手順 5 で発行した Site Key)
 - `NEXT_PUBLIC_SENTRY_DSN`(Sentry を使わないなら空文字)
+- `NEXT_PUBLIC_SENTRY_TRACES_SAMPLE_RATE`(任意。web のトレーシング送信率を 0〜1 で上書きする場合のみ)
 
 `API_BASE_URL` / `WEB_BASE_URL` / `NEXT_PUBLIC_API_URL` / `NEXT_PUBLIC_TURNSTILE_SITE_KEY` が未設定のままだと該当デプロイジョブがデプロイ前に失敗する(プレースホルダ URL のままデプロイされ、CORS が全リクエストを拒否する事故等を防ぐため)。
 
@@ -213,6 +214,7 @@ workers.dev の URL は `https://<Worker 名>.<アカウントのサブドメイ
 | `NEXT_PUBLIC_API_URL` | `API_BASE_URL` と同じ値(api Worker の URL)。web のビルド時にクライアントバンドルへインラインされる | Environment Variable | はい |
 | `NEXT_PUBLIC_TURNSTILE_SITE_KEY` | 手順 5 で作成した Turnstile ウィジェットの Site Key。web のビルド時にクライアントバンドルへインラインされる | Environment Variable | はい |
 | `NEXT_PUBLIC_SENTRY_DSN` | [sentry.io](https://sentry.io) → web 用プロジェクト(Platform: Next.js)→ Settings → Client Keys (DSN)。**使わないなら空文字で可** | Environment Variable | はい(共通でも可) |
+| `NEXT_PUBLIC_SENTRY_TRACES_SAMPLE_RATE` | web のトレーシング送信率を上書きする 0〜1 の値。**通常は未設定でよい**(production は 0.1、preview は 0.2) | Environment Variable | はい |
 
 ### Cloudflare 側に登録するもの(`wrangler secret put <NAME> --env <preview|production>`)
 
@@ -224,6 +226,7 @@ workers.dev の URL は `https://<Worker 名>.<アカウントのサブドメイ
 | `GOOGLE_CLIENT_ID` / `GOOGLE_CLIENT_SECRET` | Google Cloud Console → APIs & Services → Credentials → OAuth クライアント ID を作成。リダイレクト URI に `{API の URL}/api/auth/callback/google` を登録 | 環境ごとに分けるのを推奨 |
 | `APPLE_CLIENT_ID` / `APPLE_CLIENT_SECRET` | Apple Developer → Certificates, Identifiers & Profiles で Services ID と秘密鍵を作成。コールバックは `{API の URL}/api/auth/callback/apple` | 環境ごとに分けるのを推奨 |
 | `SENTRY_DSN` | [sentry.io](https://sentry.io) → api 用プロジェクト(Platform: Cloudflare Workers)→ Settings → Client Keys (DSN)。**使わないなら登録しなくてよい** | はい(共通でも可) |
+| `SENTRY_TRACES_SAMPLE_RATE` | api のトレーシング送信率を上書きする 0〜1 の値。**通常は登録不要**(production は 0.1、preview は 0.2) | はい |
 | `TURNSTILE_SECRET_KEY` | 手順 5 で作成した Turnstile ウィジェットの Secret Key。**必須**(未設定だと env.ts の Zod 検証で API 起動時に失敗する) | 環境ごとに分けるのを推奨 |
 
 ### `wrangler.jsonc` の `vars` で管理するもの(コミット対象・非シークレット)
