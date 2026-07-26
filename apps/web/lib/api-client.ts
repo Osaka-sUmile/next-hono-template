@@ -41,7 +41,14 @@ const rawClient = createClient<paths>({
   //    そのため上の `credentials: "include"` だけでは、呼び出し側が `credentials: "omit"` を
   //    渡すと Cookie が送られなくなる（= 認証が静かに壊れ、分かりにくい 401 になる）。
   //    ここで Request を作り直して include を強制し、上書きを効かなくする。
-  fetch: (request) => fetch(new Request(request, { credentials: "include" })),
+  //
+  // JSON body の Content-Type も呼び出し側から変更できないよう、body がある場合は
+  // application/json に固定する。
+  fetch: (request) => {
+    const headers = new Headers(request.headers);
+    if (request.body !== null) headers.set("Content-Type", "application/json");
+    return fetch(new Request(request, { credentials: "include", headers }));
+  },
 });
 
 /**

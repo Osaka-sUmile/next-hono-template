@@ -96,4 +96,17 @@ describe("apiClient", () => {
       }),
     );
   });
+
+  it("body があるとき Content-Type は呼び出し側から上書きできない", async () => {
+    fetchMock.mockResolvedValue(jsonResponse({}));
+
+    await apiClient.patch("/api/v1/me", {
+      body: { displayName: "太郎" },
+      headers: { "Content-Type": "text/plain", "Accept-Language": "ja" },
+    });
+
+    const request = fetchMock.mock.calls[0]?.[0] as Request;
+    expect(request.headers.get("Content-Type")).toBe("application/json");
+    expect(request.headers.get("Accept-Language")).toBe("ja");
+  });
 });
