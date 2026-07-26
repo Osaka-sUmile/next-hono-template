@@ -1,4 +1,4 @@
-import { DomainError } from "../errors"
+import { DomainError, InvalidArgumentError } from "../errors"
 import { BaseEntity } from "./base.entity"
 
 export type FeedbackQuestionType = "single_choice" | "text"
@@ -27,6 +27,24 @@ export class FeedbackChoice extends BaseEntity<string> {
     readonly sortOrder: number
   ) {
     super(id)
+    this.ensure(
+      value.trim().length > 0,
+      new InvalidArgumentError(
+        `FeedbackChoice value must not be empty: id="${id}"`
+      )
+    )
+    this.ensure(
+      label.trim().length > 0,
+      new InvalidArgumentError(
+        `FeedbackChoice label must not be empty: id="${id}"`
+      )
+    )
+    this.ensure(
+      sortOrder >= 0,
+      new InvalidArgumentError(
+        `FeedbackChoice sortOrder must be non-negative: id="${id}"`
+      )
+    )
   }
 
   static reconstitute(
@@ -51,6 +69,34 @@ export class FeedbackQuestionEntity extends BaseEntity<string> {
     choices: readonly FeedbackChoice[]
   ) {
     super(id)
+    this.ensure(
+      text.trim().length > 0,
+      new InvalidArgumentError(
+        `FeedbackQuestion text must not be empty: id="${id}"`
+      )
+    )
+    this.ensure(
+      sortOrder >= 0,
+      new InvalidArgumentError(
+        `FeedbackQuestion sortOrder must be non-negative: id="${id}"`
+      )
+    )
+    this.ensure(
+      type !== "single_choice" || choices.length > 0,
+      new InvalidArgumentError(
+        `single_choice FeedbackQuestion must have at least one choice: id="${id}"`
+      )
+    )
+    const choiceValues = new Set<string>()
+    for (const choice of choices) {
+      this.ensure(
+        !choiceValues.has(choice.value),
+        new InvalidArgumentError(
+          `FeedbackChoice value must be unique within question: questionId="${id}", value="${choice.value}"`
+        )
+      )
+      choiceValues.add(choice.value)
+    }
     this.choices = [...choices]
   }
 
@@ -88,6 +134,18 @@ export class FeedbackSurveyEntity extends BaseEntity<string> {
     questions: readonly FeedbackQuestionEntity[]
   ) {
     super(id)
+    this.ensure(
+      slug.trim().length > 0,
+      new InvalidArgumentError(
+        `FeedbackSurvey slug must not be empty: id="${id}"`
+      )
+    )
+    this.ensure(
+      title.trim().length > 0,
+      new InvalidArgumentError(
+        `FeedbackSurvey title must not be empty: id="${id}"`
+      )
+    )
     this.questions = [...questions]
   }
 
