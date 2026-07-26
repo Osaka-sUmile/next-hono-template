@@ -1,12 +1,12 @@
-import { describe, it, expect, vi, beforeEach } from "vitest";
-import { ApiError, apiClient, unwrap } from "./api-client";
+import { describe, it, expect, expectTypeOf, vi, beforeEach } from "vitest";
+import { ApiError, apiClient } from "./api-client";
 
 vi.mock("./auth-client", () => ({
   apiBaseUrl: "http://localhost:8080",
   authClient: {},
 }));
 
-describe("apiClient / unwrap", () => {
+describe("apiClient", () => {
   const fetchMock = vi.fn();
 
   beforeEach(() => {
@@ -24,7 +24,7 @@ describe("apiClient / unwrap", () => {
   it("baseUrl を前置し Cookie を送って GET する", async () => {
     fetchMock.mockResolvedValue(jsonResponse({ status: "ok" }));
 
-    await unwrap(apiClient.GET("/api/v1/health"));
+    await apiClient.get("/api/v1/health");
 
     expect(fetchMock).toHaveBeenCalledTimes(1);
     const request = fetchMock.mock.calls[0]?.[0] as Request;
@@ -32,16 +32,18 @@ describe("apiClient / unwrap", () => {
     expect(request.credentials).toBe("include");
   });
 
-  it("unwrap は成功時に data を返す", async () => {
+  it("成功時に型付けされた data を直接返す", async () => {
     fetchMock.mockResolvedValue(jsonResponse({ status: "ok" }));
 
-    await expect(unwrap(apiClient.GET("/api/v1/health"))).resolves.toEqual({ status: "ok" });
+    const result = apiClient.get("/api/v1/health");
+    expectTypeOf(result).toEqualTypeOf<Promise<{ status: string }>>();
+    await expect(result).resolves.toEqual({ status: "ok" });
   });
 
   it("body ありのリクエストには Content-Type: application/json が付く", async () => {
     fetchMock.mockResolvedValue(jsonResponse({ displayName: "太郎" }));
 
-    await unwrap(apiClient.PATCH("/api/v1/me", { body: { displayName: "太郎" } }));
+    await apiClient.patch("/api/v1/me", { body: { displayName: "太郎" } });
 
     const request = fetchMock.mock.calls[0]?.[0] as Request;
     expect(request.headers.get("Content-Type")).toBe("application/json");
@@ -51,7 +53,7 @@ describe("apiClient / unwrap", () => {
   it("null を body に渡しても JSON として送る", async () => {
     fetchMock.mockResolvedValue(jsonResponse({}));
 
-    await unwrap(apiClient.PATCH("/api/v1/me", { body: { displayName: null } }));
+    await apiClient.patch("/api/v1/me", { body: { displayName: null } });
 
     const request = fetchMock.mock.calls[0]?.[0] as Request;
     expect(await request.clone().json()).toEqual({ displayName: null });
@@ -61,25 +63,37 @@ describe("apiClient / unwrap", () => {
     fetchMock.mockResolvedValue(jsonResponse({ status: "ok" }));
 
     // Cookie セッション認証が静かに壊れるのを防ぐため、呼び出し側からは無効化できない。
-    await unwrap(apiClient.GET("/api/v1/health", { credentials: "omit" }));
+    await apiClient.get("/api/v1/health", { credentials: "omit" });
 
     const request = fetchMock.mock.calls[0]?.[0] as Request;
     expect(request.credentials).toBe("include");
   });
 
-  it("unwrap は 4xx で ApiError を投げ status を保持する", async () => {
+  it("4xx で ApiError を投げ status を保持する", async () => {
     fetchMock.mockImplementation(() => Promise.resolve(jsonResponse({}, 401)));
 
-    const error = await unwrap(apiClient.GET("/api/v1/me")).catch((e: unknown) => e);
+    const error = await apiClient.get("/api/v1/me").catch((e: unknown) => e);
     expect(error).toBeInstanceOf(ApiError);
     expect(error).toMatchObject({ name: "ApiError", status: 401 });
   });
 
-  it("unwrap は 5xx でも ApiError を投げ status を保持する", async () => {
+  it("5xx でも ApiError を投げ status を保持する", async () => {
     fetchMock.mockResolvedValue(jsonResponse({}, 500));
 
     await expect(
-      unwrap(apiClient.PATCH("/api/v1/me", { body: { displayName: "太郎" } })),
+      apiClient.patch("/api/v1/me", { body: { displayName: "太郎" } }),
     ).rejects.toMatchObject({ status: 500 });
+  });
+
+  it("全 HTTP メソッドを lowercase で公開する", () => {
+    expect(apiClient).toEqual(
+      expect.objectContaining({
+        get: expect.any(Function),
+        post: expect.any(Function),
+        put: expect.any(Function),
+        patch: expect.any(Function),
+        delete: expect.any(Function),
+      }),
+    );
   });
 });

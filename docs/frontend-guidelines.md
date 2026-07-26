@@ -36,9 +36,10 @@
 
 ### api-client が引き受けること
 
-`apiClient` は [openapi-fetch](https://github.com/openapi-ts/openapi-typescript) の `createClient<paths>()` インスタンスで、`paths` は `apps/api/openapi.json`（API の OpenAPI ドキュメント）から `openapi-typescript` が生成した型（`apps/web/lib/api-schema.d.ts`）。パス・メソッド・リクエスト/レスポンスの形が API の実装と自動で一致する（詳細は `docs/architecture.md`「API 型の共有方針」）。
+`apiClient` は [openapi-fetch](https://github.com/openapi-ts/openapi-typescript) を内部で使うアダプター。`paths` は `apps/api/openapi.json`（API の OpenAPI ドキュメント）から `openapi-typescript` が生成した型（`apps/web/lib/api-schema.d.ts`）で、パス・メソッド・リクエスト/レスポンスの形が API の実装と自動で一致する（詳細は `docs/architecture.md`「API 型の共有方針」）。
 
-`apiClient.GET / POST / PATCH / DELETE` を使うと、以下が自動で付く。呼び出し側で書き直さないこと。
+`apiClient.get / post / put / patch / delete` を使うと、以下が自動で付く。呼び出し側で書き直さないこと。
+第 2 引数には OpenAPI 定義に応じて `body` と `params`（`query` / `path` / `header` / `cookie`）を渡せ、必須・任意も生成型から決まる。
 
 | 項目 | 内容 |
 | :--- | :--- |
@@ -47,22 +48,22 @@
 | ヘッダー | body があるとき `Content-Type: application/json` |
 | 型 | パスごとの request/response の型が `openapi-typescript` の生成物から効く |
 
-`apiClient.GET/POST/...` は 2xx 以外でも例外を投げず `{ data, error, response }` を返す（openapi-fetch の仕様）。「成功なら `data`、失敗なら `ApiError`（`status` を保持）を throw」という形に畳むのが `unwrap()`。
+openapi-fetch 固有の uppercase メソッドと `{ data, error, response }` は api-client 内部に閉じ込める。公開メソッドは成功時に型付けされたレスポンスを直接返し、2xx 以外では `status` を保持する `ApiError` を throw する。
 
 ```typescript
-import { ApiError, apiClient, unwrap } from "@/lib/api-client";
+import { ApiError, apiClient } from "@/lib/api-client";
 
-const user = await unwrap(apiClient.GET("/api/v1/me"));
-await unwrap(apiClient.PATCH("/api/v1/me", { body: { displayName: "太郎" } }));
+const user = await apiClient.get("/api/v1/me");
+await apiClient.patch("/api/v1/me", { body: { displayName: "太郎" } });
 ```
 
 ### 想定内かどうかの判断は呼び出し側に置く
 
-api-client（および `unwrap`）は「4xx は全部想定内」とは決めない。それを決めると `reportError` の fail-loud 原則（後述）に反し、観測漏れを生むため。`status` を見て `ExpectedError` に包み替えるかは呼び出し側が判断する。
+api-client は「4xx は全部想定内」とは決めない。それを決めると `reportError` の fail-loud 原則（後述）に反し、観測漏れを生むため。`status` を見て `ExpectedError` に包み替えるかは呼び出し側が判断する。
 
 ```typescript
 try {
-  await unwrap(apiClient.PATCH("/api/v1/me", { body: { displayName } }));
+  await apiClient.patch("/api/v1/me", { body: { displayName } });
 } catch (error) {
   // このエンドポイントでは 400 / 401 がユーザー操作で当然起きうるので想定内扱いにする。
   if (error instanceof ApiError && (error.status === 400 || error.status === 401)) {

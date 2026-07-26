@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import { Button } from "@workspace/ui/components/button";
-import { ApiError, apiClient, unwrap } from "@/lib/api-client";
+import { ApiError, apiClient } from "@/lib/api-client";
 import { authClient } from "@/lib/auth-client";
 import { ExpectedError, reportError } from "@/lib/report-error";
 
@@ -30,9 +30,9 @@ export function DisplayNameForm({ initialDisplayName }: { initialDisplayName: st
     try {
       const trimmed = displayName.trim();
       // 空文字はサーバ側で null（表示名なし）に正規化される。
-      await unwrap(
-        apiClient.PATCH("/api/v1/me", { body: { displayName: trimmed === "" ? null : trimmed } }),
-      );
+      await apiClient.patch("/api/v1/me", {
+        body: { displayName: trimmed === "" ? null : trimmed },
+      });
       // 更新自体は成功済み。ここで成功を確定させ、セッション再取得の失敗を
       // 「更新失敗」として扱わない（refetch 失敗は別途 reportError するのみ）。
       setSaved(true);
