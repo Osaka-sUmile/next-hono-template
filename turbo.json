@@ -42,6 +42,14 @@
     "test": {
       "outputs": ["coverage/**"]
     },
+    "openapi:dump": {
+      "dependsOn": ["^build", "//#db:generate"],
+      "cache": false
+    },
+    "api-types:generate": {
+      "dependsOn": ["api#openapi:dump"],
+      "cache": false
+    },
     "dev": {
       "dependsOn": ["^build"],
       "cache": false,

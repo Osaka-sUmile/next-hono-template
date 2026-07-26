@@ -1,4 +1,4 @@
-import { describe, it, expect, vi, beforeEach } from "vitest";
+import { describe, it, expect, expectTypeOf, vi, beforeEach } from "vitest";
 import { ApiError, apiClient } from "./api-client";
 
 vi.mock("./auth-client", () => ({
@@ -15,119 +15,109 @@ describe("apiClient", () => {
   });
 
   function jsonResponse(body: unknown, status = 200) {
-    return { ok: status >= 200 && status < 300, status, json: vi.fn().mockResolvedValue(body) };
+    return new Response(JSON.stringify(body), {
+      status,
+      headers: { "Content-Type": "application/json" },
+    });
   }
 
-  it("get は apiBaseUrl を前置し Cookie を送り、JSON を返す", async () => {
-    fetchMock.mockResolvedValue(jsonResponse({ id: "u1" }));
-
-    await expect(apiClient.get("/api/v1/me")).resolves.toEqual({ id: "u1" });
-
-    expect(fetchMock).toHaveBeenCalledWith("http://localhost:8080/api/v1/me", {
-      method: "GET",
-      credentials: "include",
-      headers: {},
-    });
-  });
-
-  it("body のないリクエストには Content-Type を付けない", async () => {
-    fetchMock.mockResolvedValue(jsonResponse({}));
+  it("baseUrl を前置し Cookie を送って GET する", async () => {
+    fetchMock.mockResolvedValue(jsonResponse({ status: "ok" }));
 
     await apiClient.get("/api/v1/health");
 
-    expect(fetchMock.mock.calls[0]?.[1]).not.toHaveProperty("body");
-    expect(fetchMock.mock.calls[0]?.[1]?.headers).toEqual({});
+    expect(fetchMock).toHaveBeenCalledTimes(1);
+    const request = fetchMock.mock.calls[0]?.[0] as Request;
+    expect(request.url).toBe("http://localhost:8080/api/v1/health");
+    expect(request.credentials).toBe("include");
   });
 
-  it("patch は body を JSON 化し Content-Type を付ける", async () => {
+  it("成功時に型付けされた data を直接返す", async () => {
+    fetchMock.mockResolvedValue(jsonResponse({ status: "ok" }));
+
+    const result = apiClient.get("/api/v1/health");
+    expectTypeOf(result).toEqualTypeOf<Promise<{ status: string }>>();
+    await expect(result).resolves.toEqual({ status: "ok" });
+  });
+
+  it("body ありのリクエストには Content-Type: application/json が付く", async () => {
     fetchMock.mockResolvedValue(jsonResponse({ displayName: "太郎" }));
 
-    await expect(apiClient.patch("/api/v1/me", { displayName: "太郎" })).resolves.toEqual({
-      displayName: "太郎",
-    });
+    await apiClient.patch("/api/v1/me", { body: { displayName: "太郎" } });
 
-    expect(fetchMock).toHaveBeenCalledWith("http://localhost:8080/api/v1/me", {
-      method: "PATCH",
-      credentials: "include",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ displayName: "太郎" }),
-    });
-  });
-
-  it("post は body を JSON 化する", async () => {
-    fetchMock.mockResolvedValue(jsonResponse({ ok: true }));
-
-    await apiClient.post("/api/v1/things", { name: "x" });
-
-    expect(fetchMock.mock.calls[0]?.[1]).toMatchObject({
-      method: "POST",
-      body: JSON.stringify({ name: "x" }),
-    });
+    const request = fetchMock.mock.calls[0]?.[0] as Request;
+    expect(request.headers.get("Content-Type")).toBe("application/json");
+    expect(await request.clone().json()).toEqual({ displayName: "太郎" });
   });
 
   it("null を body に渡しても JSON として送る", async () => {
     fetchMock.mockResolvedValue(jsonResponse({}));
 
-    await apiClient.patch("/api/v1/me", { displayName: null });
+    await apiClient.patch("/api/v1/me", { body: { displayName: null } });
 
-    expect(fetchMock.mock.calls[0]?.[1]?.body).toBe(JSON.stringify({ displayName: null }));
+    const request = fetchMock.mock.calls[0]?.[0] as Request;
+    expect(await request.clone().json()).toEqual({ displayName: null });
   });
 
-  it("204 応答では json() を呼ばず undefined を返す", async () => {
-    const res = { ok: true, status: 204, json: vi.fn() };
-    fetchMock.mockResolvedValue(res);
+  it("呼び出し側が credentials を上書きしようとしても include が維持される", async () => {
+    fetchMock.mockResolvedValue(jsonResponse({ status: "ok" }));
 
-    await expect(apiClient.delete("/api/v1/things/1")).resolves.toBeUndefined();
-    expect(res.json).not.toHaveBeenCalled();
+    // Cookie セッション認証が静かに壊れるのを防ぐため、呼び出し側からは無効化できない。
+    await apiClient.get("/api/v1/health", { credentials: "omit" });
+
+    const request = fetchMock.mock.calls[0]?.[0] as Request;
+    expect(request.credentials).toBe("include");
   });
 
-  it("4xx では ApiError を投げ status を保持する", async () => {
-    fetchMock.mockResolvedValue(jsonResponse({}, 401));
+  it("4xx で ApiError を投げ status を保持する", async () => {
+    fetchMock.mockImplementation(() => Promise.resolve(jsonResponse({}, 401)));
 
-    await expect(apiClient.get("/api/v1/me")).rejects.toMatchObject({
-      name: "ApiError",
-      status: 401,
-    });
-    await expect(apiClient.get("/api/v1/me")).rejects.toBeInstanceOf(ApiError);
+    const error = await apiClient.get("/api/v1/me").catch((e: unknown) => e);
+    expect(error).toBeInstanceOf(ApiError);
+    expect(error).toMatchObject({ name: "ApiError", status: 401 });
+  });
+
+  it("ApiError はサーバが返したエラーボディ（error / code）を保持する", async () => {
+    const body = { error: "displayName is too long", code: "VALIDATION_ERROR" };
+    fetchMock.mockResolvedValue(jsonResponse(body, 400));
+
+    const error = await apiClient
+      .patch("/api/v1/me", { body: { displayName: "太郎" } })
+      .catch((e: unknown) => e);
+    expect(error).toBeInstanceOf(ApiError);
+    expect(error).toMatchObject({ status: 400, body });
   });
 
   it("5xx でも ApiError を投げ status を保持する", async () => {
     fetchMock.mockResolvedValue(jsonResponse({}, 500));
 
-    await expect(apiClient.patch("/api/v1/me", {})).rejects.toMatchObject({ status: 500 });
+    await expect(
+      apiClient.patch("/api/v1/me", { body: { displayName: "太郎" } }),
+    ).rejects.toMatchObject({ status: 500 });
   });
 
-  it("エラー時は本文の JSON を読まない（レスポンス形式に依存しない）", async () => {
-    const res = jsonResponse({}, 500);
-    fetchMock.mockResolvedValue(res);
-
-    await expect(apiClient.get("/api/v1/me")).rejects.toBeInstanceOf(ApiError);
-    expect(res.json).not.toHaveBeenCalled();
-  });
-
-  it("呼び出し側の headers はマージされ、credentials は上書きできない", async () => {
-    fetchMock.mockResolvedValue(jsonResponse({}));
-
-    await apiClient.get("/api/v1/me", { headers: { "Accept-Language": "ja" } });
-
-    expect(fetchMock.mock.calls[0]?.[1]).toMatchObject({
-      credentials: "include",
-      headers: { "Accept-Language": "ja" },
-    });
+  it("全 HTTP メソッドを lowercase で公開する", () => {
+    expect(apiClient).toEqual(
+      expect.objectContaining({
+        get: expect.any(Function),
+        post: expect.any(Function),
+        put: expect.any(Function),
+        patch: expect.any(Function),
+        delete: expect.any(Function),
+      }),
+    );
   });
 
   it("body があるとき Content-Type は呼び出し側から上書きできない", async () => {
     fetchMock.mockResolvedValue(jsonResponse({}));
 
-    await apiClient.patch(
-      "/api/v1/me",
-      { displayName: "太郎" },
-      { headers: { "Content-Type": "text/plain", "Accept-Language": "ja" } },
-    );
-
-    expect(fetchMock.mock.calls[0]?.[1]?.headers).toEqual({
-      "Content-Type": "application/json",
-      "Accept-Language": "ja",
+    await apiClient.patch("/api/v1/me", {
+      body: { displayName: "太郎" },
+      headers: { "Content-Type": "text/plain", "Accept-Language": "ja" },
     });
+
+    const request = fetchMock.mock.calls[0]?.[0] as Request;
+    expect(request.headers.get("Content-Type")).toBe("application/json");
+    expect(request.headers.get("Accept-Language")).toBe("ja");
   });
 });

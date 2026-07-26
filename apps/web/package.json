@@ -16,7 +16,8 @@
     "test": "vitest run",
     "test:watch": "vitest",
     "test:ui": "vitest --ui",
-    "test:coverage": "vitest run --coverage"
+    "test:coverage": "vitest run --coverage",
+    "api-types:generate": "openapi-typescript ../../apps/api/openapi.json -o lib/api-schema.d.ts"
   },
   "dependencies": {
     "@hugeicons/core-free-icons": "^4.2.2",
@@ -28,6 +29,7 @@
     "@workspace/ui": "workspace:*",
     "next": "16.2.6",
     "next-themes": "^0.4.6",
+    "openapi-fetch": "^0.17.0",
     "react": "^19.2.7",
     "react-dom": "^19.2.7"
   },
@@ -47,6 +49,7 @@
     "@workspace/typescript-config": "workspace:*",
     "eslint": "^9.39.5",
     "jsdom": "^29.1.1",
+    "openapi-typescript": "^7.13.0",
     "typescript": "5.9.3",
     "vite": "^8.0.16",
     "vitest": "^4.1.10",
