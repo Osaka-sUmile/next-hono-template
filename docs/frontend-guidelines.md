@@ -48,7 +48,7 @@
 | ヘッダー | body があるとき `Content-Type: application/json` |
 | 型 | パスごとの request/response の型が `openapi-typescript` の生成物から効く |
 
-openapi-fetch 固有の uppercase メソッドと `{ data, error, response }` は api-client 内部に閉じ込める。公開メソッドは成功時に型付けされたレスポンスを直接返し、2xx 以外では `status` を保持する `ApiError` を throw する。
+openapi-fetch 固有の uppercase メソッドと `{ data, error, response }` は api-client 内部に閉じ込める。公開メソッドは成功時に型付けされたレスポンスを直接返し、2xx 以外では `status` と、サーバのエラーボディ（`{ error, code }`）を `body` に保持する `ApiError` を throw する。
 
 ```typescript
 import { ApiError, apiClient } from "@/lib/api-client";

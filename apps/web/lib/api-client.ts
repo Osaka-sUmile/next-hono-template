@@ -13,9 +13,17 @@ import type { paths } from "./api-schema";
  * 「4xx は全部想定内」と決めてしまうと reportError の fail-loud 原則
  * (docs/frontend-guidelines.md) に反し、観測漏れを生むため。
  * 呼び出し側は status を見て ExpectedError に包み替えるかを判断する。
+ *
+ * `body` にはサーバが返したエラーボディ（apps/api の Error スキーマ =
+ * `{ error, code }`）がそのまま入る。同一 status で `code` により分岐したい
+ * 呼び出し側のために保持する。パース失敗時などは undefined になりうるため
+ * 型は `unknown` に留め、絞り込みは呼び出し側で行う。
  */
 export class ApiError extends Error {
-  constructor(readonly status: number) {
+  constructor(
+    readonly status: number,
+    readonly body?: unknown,
+  ) {
     super(`API request failed with status ${status}`);
     this.name = "ApiError";
   }
@@ -65,8 +73,8 @@ const rawClient = createClient<paths>({
 async function unwrap<Res extends { data?: unknown; error?: unknown; response: Response }>(
   promise: Promise<Res>,
 ): Promise<NonNullable<Res["data"]>> {
-  const { data, response } = await promise;
-  if (!response.ok) throw new ApiError(response.status);
+  const { data, error, response } = await promise;
+  if (!response.ok) throw new ApiError(response.status, error);
   return data as NonNullable<Res["data"]>;
 }
 

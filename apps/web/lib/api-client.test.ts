@@ -77,6 +77,17 @@ describe("apiClient", () => {
     expect(error).toMatchObject({ name: "ApiError", status: 401 });
   });
 
+  it("ApiError はサーバが返したエラーボディ（error / code）を保持する", async () => {
+    const body = { error: "displayName is too long", code: "VALIDATION_ERROR" };
+    fetchMock.mockResolvedValue(jsonResponse(body, 400));
+
+    const error = await apiClient
+      .patch("/api/v1/me", { body: { displayName: "太郎" } })
+      .catch((e: unknown) => e);
+    expect(error).toBeInstanceOf(ApiError);
+    expect(error).toMatchObject({ status: 400, body });
+  });
+
   it("5xx でも ApiError を投げ status を保持する", async () => {
     fetchMock.mockResolvedValue(jsonResponse({}, 500));
 
