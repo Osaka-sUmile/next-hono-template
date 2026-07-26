@@ -153,12 +153,14 @@ export class FeedbackSubmissionEntity extends BaseEntity<string> {
     if (input.choiceValue !== undefined) {
       throw new FeedbackAnswerTypeMismatchError(question.id, question.type)
     }
-    if (input.textValue === undefined || input.textValue.length === 0) {
+    if (input.textValue === undefined || input.textValue.trim().length === 0) {
       if (question.required) {
         throw new RequiredFeedbackAnswerMissingError(question.id)
       }
-      if (input.textValue === undefined) {
-        throw new FeedbackAnswerTypeMismatchError(question.id, question.type)
+      return {
+        questionId: question.id,
+        choiceId: null,
+        textValue: null,
       }
     }
     if (input.textValue.length > FEEDBACK_TEXT_MAX_LENGTH) {

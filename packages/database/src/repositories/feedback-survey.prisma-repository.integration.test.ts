@@ -1,5 +1,6 @@
 import { afterAll, beforeAll, beforeEach, describe, expect, it } from "vitest"
 import type { PrismaClient } from "@prisma/client"
+import { InvalidArgumentError } from "@workspace/domain"
 import { FeedbackSurveyPrismaRepository } from "./feedback-survey.prisma-repository"
 import { createTestPrismaClient, resetDatabase } from "../test-utils"
 
@@ -96,5 +97,22 @@ describe("FeedbackSurveyPrismaRepository (integration)", () => {
     })
 
     await expect(repository.findActive()).resolves.toBeNull()
+  })
+
+  it("不正なアンケートを復元できない場合は cause 付きの文脈エラーを返す", async () => {
+    await prisma.feedbackSurvey.create({
+      data: {
+        id: "invalid-survey",
+        slug: "invalid",
+        title: "",
+        isActive: true,
+      },
+    })
+
+    await expect(repository.findActive()).rejects.toMatchObject({
+      message:
+        "Failed to reconstitute FeedbackSurveyEntity (id=invalid-survey)",
+      cause: expect.any(InvalidArgumentError),
+    })
   })
 })

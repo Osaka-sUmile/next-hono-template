@@ -113,6 +113,7 @@ describe("FeedbackSubmissionPrismaRepository (integration)", () => {
 
   it("既存提出への save は回答を置き換える", async () => {
     const createdAt = new Date("2026-07-26T01:00:00.000Z")
+    const changedCreatedAt = new Date("2026-07-27T01:00:00.000Z")
     await repository.save(
       FeedbackSubmissionEntity.reconstitute(
         "submission-update",
@@ -141,12 +142,13 @@ describe("FeedbackSubmissionPrismaRepository (integration)", () => {
             textValue: "更新後",
           },
         ],
-        createdAt
+        changedCreatedAt
       )
     )
 
     const found = await repository.findById("submission-update")
 
+    expect(found?.createdAt).toEqual(createdAt)
     expect(found?.answers).toEqual([
       {
         questionId: "question-text",

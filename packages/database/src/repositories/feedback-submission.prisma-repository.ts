@@ -39,7 +39,6 @@ export class FeedbackSubmissionPrismaRepository implements IFeedbackSubmissionRe
       update: {
         surveyId: entity.surveyId,
         userId: entity.userId,
-        createdAt: entity.createdAt,
         answers: {
           deleteMany: {},
           create: answers,

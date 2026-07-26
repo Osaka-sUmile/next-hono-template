@@ -98,6 +98,66 @@ describe("FeedbackSubmissionEntity.create", () => {
     expect(submission.answers).toHaveLength(2)
   })
 
+  it("任意の自由記述に通常の回答を設定できる", () => {
+    const submission = FeedbackSubmissionEntity.create(
+      "submission-1",
+      createSurvey(),
+      "user-1",
+      [
+        { questionId: "choice-question", choiceValue: "no" },
+        { questionId: "text-question", textValue: "回答" },
+        { questionId: "optional-question", textValue: "任意回答" },
+      ]
+    )
+
+    expect(submission.answers[2]).toEqual({
+      questionId: "optional-question",
+      choiceId: null,
+      textValue: "任意回答",
+    })
+  })
+
+  it.each([undefined, "", "  "])(
+    "任意の自由記述の未回答値 %s は null に正規化する",
+    (textValue) => {
+      const submission = FeedbackSubmissionEntity.create(
+        "submission-1",
+        createSurvey(),
+        "user-1",
+        [
+          { questionId: "choice-question", choiceValue: "no" },
+          { questionId: "text-question", textValue: "回答" },
+          { questionId: "optional-question", textValue },
+        ]
+      )
+
+      expect(submission.answers[2]).toEqual({
+        questionId: "optional-question",
+        choiceId: null,
+        textValue: null,
+      })
+    }
+  )
+
+  it("任意の自由記述に choiceValue を渡した場合は種別ミスマッチで拒否する", () => {
+    const act = () =>
+      FeedbackSubmissionEntity.create(
+        "submission-1",
+        createSurvey(),
+        "user-1",
+        [
+          { questionId: "choice-question", choiceValue: "no" },
+          { questionId: "text-question", textValue: "回答" },
+          { questionId: "optional-question", choiceValue: "yes" },
+        ]
+      )
+
+    expect(act).toThrow(FeedbackAnswerTypeMismatchError)
+    expect(act).toThrow(
+      'Feedback answer type mismatch: questionId="optional-question", expected="text"'
+    )
+  })
+
   it("必須設問の回答がない場合は専用エラーと questionId を含むメッセージで拒否する", () => {
     const act = () =>
       FeedbackSubmissionEntity.create(
@@ -113,23 +173,26 @@ describe("FeedbackSubmissionEntity.create", () => {
     )
   })
 
-  it("必須の自由記述が空文字の場合は未回答として拒否する", () => {
-    const act = () =>
-      FeedbackSubmissionEntity.create(
-        "submission-1",
-        createSurvey(),
-        "user-1",
-        [
-          { questionId: "choice-question", choiceValue: "yes" },
-          { questionId: "text-question", textValue: "" },
-        ]
-      )
+  it.each(["", "  "])(
+    "必須の自由記述が空の場合は未回答として拒否する",
+    (textValue) => {
+      const act = () =>
+        FeedbackSubmissionEntity.create(
+          "submission-1",
+          createSurvey(),
+          "user-1",
+          [
+            { questionId: "choice-question", choiceValue: "yes" },
+            { questionId: "text-question", textValue },
+          ]
+        )
 
-    expect(act).toThrow(RequiredFeedbackAnswerMissingError)
-    expect(act).toThrow(
-      'Required feedback answer is missing: questionId="text-question"'
-    )
-  })
+      expect(act).toThrow(RequiredFeedbackAnswerMissingError)
+      expect(act).toThrow(
+        'Required feedback answer is missing: questionId="text-question"'
+      )
+    }
+  )
 
   it("必須の選択式設問に choiceValue がない場合は未回答として拒否する", () => {
     const act = () =>
