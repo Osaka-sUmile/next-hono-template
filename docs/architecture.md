@@ -139,49 +139,15 @@ packages/database  →  packages/domain
 
 ## API 型の共有方針
 
-### 現状の問題
-`apps/web` は `apps/api` のレスポンスを `fetch` の戻り値として受け取るため、素朴に実装すると型は実質 `any`（または開発者が手で書いた、いつ古くなるか分からない型）になる。`apps/api` 側で `presentation/routes/` の Zod レスポンススキーマのフィールド名を変えても、`apps/web` は型エラーとして気づけず、実行時に初めて壊れる。issue #111 はこの「web が api の変更に気づけない」問題への対応である。
+`apps/api` の Zod スキーマから生成した OpenAPI ドキュメントを web / api 間の契約とし、`openapi-typescript` と `openapi-fetch` で型安全な API クライアントを構築する。
 
-### 採用した方式: openapi-typescript + openapi-fetch
-- `apps/api` は `@hono/zod-openapi`（`OpenAPIHono`）採用済みのため、`presentation/routes/` の Zod スキーマから OpenAPI ドキュメントを実行時に生成できる（`/api-docs/openapi.json`）。
-- このドキュメント（= API の契約）を **openapi-typescript** で TypeScript の型定義に変換し、**openapi-fetch** でその型を使った型安全な fetch クライアントを組み立てる。
+Hono RPC（`hc`）は web が api のソースコードを直接 import するため採用しない。OpenAPI を境界にすることで、web と api の直接依存を避け、将来リポジトリや実装言語を分けても同じ契約を利用できる。
 
-### `hc`（Hono RPC）を採用しなかった理由
-Hono には `hc` という RPC クライアントがあり、`apps/api` のルーター型を `apps/web` が直接 import して型安全な呼び出しを実現できる。しかし今回は採用しなかった。
-
-| 観点 | `hc`（Hono RPC） | openapi-typescript + openapi-fetch |
-| :--- | :--- | :--- |
-| 型の経路 | web → api のソースコードを直接 import | web → OpenAPI ドキュメント（中間成果物）→ 型生成 |
-| api を別リポジトリ / 別言語にする場合 | web 側が api の型 import を剥がす作業から始まる | OpenAPI ドキュメントさえ吐き出せれば api の実装言語やリポジトリ構成を問わない |
-| ランタイム型の衝突 | Cloudflare Workers 向けの型（`@cloudflare/workers-types` 等）とブラウザ向けの型（`lib.dom`）が同居し、衝突しうる | web は生成された型定義のみを見るため衝突しない |
-
-このテンプレートは「将来 api / web を別リポジトリに分割する」派生プロジェクトを想定しており、web→api の直接のコード依存を作らないことを優先した。
-
-### 生成の流れ
 ```text
 apps/api/src/presentation/routes/*.route.ts (Zod スキーマ)
-  → OpenAPIHono が実行時に OpenAPI ドキュメントを構築
-  → apps/api/scripts/dump-openapi.mts が /api-docs/openapi.json を取得しファイルへ書き出す
-  → apps/api/openapi.json
-  → openapi-typescript が型定義に変換
+  → apps/api/openapi.json (OpenAPI ドキュメント)
   → apps/web/lib/api-schema.d.ts
-  → apps/web/lib/api-client.ts が openapi-fetch の createClient<paths>() に渡す
+  → apps/web/lib/api-client.ts
 ```
 
-### 再生成コマンドと運用
-API のルート定義・Zod スキーマを変更したら、以下を実行して生成物を再生成し、**両方コミットする**。
-
-```bash
-pnpm run openapi:generate
-```
-
-生成物（`apps/api/openapi.json` / `apps/web/lib/api-schema.d.ts`）を Git 管理下に置く理由は 2 つある。
-1. `apps/web` の型チェックがこのファイルに依存するため、常にリポジトリ内に実体が必要。
-2. API 契約の変更が PR の diff として見える（レビューで「この PR は契約を変えている」と気づける）。
-
-CI（`.github/workflows/lint.yml`）では `pnpm run openapi:generate` を実行し直した上で `git diff --exit-code` を取り、生成物が古いままコミットされている PR を落とす。
-
-### 受け入れたコスト
-「api のルート定義を変えたら `pnpm run openapi:generate` を実行してコミットする」という規約が 1 つ増え、CI にもそれを強制する差分チェックという装置が増える。
-
-ただし、これは #50 で撤去した `check-error-codes`（`ErrorCodes` 定数と OpenAPI の enum を手で同期させる仕組み）とは性質が異なる。`check-error-codes` は「2 つの独立したソース（定数とドキュメント）が同じ内容を別々に持ち、両者がズレる」という本質的な問題を抱えていた。今回の生成物はコードからの**純粋な派生**（`apps/api/openapi.json` は Zod スキーマから、`apps/web/lib/api-schema.d.ts` は `apps/api/openapi.json` から一意に導出される）であり、「2 つの独立したソースがズレる」という問題自体が起こり得ない。増えるのは「再生成を忘れる」というワークフロー上の負債だけであり、CI の差分チェックはその負債を機械的に検出する。
+生成物は web の型チェックと API 契約の差分レビューに必要なため Git 管理する。CI で再生成して差分を検査し、更新漏れを防ぐ。
