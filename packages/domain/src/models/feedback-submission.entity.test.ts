@@ -1,4 +1,5 @@
 import { describe, expect, it } from "vitest"
+import { InvalidArgumentError } from "../errors"
 import {
   DuplicateFeedbackAnswerError,
   FeedbackAnswerTypeMismatchError,
@@ -45,6 +46,17 @@ const createSurvey = (): FeedbackSurveyEntity =>
         false,
         3,
         []
+      ),
+      FeedbackQuestionEntity.reconstitute(
+        "optional-choice-question",
+        "single_choice",
+        "任意の選択",
+        false,
+        4,
+        [
+          FeedbackChoice.reconstitute("optional-choice-a", "a", "A", 1),
+          FeedbackChoice.reconstitute("optional-choice-b", "b", "B", 2),
+        ]
       ),
     ]
   )
@@ -155,6 +167,68 @@ describe("FeedbackSubmissionEntity.create", () => {
     expect(act).toThrow(FeedbackAnswerTypeMismatchError)
     expect(act).toThrow(
       'Feedback answer type mismatch: questionId="optional-question", expected="text"'
+    )
+  })
+
+  it("任意の選択式に選択肢を設定できる", () => {
+    const submission = FeedbackSubmissionEntity.create(
+      "submission-1",
+      createSurvey(),
+      "user-1",
+      [
+        { questionId: "choice-question", choiceValue: "no" },
+        { questionId: "text-question", textValue: "回答" },
+        { questionId: "optional-choice-question", choiceValue: "b" },
+      ]
+    )
+
+    expect(submission.answers[2]).toEqual({
+      questionId: "optional-choice-question",
+      choiceId: "optional-choice-b",
+      textValue: null,
+    })
+  })
+
+  // 任意の選択式は「未回答の entry を送ってくるクライアント」を許容する必要がある。
+  // 自由記述側 (textValue) と対称に null 正規化されることを保証する。
+  it.each([undefined, "", "  "])(
+    "任意の選択式の未回答値 %s は null に正規化する",
+    (choiceValue) => {
+      const submission = FeedbackSubmissionEntity.create(
+        "submission-1",
+        createSurvey(),
+        "user-1",
+        [
+          { questionId: "choice-question", choiceValue: "no" },
+          { questionId: "text-question", textValue: "回答" },
+          { questionId: "optional-choice-question", choiceValue },
+        ]
+      )
+
+      expect(submission.answers[2]).toEqual({
+        questionId: "optional-choice-question",
+        choiceId: null,
+        textValue: null,
+      })
+    }
+  )
+
+  it("任意の選択式に未知の選択肢を渡した場合は拒否する", () => {
+    const act = () =>
+      FeedbackSubmissionEntity.create(
+        "submission-1",
+        createSurvey(),
+        "user-1",
+        [
+          { questionId: "choice-question", choiceValue: "no" },
+          { questionId: "text-question", textValue: "回答" },
+          { questionId: "optional-choice-question", choiceValue: "unknown" },
+        ]
+      )
+
+    expect(act).toThrow(InvalidFeedbackChoiceError)
+    expect(act).toThrow(
+      'Invalid feedback choice: questionId="optional-choice-question", choiceValue="unknown"'
     )
   })
 
@@ -385,5 +459,21 @@ describe("FeedbackSubmissionEntity.reconstitute", () => {
     expect(submission.userId).toBe("user-1")
     expect(submission.answers).toEqual(answers)
     expect(submission.createdAt).toBe(createdAt)
+  })
+
+  it.each([
+    ["surveyId", "", "user-1"],
+    ["userId", "survey-1", ""],
+  ])("空の %s は復元経路でも拒否する", (_field, surveyId, userId) => {
+    const act = () =>
+      FeedbackSubmissionEntity.reconstitute(
+        "submission-1",
+        surveyId,
+        userId,
+        [],
+        new Date("2026-07-26T00:00:00.000Z")
+      )
+
+    expect(act).toThrow(InvalidArgumentError)
   })
 })

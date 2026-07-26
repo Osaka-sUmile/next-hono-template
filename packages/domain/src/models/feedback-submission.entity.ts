@@ -1,4 +1,4 @@
-import { DomainError } from "../errors"
+import { DomainError, InvalidArgumentError } from "../errors"
 import { BaseEntity } from "./base.entity"
 import {
   FeedbackQuestionEntity,
@@ -72,6 +72,19 @@ export class FeedbackSubmissionEntity extends BaseEntity<string> {
     readonly createdAt: Date
   ) {
     super(id)
+    // create / reconstitute のどちらの経路でも守られる最低限の不変条件。
+    this.ensure(
+      surveyId.trim().length > 0,
+      new InvalidArgumentError(
+        `FeedbackSubmission surveyId must not be empty: id="${id}"`
+      )
+    )
+    this.ensure(
+      userId.trim().length > 0,
+      new InvalidArgumentError(
+        `FeedbackSubmission userId must not be empty: id="${id}"`
+      )
+    )
     this.answers = answers.map((answer) => ({ ...answer }))
   }
 
@@ -133,11 +146,21 @@ export class FeedbackSubmissionEntity extends BaseEntity<string> {
       if (input.textValue !== undefined) {
         throw new FeedbackAnswerTypeMismatchError(question.id, question.type)
       }
-      if (input.choiceValue === undefined || input.choiceValue.length === 0) {
+      // 未回答は自由記述側と対称に扱う: 必須なら拒否し、任意なら null に正規化する。
+      // 空白のみの choiceValue も未回答とみなすが、選択肢の突き合わせは
+      // 集計キーの取り違えを防ぐため trim せず厳密一致で行う。
+      if (
+        input.choiceValue === undefined ||
+        input.choiceValue.trim().length === 0
+      ) {
         if (question.required) {
           throw new RequiredFeedbackAnswerMissingError(question.id)
         }
-        throw new FeedbackAnswerTypeMismatchError(question.id, question.type)
+        return {
+          questionId: question.id,
+          choiceId: null,
+          textValue: null,
+        }
       }
       const choice = question.findChoiceByValue(input.choiceValue)
       if (!choice) {
