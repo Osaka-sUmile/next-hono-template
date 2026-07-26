@@ -85,9 +85,15 @@ export class FeedbackQueryService implements IFeedbackQueryService {
   async listSubmissions(
     params: FeedbackSubmissionListParams
   ): Promise<FeedbackSubmissionListResult> {
+    // surveyId 未指定なら全アンケート横断。指定時は total も同じ条件で数え、
+    // 一覧とページネーションの母数がずれないようにする。
+    const where =
+      params.surveyId === undefined ? {} : { surveyId: params.surveyId }
+
     const [total, submissions] = await this.prisma.$transaction([
-      this.prisma.feedbackSubmission.count(),
+      this.prisma.feedbackSubmission.count({ where }),
       this.prisma.feedbackSubmission.findMany({
+        where,
         select: {
           id: true,
           surveyId: true,

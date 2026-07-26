@@ -65,6 +65,42 @@ describe("FeedbackQueryService (integration)", () => {
     })
   }
 
+  /**
+   * 別バージョンのアンケート。surveyId による絞り込みが効いていることを
+   * 検証するために、DB 上にアンケートが複数存在する状態を作る。
+   */
+  async function seedOtherSurvey(): Promise<void> {
+    await prisma.feedbackSurvey.create({
+      data: {
+        id: "survey-2",
+        slug: "pmf-2027",
+        title: "旧PMFアンケート",
+        isActive: false,
+        questions: {
+          create: [
+            {
+              id: "question-choice-2",
+              type: "single_choice",
+              text: "選択式(旧)",
+              required: true,
+              sortOrder: 1,
+              choices: {
+                create: [
+                  {
+                    id: "choice-2-yes",
+                    value: "yes",
+                    label: "はい",
+                    sortOrder: 1,
+                  },
+                ],
+              },
+            },
+          ],
+        },
+      },
+    })
+  }
+
   async function seedUser(id: string): Promise<void> {
     await prisma.user.create({
       data: {
@@ -223,6 +259,72 @@ describe("FeedbackQueryService (integration)", () => {
         total: 0,
       })
     })
+
+    it("surveyId 指定時は該当アンケートの提出のみを返し、total も同条件で数える", async () => {
+      await seedSurvey()
+      await seedOtherSurvey()
+      await seedUser("user-1")
+      await prisma.feedbackSubmission.createMany({
+        data: [
+          {
+            id: "submission-survey-1",
+            surveyId: "survey-1",
+            userId: "user-1",
+            createdAt: new Date("2026-07-26T02:00:00.000Z"),
+          },
+          {
+            id: "submission-survey-2",
+            surveyId: "survey-2",
+            userId: "user-1",
+            createdAt: new Date("2026-07-26T03:00:00.000Z"),
+          },
+        ],
+      })
+
+      const result = await queryService.listSubmissions({
+        limit: 20,
+        offset: 0,
+        surveyId: "survey-1",
+      })
+
+      expect(result.total).toBe(1)
+      expect(result.items.map((item) => item.id)).toEqual([
+        "submission-survey-1",
+      ])
+    })
+
+    it("surveyId 未指定時は全アンケートの提出を横断して返す", async () => {
+      await seedSurvey()
+      await seedOtherSurvey()
+      await seedUser("user-1")
+      await prisma.feedbackSubmission.createMany({
+        data: [
+          {
+            id: "submission-survey-1",
+            surveyId: "survey-1",
+            userId: "user-1",
+            createdAt: new Date("2026-07-26T02:00:00.000Z"),
+          },
+          {
+            id: "submission-survey-2",
+            surveyId: "survey-2",
+            userId: "user-1",
+            createdAt: new Date("2026-07-26T03:00:00.000Z"),
+          },
+        ],
+      })
+
+      const result = await queryService.listSubmissions({
+        limit: 20,
+        offset: 0,
+      })
+
+      expect(result.total).toBe(2)
+      expect(result.items.map((item) => item.id)).toEqual([
+        "submission-survey-2",
+        "submission-survey-1",
+      ])
+    })
   })
 
   describe("summarize", () => {
@@ -333,6 +435,117 @@ describe("FeedbackQueryService (integration)", () => {
     it("提出が存在しない場合は母数0と空の tally を返す", async () => {
       await expect(queryService.summarize("missing-survey")).resolves.toEqual({
         respondentCount: 0,
+        tallies: [],
+      })
+    })
+
+    it("他アンケートの提出を母数・tally のどちらにも混ぜない", async () => {
+      await seedSurvey()
+      await seedOtherSurvey()
+      await seedUser("user-1")
+      await seedUser("user-2")
+      await prisma.feedbackSubmission.create({
+        data: {
+          id: "submission-survey-1",
+          surveyId: "survey-1",
+          userId: "user-1",
+          createdAt: new Date("2026-07-26T02:00:00.000Z"),
+          answers: {
+            create: {
+              id: "answer-survey-1",
+              questionId: "question-choice",
+              choiceId: "choice-yes",
+            },
+          },
+        },
+      })
+      await prisma.feedbackSubmission.create({
+        data: {
+          id: "submission-survey-2",
+          surveyId: "survey-2",
+          userId: "user-2",
+          createdAt: new Date("2026-07-26T03:00:00.000Z"),
+          answers: {
+            create: {
+              id: "answer-survey-2",
+              questionId: "question-choice-2",
+              choiceId: "choice-2-yes",
+            },
+          },
+        },
+      })
+
+      await expect(queryService.summarize("survey-1")).resolves.toEqual({
+        respondentCount: 1,
+        tallies: [
+          { questionId: "question-choice", choiceValue: "yes", count: 1 },
+        ],
+      })
+    })
+
+    // 自由記述だけの提出は choiceId が null なので tally には現れないが、
+    // 回答者としては母数に数える必要がある。
+    it("自由記述のみの提出は母数に数えるが tally には含めない", async () => {
+      await seedSurvey()
+      await seedUser("user-1")
+      await prisma.feedbackSubmission.create({
+        data: {
+          id: "submission-text-only",
+          surveyId: "survey-1",
+          userId: "user-1",
+          createdAt: new Date("2026-07-26T02:00:00.000Z"),
+          answers: {
+            create: {
+              id: "answer-text-only",
+              questionId: "question-text",
+              textValue: "自由記述だけ",
+            },
+          },
+        },
+      })
+
+      await expect(queryService.summarize("survey-1")).resolves.toEqual({
+        respondentCount: 1,
+        tallies: [],
+      })
+    })
+
+    it("最新提出が自由記述のみなら過去提出の選択肢は集計から外れる", async () => {
+      await seedSurvey()
+      await seedUser("user-1")
+      await prisma.feedbackSubmission.create({
+        data: {
+          id: "submission-old-choice",
+          surveyId: "survey-1",
+          userId: "user-1",
+          createdAt: new Date("2026-07-26T01:00:00.000Z"),
+          answers: {
+            create: {
+              id: "answer-old-choice",
+              questionId: "question-choice",
+              choiceId: "choice-yes",
+            },
+          },
+        },
+      })
+      await prisma.feedbackSubmission.create({
+        data: {
+          id: "submission-new-text",
+          surveyId: "survey-1",
+          userId: "user-1",
+          createdAt: new Date("2026-07-26T02:00:00.000Z"),
+          answers: {
+            create: {
+              id: "answer-new-text",
+              questionId: "question-text",
+              textValue: "選択をやめた",
+            },
+          },
+        },
+      })
+
+      await expect(queryService.summarize("survey-1")).resolves.toEqual({
+        respondentCount: 1,
         tallies: [],
       })
     })

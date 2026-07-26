@@ -48,6 +48,8 @@ export type FeedbackSubmissionView = {
 export type FeedbackSubmissionListParams = {
   limit: number
   offset: number
+  /** 指定時はそのアンケートの提出のみを対象にする。未指定なら全アンケートを横断する。 */
+  surveyId?: string
 }
 
 export type FeedbackSubmissionListResult = {
