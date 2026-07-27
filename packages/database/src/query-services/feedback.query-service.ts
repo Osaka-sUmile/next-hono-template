@@ -1,4 +1,4 @@
-import { PrismaClient } from "@prisma/client"
+import { PrismaClient } from "@prisma/client";
 import {
   FeedbackChoiceTally,
   FeedbackSubmissionListParams,
@@ -7,17 +7,17 @@ import {
   FeedbackSurveyView,
   IFeedbackQueryService,
   parseFeedbackQuestionType,
-} from "@workspace/domain"
+} from "@workspace/domain";
 
 type RawFeedbackChoiceTally = {
-  questionId: string
-  choiceValue: string
-  count: number
-}
+  questionId: string;
+  choiceValue: string;
+  count: number;
+};
 
 type RawRespondentCount = {
-  count: number
-}
+  count: number;
+};
 
 export class FeedbackQueryService implements IFeedbackQueryService {
   constructor(private readonly prisma: PrismaClient) {}
@@ -51,8 +51,8 @@ export class FeedbackQueryService implements IFeedbackQueryService {
         },
       },
       orderBy: [{ createdAt: "desc" }, { id: "desc" }],
-    })
-    if (!survey) return null
+    });
+    if (!survey) return null;
 
     try {
       return {
@@ -71,14 +71,14 @@ export class FeedbackQueryService implements IFeedbackQueryService {
             sortOrder: choice.sortOrder,
           })),
         })),
-      }
+      };
     } catch (error) {
       throw new Error(
         `Failed to map active feedback survey (id=${survey.id})`,
         {
           cause: error,
         }
-      )
+      );
     }
   }
 
@@ -88,7 +88,7 @@ export class FeedbackQueryService implements IFeedbackQueryService {
     // surveyId 未指定なら全アンケート横断。指定時は total も同じ条件で数え、
     // 一覧とページネーションの母数がずれないようにする。
     const where =
-      params.surveyId === undefined ? {} : { surveyId: params.surveyId }
+      params.surveyId === undefined ? {} : { surveyId: params.surveyId };
 
     const [total, submissions] = await this.prisma.$transaction([
       this.prisma.feedbackSubmission.count({ where }),
@@ -130,7 +130,7 @@ export class FeedbackQueryService implements IFeedbackQueryService {
         take: params.limit,
         skip: params.offset,
       }),
-    ])
+    ]);
 
     return {
       total,
@@ -153,7 +153,7 @@ export class FeedbackQueryService implements IFeedbackQueryService {
             textValue: answer.textValue,
           })),
       })),
-    }
+    };
   }
 
   async summarize(surveyId: string): Promise<FeedbackSummaryTallyResult> {
@@ -185,16 +185,16 @@ export class FeedbackQueryService implements IFeedbackQueryService {
         SELECT COUNT(*)::int AS "count"
         FROM latest
       `,
-    ])
+    ]);
 
     const tallies: FeedbackChoiceTally[] = rawTallies.map((tally) => ({
       questionId: tally.questionId,
       choiceValue: tally.choiceValue,
       count: tally.count,
-    }))
+    }));
     return {
       respondentCount: rawRespondentCounts[0]?.count ?? 0,
       tallies,
-    }
+    };
   }
 }

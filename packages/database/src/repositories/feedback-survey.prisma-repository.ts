@@ -1,21 +1,21 @@
-import { Prisma, PrismaClient } from "@prisma/client"
+import { Prisma, PrismaClient } from "@prisma/client";
 import {
   FeedbackChoice,
   FeedbackQuestionEntity,
   FeedbackSurveyEntity,
   IFeedbackSurveyRepository,
   parseFeedbackQuestionType,
-} from "@workspace/domain"
+} from "@workspace/domain";
 
 type FeedbackSurveyWithQuestions = Prisma.FeedbackSurveyGetPayload<{
   include: {
     questions: {
       include: {
-        choices: true
-      }
-    }
-  }
-}>
+        choices: true;
+      };
+    };
+  };
+}>;
 
 export class FeedbackSurveyPrismaRepository implements IFeedbackSurveyRepository {
   constructor(private readonly prisma: PrismaClient) {}
@@ -34,9 +34,9 @@ export class FeedbackSurveyPrismaRepository implements IFeedbackSurveyRepository
         },
       },
       orderBy: [{ createdAt: "desc" }, { id: "desc" }],
-    })
-    if (!survey) return null
-    return this.toDomain(survey)
+    });
+    if (!survey) return null;
+    return this.toDomain(survey);
   }
 
   private toDomain(model: FeedbackSurveyWithQuestions): FeedbackSurveyEntity {
@@ -57,21 +57,21 @@ export class FeedbackSurveyPrismaRepository implements IFeedbackSurveyRepository
             )
           )
         )
-      )
+      );
       return FeedbackSurveyEntity.reconstitute(
         model.id,
         model.slug,
         model.title,
         model.isActive,
         questions
-      )
+      );
     } catch (error) {
       throw new Error(
         `Failed to reconstitute FeedbackSurveyEntity (id=${model.id})`,
         {
           cause: error,
         }
-      )
+      );
     }
   }
 }

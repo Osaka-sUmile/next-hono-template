@@ -1,22 +1,22 @@
-import { DomainError, InvalidArgumentError } from "../errors"
-import { BaseEntity } from "./base.entity"
+import { DomainError, InvalidArgumentError } from "../errors";
+import { BaseEntity } from "./base.entity";
 
-export type FeedbackQuestionType = "single_choice" | "text"
+export type FeedbackQuestionType = "single_choice" | "text";
 
 const FEEDBACK_QUESTION_TYPES: ReadonlySet<string> =
-  new Set<FeedbackQuestionType>(["single_choice", "text"])
+  new Set<FeedbackQuestionType>(["single_choice", "text"]);
 
 export class InvalidFeedbackQuestionTypeError extends DomainError {
   constructor(value: string) {
-    super(`Invalid FeedbackQuestionType: "${value}"`)
+    super(`Invalid FeedbackQuestionType: "${value}"`);
   }
 }
 
 export function parseFeedbackQuestionType(value: string): FeedbackQuestionType {
   if (!FEEDBACK_QUESTION_TYPES.has(value)) {
-    throw new InvalidFeedbackQuestionTypeError(value)
+    throw new InvalidFeedbackQuestionTypeError(value);
   }
-  return value as FeedbackQuestionType
+  return value as FeedbackQuestionType;
 }
 
 export class FeedbackChoice extends BaseEntity<string> {
@@ -26,25 +26,25 @@ export class FeedbackChoice extends BaseEntity<string> {
     readonly label: string,
     readonly sortOrder: number
   ) {
-    super(id)
+    super(id);
     this.ensure(
       value.trim().length > 0,
       new InvalidArgumentError(
         `FeedbackChoice value must not be empty: id="${id}"`
       )
-    )
+    );
     this.ensure(
       label.trim().length > 0,
       new InvalidArgumentError(
         `FeedbackChoice label must not be empty: id="${id}"`
       )
-    )
+    );
     this.ensure(
       sortOrder >= 0,
       new InvalidArgumentError(
         `FeedbackChoice sortOrder must be non-negative: id="${id}"`
       )
-    )
+    );
   }
 
   static reconstitute(
@@ -53,12 +53,12 @@ export class FeedbackChoice extends BaseEntity<string> {
     label: string,
     sortOrder: number
   ): FeedbackChoice {
-    return new FeedbackChoice(id, value, label, sortOrder)
+    return new FeedbackChoice(id, value, label, sortOrder);
   }
 }
 
 export class FeedbackQuestionEntity extends BaseEntity<string> {
-  readonly choices: readonly FeedbackChoice[]
+  readonly choices: readonly FeedbackChoice[];
 
   private constructor(
     id: string,
@@ -68,36 +68,36 @@ export class FeedbackQuestionEntity extends BaseEntity<string> {
     readonly sortOrder: number,
     choices: readonly FeedbackChoice[]
   ) {
-    super(id)
+    super(id);
     this.ensure(
       text.trim().length > 0,
       new InvalidArgumentError(
         `FeedbackQuestion text must not be empty: id="${id}"`
       )
-    )
+    );
     this.ensure(
       sortOrder >= 0,
       new InvalidArgumentError(
         `FeedbackQuestion sortOrder must be non-negative: id="${id}"`
       )
-    )
+    );
     this.ensure(
       type !== "single_choice" || choices.length > 0,
       new InvalidArgumentError(
         `single_choice FeedbackQuestion must have at least one choice: id="${id}"`
       )
-    )
-    const choiceValues = new Set<string>()
+    );
+    const choiceValues = new Set<string>();
     for (const choice of choices) {
       this.ensure(
         !choiceValues.has(choice.value),
         new InvalidArgumentError(
           `FeedbackChoice value must be unique within question: questionId="${id}", value="${choice.value}"`
         )
-      )
-      choiceValues.add(choice.value)
+      );
+      choiceValues.add(choice.value);
     }
-    this.choices = [...choices]
+    this.choices = [...choices];
   }
 
   static reconstitute(
@@ -115,16 +115,16 @@ export class FeedbackQuestionEntity extends BaseEntity<string> {
       required,
       sortOrder,
       choices
-    )
+    );
   }
 
   findChoiceByValue(value: string): FeedbackChoice | null {
-    return this.choices.find((choice) => choice.value === value) ?? null
+    return this.choices.find((choice) => choice.value === value) ?? null;
   }
 }
 
 export class FeedbackSurveyEntity extends BaseEntity<string> {
-  readonly questions: readonly FeedbackQuestionEntity[]
+  readonly questions: readonly FeedbackQuestionEntity[];
 
   private constructor(
     id: string,
@@ -133,20 +133,20 @@ export class FeedbackSurveyEntity extends BaseEntity<string> {
     readonly isActive: boolean,
     questions: readonly FeedbackQuestionEntity[]
   ) {
-    super(id)
+    super(id);
     this.ensure(
       slug.trim().length > 0,
       new InvalidArgumentError(
         `FeedbackSurvey slug must not be empty: id="${id}"`
       )
-    )
+    );
     this.ensure(
       title.trim().length > 0,
       new InvalidArgumentError(
         `FeedbackSurvey title must not be empty: id="${id}"`
       )
-    )
-    this.questions = [...questions]
+    );
+    this.questions = [...questions];
   }
 
   static reconstitute(
@@ -156,10 +156,10 @@ export class FeedbackSurveyEntity extends BaseEntity<string> {
     isActive: boolean,
     questions: readonly FeedbackQuestionEntity[]
   ): FeedbackSurveyEntity {
-    return new FeedbackSurveyEntity(id, slug, title, isActive, questions)
+    return new FeedbackSurveyEntity(id, slug, title, isActive, questions);
   }
 
   findQuestionById(id: string): FeedbackQuestionEntity | null {
-    return this.questions.find((question) => question.id === id) ?? null
+    return this.questions.find((question) => question.id === id) ?? null;
   }
 }
