@@ -3,8 +3,12 @@ import path from "node:path";
 import { fileURLToPath } from "node:url";
 import type { AuthInstance } from "@workspace/auth/server";
 import type {
+  GetActiveFeedbackSurveyUseCase,
   GetCurrentUserUseCase,
+  ListFeedbackSubmissionsUseCase,
   ListUsersUseCase,
+  SubmitFeedbackUseCase,
+  SummarizeFeedbackUseCase,
   UpdateUserProfileUseCase,
 } from "../src/application";
 import { buildApp } from "../src/composition/create-app";
@@ -16,6 +20,7 @@ import type { Env } from "../src/infrastructure";
 // 静的解析できず、"does not provide an export named ..." で失敗する。実クラスを直接 export
 // しているファイルから import すればこの問題を回避できる。
 import { AdminController } from "../src/presentation/controllers/admin.controller";
+import { FeedbackController } from "../src/presentation/controllers/feedback.controller";
 import { HealthController } from "../src/presentation/controllers/health.controller";
 import { UserController } from "../src/presentation/controllers/user.controller";
 
@@ -61,6 +66,12 @@ async function main(): Promise<void> {
       {} as UpdateUserProfileUseCase,
     ),
     adminController: new AdminController({} as ListUsersUseCase),
+    feedbackController: new FeedbackController(
+      {} as GetActiveFeedbackSurveyUseCase,
+      {} as SubmitFeedbackUseCase,
+      {} as ListFeedbackSubmissionsUseCase,
+      {} as SummarizeFeedbackUseCase,
+    ),
   });
 
   const res = await app.request(DOCUMENT_PATH);

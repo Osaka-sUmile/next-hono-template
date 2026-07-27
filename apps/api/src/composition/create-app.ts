@@ -3,10 +3,26 @@ import { cors } from "hono/cors";
 import { secureHeaders } from "hono/secure-headers";
 import { createAuth } from "@workspace/auth/server";
 import type { AuthInstance } from "@workspace/auth/server";
-import { createPrismaClient, UserPrismaRepository, UserQueryService } from "@workspace/database";
-import { GetCurrentUserUseCase, ListUsersUseCase, UpdateUserProfileUseCase } from "../application";
+import {
+  createPrismaClient,
+  FeedbackQueryService,
+  FeedbackSubmissionPrismaRepository,
+  FeedbackSurveyPrismaRepository,
+  UserPrismaRepository,
+  UserQueryService,
+} from "@workspace/database";
+import {
+  GetActiveFeedbackSurveyUseCase,
+  GetCurrentUserUseCase,
+  ListFeedbackSubmissionsUseCase,
+  ListUsersUseCase,
+  SubmitFeedbackUseCase,
+  SummarizeFeedbackUseCase,
+  UpdateUserProfileUseCase,
+} from "../application";
 import {
   AdminController,
+  FeedbackController,
   HealthController,
   UserController,
   createAuthLimiter,
@@ -17,10 +33,14 @@ import {
   getUserMeRoute,
   updateUserMeRoute,
   listUsersRoute,
+  getActiveFeedbackSurveyRoute,
+  submitFeedbackRoute,
+  listFeedbackSubmissionsRoute,
+  summarizeFeedbackRoute,
   validationErrorHook,
   type AppEnv,
 } from "../presentation";
-import { setupSwagger, type Env } from "../infrastructure";
+import { setupSwagger, UuidIdGenerator, type Env } from "../infrastructure";
 
 export type AppDeps = {
   env: Env;
@@ -28,6 +48,7 @@ export type AppDeps = {
   healthController: HealthController;
   userController: UserController;
   adminController: AdminController;
+  feedbackController: FeedbackController;
 };
 
 /**
@@ -64,10 +85,18 @@ export function buildApp(deps: AppDeps): OpenAPIHono<AppEnv> {
   // 認証・認可は composition に集約し、入出力契約は routes/ が担う。
   v1.use("/me", requireAuth);
   v1.use("/admin/users", requireAuth, requireAdmin);
+  // フィードバックは回答者を認証セッションから決めるため参照・投稿の双方で認証を要求し、
+  // 回答者の氏名・メール・自由記述を含む管理系は admin に限定する。
+  v1.use("/feedback/*", requireAuth);
+  v1.use("/admin/feedback/*", requireAuth, requireAdmin);
   v1.openapi(healthRoute, deps.healthController.check);
   v1.openapi(getUserMeRoute, deps.userController.getUserMe);
   v1.openapi(updateUserMeRoute, deps.userController.updateUserMe);
   v1.openapi(listUsersRoute, deps.adminController.listUsers);
+  v1.openapi(getActiveFeedbackSurveyRoute, deps.feedbackController.getActiveSurvey);
+  v1.openapi(submitFeedbackRoute, deps.feedbackController.submitFeedback);
+  v1.openapi(listFeedbackSubmissionsRoute, deps.feedbackController.listSubmissions);
+  v1.openapi(summarizeFeedbackRoute, deps.feedbackController.getSummary);
 
   app.route("/api/v1", v1);
 
@@ -114,12 +143,31 @@ export async function createApp(env: Env): Promise<CreatedApp> {
     const listUsersUseCase = new ListUsersUseCase(userQueryService);
     const updateUserProfileUseCase = new UpdateUserProfileUseCase(userRepository);
 
+    const feedbackQueryService = new FeedbackQueryService(prisma);
+    const feedbackSurveyRepository = new FeedbackSurveyPrismaRepository(prisma);
+    const feedbackSubmissionRepository = new FeedbackSubmissionPrismaRepository(prisma);
+    const idGenerator = new UuidIdGenerator();
+    const getActiveFeedbackSurveyUseCase = new GetActiveFeedbackSurveyUseCase(feedbackQueryService);
+    const submitFeedbackUseCase = new SubmitFeedbackUseCase(
+      feedbackSurveyRepository,
+      feedbackSubmissionRepository,
+      idGenerator,
+    );
+    const listFeedbackSubmissionsUseCase = new ListFeedbackSubmissionsUseCase(feedbackQueryService);
+    const summarizeFeedbackUseCase = new SummarizeFeedbackUseCase(feedbackQueryService);
+
     const app = buildApp({
       env,
       auth,
       healthController: new HealthController(),
       userController: new UserController(getCurrentUserUseCase, updateUserProfileUseCase),
       adminController: new AdminController(listUsersUseCase),
+      feedbackController: new FeedbackController(
+        getActiveFeedbackSurveyUseCase,
+        submitFeedbackUseCase,
+        listFeedbackSubmissionsUseCase,
+        summarizeFeedbackUseCase,
+      ),
     });
 
     return { app, prisma };
