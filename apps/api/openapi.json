@@ -804,10 +804,8 @@
           {
             "schema": {
               "type": "integer",
-              "nullable": true,
               "minimum": 0,
-              "default": 0,
-              "description": "Number of submissions to skip"
+              "default": 0
             },
             "required": false,
             "description": "Number of submissions to skip",

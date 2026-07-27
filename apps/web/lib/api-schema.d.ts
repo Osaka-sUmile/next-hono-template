@@ -397,7 +397,7 @@ export interface paths {
                     /** @description Page size (1-100) */
                     limit?: number;
                     /** @description Number of submissions to skip */
-                    offset?: number | null;
+                    offset?: number;
                     /** @description Restrict to one survey. Omit to include every survey. */
                     surveyId?: string;
                 };

@@ -144,11 +144,17 @@ const ListFeedbackSubmissionsQuerySchema = z.object({
       param: { name: "limit", in: "query" },
       description: `Page size (1-${SUBMISSION_LIST_MAX_LIMIT})`,
     }),
-  // 生成物 (openapi.json) でこの項目だけ nullable: true になるのは、z.coerce.number() が
-  // null を 0 に変換する (Number(null) === 0) ため min(0) が null を通してしまうことに由来する。
-  // クエリ文字列に null は現れないため実害はなく、検証としても 0 以上の整数に限定できている。
+  // param.schema を明示するのは、z.coerce.number() が null を 0 に変換する
+  // (Number(null) === 0) ため min(0) では null が検証を通り、生成物にこの項目だけ
+  // nullable: true が載って apps/web の型が number | null になってしまうため。
+  // クエリ文字列に null は現れないので、契約としては非 null の integer が正しい。
+  // limit 側は min(1) が null 由来の 0 を弾くため、この指定は不要。
   offset: z.coerce.number().int().min(0).default(0).openapi({
-    param: { name: "offset", in: "query" },
+    param: {
+      name: "offset",
+      in: "query",
+      schema: { type: "integer", minimum: 0, default: 0 },
+    },
     description: "Number of submissions to skip",
   }),
   surveyId: feedbackIdSchema.optional().openapi({
