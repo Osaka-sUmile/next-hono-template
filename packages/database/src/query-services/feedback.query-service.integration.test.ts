@@ -149,6 +149,14 @@ describe("FeedbackQueryService (integration)", () => {
     it("公開中アンケートが存在しない場合は null を返す", async () => {
       await expect(queryService.findActiveSurveyView()).resolves.toBeNull();
     });
+
+    // DB が空のときだけでなく、非公開アンケートが存在する状態でも null になることを
+    // 確認する。これがないと where: { isActive: true } が外れても検知できない。
+    it("非公開アンケートしか存在しない場合は null を返す", async () => {
+      await seedOtherSurvey();
+
+      await expect(queryService.findActiveSurveyView()).resolves.toBeNull();
+    });
   });
 
   describe("listSubmissions", () => {

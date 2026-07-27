@@ -268,23 +268,26 @@ describe("FeedbackSubmissionEntity.create", () => {
     }
   );
 
-  it("必須の選択式設問に choiceValue がない場合は未回答として拒否する", () => {
-    const act = () =>
-      FeedbackSubmissionEntity.create(
-        "submission-1",
-        createSurvey(),
-        "user-1",
-        [
-          { questionId: "choice-question" },
-          { questionId: "text-question", textValue: "回答" },
-        ]
-      );
+  it.each([undefined, "", "  "])(
+    "必須の選択式設問の未回答値 %s は拒否する",
+    (choiceValue) => {
+      const act = () =>
+        FeedbackSubmissionEntity.create(
+          "submission-1",
+          createSurvey(),
+          "user-1",
+          [
+            { questionId: "choice-question", choiceValue },
+            { questionId: "text-question", textValue: "回答" },
+          ]
+        );
 
-    expect(act).toThrow(RequiredFeedbackAnswerMissingError);
-    expect(act).toThrow(
-      'Required feedback answer is missing: questionId="choice-question"'
-    );
-  });
+      expect(act).toThrow(RequiredFeedbackAnswerMissingError);
+      expect(act).toThrow(
+        'Required feedback answer is missing: questionId="choice-question"'
+      );
+    }
+  );
 
   it("必須の自由記述設問に textValue がない場合は未回答として拒否する", () => {
     const act = () =>
