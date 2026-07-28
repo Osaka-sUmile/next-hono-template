@@ -1,4 +1,3 @@
-import { z } from "zod";
 import type { RouteHandler } from "@hono/zod-openapi";
 import {
   DuplicateFeedbackAnswerError,
@@ -24,14 +23,6 @@ import type {
   submitFeedbackRoute,
   summarizeFeedbackRoute,
 } from "../routes";
-
-const authSchema = z.object({
-  auth: z.object({
-    user: z.object({
-      id: z.string().min(1),
-    }),
-  }),
-});
 
 /**
  * 「送られた回答がアンケートの契約に合わない」ことを示すドメインエラー。
@@ -77,12 +68,13 @@ export class FeedbackController {
 
   // POST /feedback/submissions: 投稿者は必ず認証セッションから決める（ボディの値は使わない）。
   submitFeedback: RouteHandler<typeof submitFeedbackRoute, AppEnv> = async (c) => {
-    const { auth } = authSchema.parse({ auth: c.get("auth") });
+    // auth は requireAuth が非 null を保証して c.set するため、ここでの再検証はしない。
+    const { user } = c.get("auth");
     const { answers } = c.req.valid("json");
 
     try {
       const accepted = await this.submitFeedbackUseCase.execute({
-        userId: auth.user.id,
+        userId: user.id,
         answers,
       });
       return c.json(accepted, 201);
