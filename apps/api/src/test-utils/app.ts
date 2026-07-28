@@ -1,12 +1,21 @@
 import { vi } from "vitest";
 import type { AuthInstance } from "@workspace/auth/server";
 import type {
+  GetActiveFeedbackSurveyUseCase,
   GetCurrentUserUseCase,
+  ListFeedbackSubmissionsUseCase,
   ListUsersUseCase,
+  SubmitFeedbackUseCase,
+  SummarizeFeedbackUseCase,
   UpdateUserProfileUseCase,
 } from "../application";
 import { buildApp } from "../composition/create-app";
-import { AdminController, HealthController, UserController } from "../presentation";
+import {
+  AdminController,
+  FeedbackController,
+  HealthController,
+  UserController,
+} from "../presentation";
 import type { Env } from "../infrastructure";
 
 /**
@@ -39,6 +48,10 @@ export function createTestApp(
     execute?: ReturnType<typeof vi.fn>;
     updateProfile?: ReturnType<typeof vi.fn>;
     listUsers?: ReturnType<typeof vi.fn>;
+    getFeedbackSurvey?: ReturnType<typeof vi.fn>;
+    submitFeedback?: ReturnType<typeof vi.fn>;
+    listFeedbackSubmissions?: ReturnType<typeof vi.fn>;
+    summarizeFeedback?: ReturnType<typeof vi.fn>;
     env?: Partial<Env>;
   } = {},
 ) {
@@ -46,6 +59,10 @@ export function createTestApp(
   const execute = overrides.execute ?? vi.fn();
   const updateProfile = overrides.updateProfile ?? vi.fn();
   const listUsers = overrides.listUsers ?? vi.fn();
+  const getFeedbackSurvey = overrides.getFeedbackSurvey ?? vi.fn();
+  const submitFeedback = overrides.submitFeedback ?? vi.fn();
+  const listFeedbackSubmissions = overrides.listFeedbackSubmissions ?? vi.fn();
+  const summarizeFeedback = overrides.summarizeFeedback ?? vi.fn();
 
   const auth = {
     api: { getSession },
@@ -55,6 +72,16 @@ export function createTestApp(
   const useCase = { execute } as unknown as GetCurrentUserUseCase;
   const updateUserProfileUseCase = { execute: updateProfile } as unknown as UpdateUserProfileUseCase;
   const listUsersUseCase = { execute: listUsers } as unknown as ListUsersUseCase;
+  const getActiveFeedbackSurveyUseCase = {
+    execute: getFeedbackSurvey,
+  } as unknown as GetActiveFeedbackSurveyUseCase;
+  const submitFeedbackUseCase = { execute: submitFeedback } as unknown as SubmitFeedbackUseCase;
+  const listFeedbackSubmissionsUseCase = {
+    execute: listFeedbackSubmissions,
+  } as unknown as ListFeedbackSubmissionsUseCase;
+  const summarizeFeedbackUseCase = {
+    execute: summarizeFeedback,
+  } as unknown as SummarizeFeedbackUseCase;
 
   const app = buildApp({
     env: { ...testEnv, ...overrides.env },
@@ -62,7 +89,23 @@ export function createTestApp(
     healthController: new HealthController(),
     userController: new UserController(useCase, updateUserProfileUseCase),
     adminController: new AdminController(listUsersUseCase),
+    feedbackController: new FeedbackController(
+      getActiveFeedbackSurveyUseCase,
+      submitFeedbackUseCase,
+      listFeedbackSubmissionsUseCase,
+      summarizeFeedbackUseCase,
+    ),
   });
 
-  return { app, getSession, execute, updateProfile, listUsers };
+  return {
+    app,
+    getSession,
+    execute,
+    updateProfile,
+    listUsers,
+    getFeedbackSurvey,
+    submitFeedback,
+    listFeedbackSubmissions,
+    summarizeFeedback,
+  };
 }

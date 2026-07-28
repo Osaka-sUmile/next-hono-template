@@ -7,6 +7,9 @@ export const ErrorCodes = {
   SESSION_FETCH_FAILED: "SESSION_FETCH_FAILED",
   // Authorization errors
   FORBIDDEN: "FORBIDDEN",
+  // Feedback errors
+  FEEDBACK_SURVEY_NOT_FOUND: "FEEDBACK_SURVEY_NOT_FOUND",
+  FEEDBACK_INVALID_ANSWER: "FEEDBACK_INVALID_ANSWER",
   // Rate limit errors
   RATE_LIMIT_EXCEEDED: "RATE_LIMIT_EXCEEDED",
   // Validation errors

@@ -89,6 +89,8 @@
               "SESSION_EXPIRED",
               "SESSION_FETCH_FAILED",
               "FORBIDDEN",
+              "FEEDBACK_SURVEY_NOT_FOUND",
+              "FEEDBACK_INVALID_ANSWER",
               "RATE_LIMIT_EXCEEDED",
               "VALIDATION_ERROR",
               "INTERNAL_ERROR"
@@ -132,6 +134,264 @@
           "name",
           "role",
           "displayName"
+        ]
+      },
+      "FeedbackSurvey": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string"
+          },
+          "slug": {
+            "type": "string"
+          },
+          "title": {
+            "type": "string"
+          },
+          "questions": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/FeedbackQuestion"
+            }
+          }
+        },
+        "required": [
+          "id",
+          "slug",
+          "title",
+          "questions"
+        ]
+      },
+      "FeedbackQuestion": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string"
+          },
+          "type": {
+            "type": "string",
+            "enum": [
+              "single_choice",
+              "text"
+            ],
+            "description": "Answer input type"
+          },
+          "text": {
+            "type": "string"
+          },
+          "required": {
+            "type": "boolean"
+          },
+          "sortOrder": {
+            "type": "integer"
+          },
+          "choices": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/FeedbackChoice"
+            },
+            "description": "Empty for text questions"
+          }
+        },
+        "required": [
+          "id",
+          "type",
+          "text",
+          "required",
+          "sortOrder",
+          "choices"
+        ]
+      },
+      "FeedbackChoice": {
+        "type": "object",
+        "properties": {
+          "value": {
+            "type": "string",
+            "description": "Stable value used as the tally key"
+          },
+          "label": {
+            "type": "string",
+            "description": "Label shown to respondents"
+          },
+          "sortOrder": {
+            "type": "integer",
+            "description": "Display order within the question"
+          }
+        },
+        "required": [
+          "value",
+          "label",
+          "sortOrder"
+        ]
+      },
+      "FeedbackSubmissionAccepted": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string"
+          },
+          "surveyId": {
+            "type": "string"
+          },
+          "createdAt": {
+            "type": "string",
+            "format": "date-time"
+          }
+        },
+        "required": [
+          "id",
+          "surveyId",
+          "createdAt"
+        ]
+      },
+      "FeedbackSubmissionList": {
+        "type": "object",
+        "properties": {
+          "items": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/FeedbackSubmission"
+            }
+          },
+          "total": {
+            "type": "integer",
+            "description": "Total submissions matching the filter"
+          },
+          "limit": {
+            "type": "integer"
+          },
+          "offset": {
+            "type": "integer"
+          }
+        },
+        "required": [
+          "items",
+          "total",
+          "limit",
+          "offset"
+        ]
+      },
+      "FeedbackSubmission": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string"
+          },
+          "surveyId": {
+            "type": "string"
+          },
+          "user": {
+            "type": "object",
+            "properties": {
+              "id": {
+                "type": "string"
+              },
+              "email": {
+                "type": "string",
+                "format": "email"
+              },
+              "name": {
+                "type": "string"
+              },
+              "displayName": {
+                "type": "string",
+                "nullable": true
+              }
+            },
+            "required": [
+              "id",
+              "email",
+              "name",
+              "displayName"
+            ]
+          },
+          "createdAt": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "answers": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/FeedbackSubmissionAnswer"
+            }
+          }
+        },
+        "required": [
+          "id",
+          "surveyId",
+          "user",
+          "createdAt",
+          "answers"
+        ]
+      },
+      "FeedbackSubmissionAnswer": {
+        "type": "object",
+        "properties": {
+          "questionId": {
+            "type": "string"
+          },
+          "questionText": {
+            "type": "string"
+          },
+          "choiceValue": {
+            "type": "string",
+            "nullable": true
+          },
+          "choiceLabel": {
+            "type": "string",
+            "nullable": true
+          },
+          "textValue": {
+            "type": "string",
+            "nullable": true
+          }
+        },
+        "required": [
+          "questionId",
+          "questionText",
+          "choiceValue",
+          "choiceLabel",
+          "textValue"
+        ]
+      },
+      "FeedbackSummary": {
+        "type": "object",
+        "properties": {
+          "surveyId": {
+            "type": "string"
+          },
+          "respondentCount": {
+            "type": "integer",
+            "description": "Distinct respondents, counting only each user's latest submission"
+          },
+          "tallies": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "properties": {
+                "questionId": {
+                  "type": "string"
+                },
+                "choiceValue": {
+                  "type": "string"
+                },
+                "count": {
+                  "type": "integer"
+                }
+              },
+              "required": [
+                "questionId",
+                "choiceValue",
+                "count"
+              ]
+            },
+            "description": "Single-choice tallies only; text answers are not aggregated"
+          }
+        },
+        "required": [
+          "surveyId",
+          "respondentCount",
+          "tallies"
         ]
       }
     },
@@ -311,6 +571,357 @@
                   "items": {
                     "$ref": "#/components/schemas/User"
                   }
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Unauthorized (missing or invalid session)",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Forbidden (authenticated but not an admin)",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Internal Server Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/feedback/survey": {
+      "get": {
+        "tags": [
+          "Feedback"
+        ],
+        "summary": "Get the active feedback survey",
+        "description": "Returns the questions and choices of the currently active survey. Requires an authenticated session.",
+        "security": [
+          {
+            "cookieAuth": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "The active survey",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/FeedbackSurvey"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Unauthorized (missing or invalid session)",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "No survey is currently active (FEEDBACK_SURVEY_NOT_FOUND)",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Internal Server Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/feedback/submissions": {
+      "post": {
+        "tags": [
+          "Feedback"
+        ],
+        "summary": "Submit answers to the active feedback survey",
+        "description": "Records the authenticated user's answers. Repeat submissions are allowed; aggregation uses only each user's latest submission.",
+        "security": [
+          {
+            "cookieAuth": []
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "answers": {
+                    "type": "array",
+                    "items": {
+                      "type": "object",
+                      "properties": {
+                        "questionId": {
+                          "type": "string",
+                          "minLength": 1,
+                          "maxLength": 64
+                        },
+                        "choiceValue": {
+                          "type": "string",
+                          "maxLength": 100,
+                          "description": "Required for single_choice questions"
+                        },
+                        "textValue": {
+                          "type": "string",
+                          "maxLength": 2000,
+                          "description": "Required for text questions"
+                        }
+                      },
+                      "required": [
+                        "questionId"
+                      ],
+                      "additionalProperties": false
+                    },
+                    "maxItems": 50,
+                    "description": "One entry per answered question"
+                  }
+                },
+                "required": [
+                  "answers"
+                ],
+                "additionalProperties": false
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "The submission was recorded",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/FeedbackSubmissionAccepted"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Request validation failed (VALIDATION_ERROR) or the answers violate the survey contract (FEEDBACK_INVALID_ANSWER)",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Unauthorized (missing or invalid session)",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "No survey is currently active (FEEDBACK_SURVEY_NOT_FOUND)",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Internal Server Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/admin/feedback/submissions": {
+      "get": {
+        "tags": [
+          "Admin"
+        ],
+        "summary": "List feedback submissions (admin only)",
+        "description": "Returns submissions newest first, including respondent identity and free-text answers. Requires an admin session.",
+        "security": [
+          {
+            "cookieAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "schema": {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 100,
+              "default": 20,
+              "description": "Page size (1-100)"
+            },
+            "required": false,
+            "description": "Page size (1-100)",
+            "name": "limit",
+            "in": "query"
+          },
+          {
+            "schema": {
+              "type": "integer",
+              "minimum": 0,
+              "default": 0
+            },
+            "required": false,
+            "description": "Number of submissions to skip",
+            "name": "offset",
+            "in": "query"
+          },
+          {
+            "schema": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 64,
+              "description": "Restrict to one survey. Omit to include every survey."
+            },
+            "required": false,
+            "description": "Restrict to one survey. Omit to include every survey.",
+            "name": "surveyId",
+            "in": "query"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "A page of submissions",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/FeedbackSubmissionList"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Invalid paging or filter parameters (VALIDATION_ERROR)",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Unauthorized (missing or invalid session)",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Forbidden (authenticated but not an admin)",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Internal Server Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/admin/feedback/summary": {
+      "get": {
+        "tags": [
+          "Admin"
+        ],
+        "summary": "Summarize feedback answers (admin only)",
+        "description": "Tallies single-choice answers for one survey, counting only each user's latest submission. Requires an admin session.",
+        "security": [
+          {
+            "cookieAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "schema": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 64,
+              "description": "Survey to aggregate"
+            },
+            "required": true,
+            "description": "Survey to aggregate",
+            "name": "surveyId",
+            "in": "query"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "The tallies for the survey",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/FeedbackSummary"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Missing or invalid surveyId (VALIDATION_ERROR)",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
                 }
               }
             }

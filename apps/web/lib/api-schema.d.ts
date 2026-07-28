@@ -226,6 +226,320 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/feedback/survey": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Get the active feedback survey
+         * @description Returns the questions and choices of the currently active survey. Requires an authenticated session.
+         */
+        get: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path?: never;
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description The active survey */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["FeedbackSurvey"];
+                    };
+                };
+                /** @description Unauthorized (missing or invalid session) */
+                401: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["Error"];
+                    };
+                };
+                /** @description No survey is currently active (FEEDBACK_SURVEY_NOT_FOUND) */
+                404: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["Error"];
+                    };
+                };
+                /** @description Internal Server Error */
+                500: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["Error"];
+                    };
+                };
+            };
+        };
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/feedback/submissions": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Submit answers to the active feedback survey
+         * @description Records the authenticated user's answers. Repeat submissions are allowed; aggregation uses only each user's latest submission.
+         */
+        post: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path?: never;
+                cookie?: never;
+            };
+            requestBody: {
+                content: {
+                    "application/json": {
+                        /** @description One entry per answered question */
+                        answers: {
+                            questionId: string;
+                            /** @description Required for single_choice questions */
+                            choiceValue?: string;
+                            /** @description Required for text questions */
+                            textValue?: string;
+                        }[];
+                    };
+                };
+            };
+            responses: {
+                /** @description The submission was recorded */
+                201: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["FeedbackSubmissionAccepted"];
+                    };
+                };
+                /** @description Request validation failed (VALIDATION_ERROR) or the answers violate the survey contract (FEEDBACK_INVALID_ANSWER) */
+                400: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["Error"];
+                    };
+                };
+                /** @description Unauthorized (missing or invalid session) */
+                401: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["Error"];
+                    };
+                };
+                /** @description No survey is currently active (FEEDBACK_SURVEY_NOT_FOUND) */
+                404: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["Error"];
+                    };
+                };
+                /** @description Internal Server Error */
+                500: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["Error"];
+                    };
+                };
+            };
+        };
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/admin/feedback/submissions": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * List feedback submissions (admin only)
+         * @description Returns submissions newest first, including respondent identity and free-text answers. Requires an admin session.
+         */
+        get: {
+            parameters: {
+                query?: {
+                    /** @description Page size (1-100) */
+                    limit?: number;
+                    /** @description Number of submissions to skip */
+                    offset?: number;
+                    /** @description Restrict to one survey. Omit to include every survey. */
+                    surveyId?: string;
+                };
+                header?: never;
+                path?: never;
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description A page of submissions */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["FeedbackSubmissionList"];
+                    };
+                };
+                /** @description Invalid paging or filter parameters (VALIDATION_ERROR) */
+                400: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["Error"];
+                    };
+                };
+                /** @description Unauthorized (missing or invalid session) */
+                401: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["Error"];
+                    };
+                };
+                /** @description Forbidden (authenticated but not an admin) */
+                403: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["Error"];
+                    };
+                };
+                /** @description Internal Server Error */
+                500: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["Error"];
+                    };
+                };
+            };
+        };
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/admin/feedback/summary": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Summarize feedback answers (admin only)
+         * @description Tallies single-choice answers for one survey, counting only each user's latest submission. Requires an admin session.
+         */
+        get: {
+            parameters: {
+                query: {
+                    /** @description Survey to aggregate */
+                    surveyId: string;
+                };
+                header?: never;
+                path?: never;
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description The tallies for the survey */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["FeedbackSummary"];
+                    };
+                };
+                /** @description Missing or invalid surveyId (VALIDATION_ERROR) */
+                400: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["Error"];
+                    };
+                };
+                /** @description Unauthorized (missing or invalid session) */
+                401: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["Error"];
+                    };
+                };
+                /** @description Forbidden (authenticated but not an admin) */
+                403: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["Error"];
+                    };
+                };
+                /** @description Internal Server Error */
+                500: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["Error"];
+                    };
+                };
+            };
+        };
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
 }
 export type webhooks = Record<string, never>;
 export interface components {
@@ -261,7 +575,7 @@ export interface components {
              * @description Machine-readable error code for client-side handling.
              * @enum {string}
              */
-            code: "USER_NOT_FOUND" | "SESSION_INVALID" | "SESSION_EXPIRED" | "SESSION_FETCH_FAILED" | "FORBIDDEN" | "RATE_LIMIT_EXCEEDED" | "VALIDATION_ERROR" | "INTERNAL_ERROR";
+            code: "USER_NOT_FOUND" | "SESSION_INVALID" | "SESSION_EXPIRED" | "SESSION_FETCH_FAILED" | "FORBIDDEN" | "FEEDBACK_SURVEY_NOT_FOUND" | "FEEDBACK_INVALID_ANSWER" | "RATE_LIMIT_EXCEEDED" | "VALIDATION_ERROR" | "INTERNAL_ERROR";
         };
         UserProfile: {
             id: string;
@@ -271,6 +585,78 @@ export interface components {
             /** @enum {string} */
             role: "user" | "admin";
             displayName: string | null;
+        };
+        FeedbackSurvey: {
+            id: string;
+            slug: string;
+            title: string;
+            questions: components["schemas"]["FeedbackQuestion"][];
+        };
+        FeedbackQuestion: {
+            id: string;
+            /**
+             * @description Answer input type
+             * @enum {string}
+             */
+            type: "single_choice" | "text";
+            text: string;
+            required: boolean;
+            sortOrder: number;
+            /** @description Empty for text questions */
+            choices: components["schemas"]["FeedbackChoice"][];
+        };
+        FeedbackChoice: {
+            /** @description Stable value used as the tally key */
+            value: string;
+            /** @description Label shown to respondents */
+            label: string;
+            /** @description Display order within the question */
+            sortOrder: number;
+        };
+        FeedbackSubmissionAccepted: {
+            id: string;
+            surveyId: string;
+            /** Format: date-time */
+            createdAt: string;
+        };
+        FeedbackSubmissionList: {
+            items: components["schemas"]["FeedbackSubmission"][];
+            /** @description Total submissions matching the filter */
+            total: number;
+            limit: number;
+            offset: number;
+        };
+        FeedbackSubmission: {
+            id: string;
+            surveyId: string;
+            user: {
+                id: string;
+                /** Format: email */
+                email: string;
+                name: string;
+                displayName: string | null;
+            };
+            /** Format: date-time */
+            createdAt: string;
+            answers: components["schemas"]["FeedbackSubmissionAnswer"][];
+        };
+        FeedbackSubmissionAnswer: {
+            questionId: string;
+            questionText: string;
+            choiceValue: string | null;
+            choiceLabel: string | null;
+            textValue: string | null;
+        };
+        FeedbackSummary: {
+            surveyId: string;
+            /** @description Distinct respondents, counting only each user's latest submission */
+            respondentCount: number;
+            /** @description Single-choice tallies only; text answers are not aggregated */
+            tallies: {
+                questionId: string;
+                choiceValue: string;
+                count: number;
+            }[];
         };
     };
     responses: never;

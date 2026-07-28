@@ -9,6 +9,11 @@ datasource db {
   provider = "postgresql"
 }
 
+// ID の方針: 主キーは UUIDv4 (`@default(uuid(4))`) で統一する。カラム型は `text` のままとし
+// `@db.Uuid` は使わない (seed が `feedback-survey-pmf-2026` のような可読 ID を入れるため)。
+// 保存前に ID を確定させる必要がある場合のみ domain の IIdGenerator を注入して採番する。
+// なお `uuid()` は SQL の DEFAULT 句にならないため、生 SQL の INSERT では id を必ず明示する。
+
 enum UserRole {
   user
   admin
@@ -20,7 +25,7 @@ enum FeedbackQuestionType {
 }
 
 model User {
-  id                  String               @id @default(cuid())
+  id                  String               @id @default(uuid(4))
   name                String
   email               String               @unique
   emailVerified       Boolean              @default(false)
@@ -35,7 +40,7 @@ model User {
 }
 
 model Session {
-  id        String   @id @default(cuid())
+  id        String   @id @default(uuid(4))
   expiresAt DateTime
   token     String   @unique
   createdAt DateTime @default(now())
@@ -49,7 +54,7 @@ model Session {
 }
 
 model Account {
-  id                    String    @id @default(cuid())
+  id                    String    @id @default(uuid(4))
   accountId             String
   providerId            String
   userId                String
@@ -69,7 +74,7 @@ model Account {
 }
 
 model Verification {
-  id         String    @id @default(cuid())
+  id         String    @id @default(uuid(4))
   identifier String
   value      String
   expiresAt  DateTime
@@ -79,7 +84,7 @@ model Verification {
 
 /// 設問セット。設問を差し替えても過去の回答を壊さないためバージョンとして分離する。
 model FeedbackSurvey {
-  id          String               @id @default(cuid())
+  id          String               @id @default(uuid(4))
   slug        String               @unique
   title       String
   isActive    Boolean              @default(false)
@@ -92,7 +97,7 @@ model FeedbackSurvey {
 }
 
 model FeedbackQuestion {
-  id        String               @id @default(cuid())
+  id        String               @id @default(uuid(4))
   surveyId  String
   survey    FeedbackSurvey       @relation(fields: [surveyId], references: [id], onDelete: Cascade)
   type      FeedbackQuestionType
@@ -110,7 +115,7 @@ model FeedbackQuestion {
 
 /// 単一選択の選択肢。value は集計キー、label は表示文言。
 model FeedbackChoice {
-  id         String           @id @default(cuid())
+  id         String           @id @default(uuid(4))
   questionId String
   question   FeedbackQuestion @relation(fields: [questionId], references: [id], onDelete: Cascade)
   value      String
@@ -127,7 +132,7 @@ model FeedbackChoice {
 
 /// 1 回の提出。重複提出を許可するため userId に unique は張らない。
 model FeedbackSubmission {
-  id        String           @id @default(cuid())
+  id        String           @id @default(uuid(4))
   surveyId  String
   survey    FeedbackSurvey   @relation(fields: [surveyId], references: [id], onDelete: Cascade)
   userId    String
@@ -141,7 +146,7 @@ model FeedbackSubmission {
 }
 
 model FeedbackAnswer {
-  id           String             @id @default(cuid())
+  id           String             @id @default(uuid(4))
   submissionId String
   submission   FeedbackSubmission @relation(fields: [submissionId], references: [id], onDelete: Cascade)
   questionId   String

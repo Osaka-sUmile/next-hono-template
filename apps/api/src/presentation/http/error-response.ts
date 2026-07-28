@@ -16,10 +16,15 @@ type ErrorStatusCode = 400 | 401 | 403 | 404 | 429 | 500;
  * 各コントローラ・ミドルウェアが `c.json({ error, code }, status)` を手組みして
  * キー名・形をドリフトさせるのを防ぐ。JSON パースとは無関係で、あくまで
  * 「エラーをレスポンスとして返す」出力側の配管である。
+ *
+ * status を型引数で受けるのは、OpenAPI ルートハンドラ（RouteHandler）の戻り値が
+ * 宣言済みステータスごとの TypedResponse を要求するためである。引数型を
+ * ErrorStatusCode のユニオンのままにすると戻り値のステータスも union に広がり、
+ * 「404 を返すハンドラ」に代入できなくなる。
  */
-export function errorResponse(
+export function errorResponse<TStatus extends ErrorStatusCode>(
   c: Context,
-  status: ErrorStatusCode,
+  status: TStatus,
   code: ErrorCode,
   message: string,
 ) {
