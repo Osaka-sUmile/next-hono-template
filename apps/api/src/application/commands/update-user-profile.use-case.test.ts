@@ -51,4 +51,20 @@ describe("UpdateUserProfileUseCase", () => {
     );
     expect(save).not.toHaveBeenCalled();
   });
+
+  it("findById が null を返しても例外メッセージに userId を埋め込まない", async () => {
+    // Sentry の issue 分裂・識別子の露出範囲拡大を防ぐため、message は固定文言にする。
+    const save = vi.fn();
+    const useCase = new UpdateUserProfileUseCase(createRepository(vi.fn().mockResolvedValue(null), save));
+
+    let error: unknown;
+    try {
+      await useCase.execute({ userId: "user-1", displayName: "新しい名前" });
+    } catch (e) {
+      error = e;
+    }
+
+    expect(error).toBeInstanceOf(Error);
+    expect((error as Error).message).not.toContain("user-1");
+  });
 });
