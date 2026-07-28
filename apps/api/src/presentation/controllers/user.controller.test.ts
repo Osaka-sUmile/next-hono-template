@@ -44,9 +44,12 @@ describe("GET /api/v1/me", () => {
     });
 
     const res = await app.request("/api/v1/me");
+    const body = await res.json<{ error: string; code: string }>();
 
     expect(res.status).toBe(500);
-    expect((await res.json<{ code: string }>()).code).toBe(ErrorCodes.INTERNAL_ERROR);
+    expect(body.code).toBe(ErrorCodes.INTERNAL_ERROR);
+    // userId を例外メッセージに埋め込まない（Sentry の issue 分裂・識別子の露出範囲拡大を防ぐ）。
+    expect(body.error).not.toContain(session.user.id);
   });
 
   it("returns 500 via onError when the use case throws", async () => {
