@@ -29,9 +29,7 @@ export class UpdateUserProfileUseCase extends BaseCommandUseCase<
       // /me 系は認証済みセッションから userId が来るため、ここで見つからないのは
       // データ不整合（想定外）。自前で 4xx を返さず中央エラーハンドラ（onError）へ委譲し、
       // GetCurrentUserUseCase 経由の GET /me と同じ扱い（500 + Sentry）に揃える。
-      throw new Error(
-        `user not found despite valid session (userId=${userId}) — data inconsistency`,
-      );
+      throw new Error("user not found despite valid session — data inconsistency");
     }
 
     const updated = await this.userRepository.save(user.changeDisplayName(displayName));
