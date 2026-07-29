@@ -163,6 +163,94 @@ async function mockSurveysFlow(page: Page, surveys: SurveyItem[]) {
       return
     }
 
+    if (
+      path.endsWith("/admin/feedback/surveys/srv_1") &&
+      request.method() === "GET"
+    ) {
+      await json(200, {
+        id: "srv_1",
+        slug: "pmf-2026",
+        title: "PMF アンケート",
+        isActive: true,
+        createdAt: "2026-07-01T00:00:00.000Z",
+        questions: [
+          {
+            id: "q_1",
+            type: "single_choice",
+            text: "おすすめ度を教えてください",
+            required: true,
+            sortOrder: 0,
+            choices: [
+              { value: "yes", label: "はい", sortOrder: 0 },
+              { value: "no", label: "いいえ", sortOrder: 1 },
+            ],
+          },
+          {
+            id: "q_2",
+            type: "text",
+            text: "理由を教えてください",
+            required: false,
+            sortOrder: 1,
+            choices: [],
+          },
+        ],
+      })
+      return
+    }
+
+    if (
+      path.endsWith("/admin/feedback/summary") &&
+      request.method() === "GET"
+    ) {
+      await json(200, {
+        surveyId: "srv_1",
+        respondentCount: 1,
+        tallies: [{ questionId: "q_1", choiceValue: "yes", count: 1 }],
+      })
+      return
+    }
+
+    if (
+      path.endsWith("/admin/feedback/submissions") &&
+      request.method() === "GET"
+    ) {
+      await json(200, {
+        items: [
+          {
+            id: "sub_1",
+            surveyId: "srv_1",
+            user: {
+              id: "user_2",
+              email: "respondent@example.com",
+              name: "回答 太郎",
+              displayName: "たろう",
+            },
+            createdAt: "2026-07-15T03:30:00.000Z",
+            answers: [
+              {
+                questionId: "q_1",
+                questionText: "おすすめ度を教えてください",
+                choiceValue: "yes",
+                choiceLabel: "はい",
+                textValue: null,
+              },
+              {
+                questionId: "q_2",
+                questionText: "理由を教えてください",
+                choiceValue: null,
+                choiceLabel: null,
+                textValue: "操作が分かりやすかったです。",
+              },
+            ],
+          },
+        ],
+        total: 1,
+        limit: 20,
+        offset: 0,
+      })
+      return
+    }
+
     const patchMatch = path.match(/\/admin\/feedback\/surveys\/([^/]+)$/)
     if (patchMatch && request.method() === "PATCH") {
       await handleSurveyPatch(route, json, surveys, patchMatch[1]!)
@@ -305,6 +393,30 @@ test.describe("アンケート管理", () => {
       page.getByRole("row", { name: /PMF アンケート/ }).getByText("無効", {
         exact: true,
       })
+    ).toBeVisible()
+  })
+
+  test("詳細で集計グラフと回答者・自由記述を表示する", async ({ page }) => {
+    await mockSurveysFlow(page, initialSurveys())
+
+    await page.goto("/admin/surveys/srv_1")
+
+    await expect(
+      page.getByRole("heading", { name: "PMF アンケート" })
+    ).toBeVisible()
+    await expect(page.getByText("回答者数 1 人")).toBeVisible()
+    const summary = page.getByLabel("おすすめ度を教えてくださいの回答数")
+    await expect(summary.getByText("はい")).toBeVisible()
+    await expect(summary.getByText("1 件")).toBeVisible()
+    await expect(summary.getByText("いいえ")).toBeVisible()
+    await expect(summary.getByText("0 件")).toBeVisible()
+
+    const submissionRow = page.getByRole("row", {
+      name: /respondent@example.com/,
+    })
+    await expect(submissionRow.getByText("回答 太郎")).toBeVisible()
+    await expect(
+      submissionRow.getByText("操作が分かりやすかったです。")
     ).toBeVisible()
   })
 })

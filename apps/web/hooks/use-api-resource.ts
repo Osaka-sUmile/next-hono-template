@@ -10,6 +10,14 @@ type ApiResourceResult<T> = {
   error: unknown
 }
 
+type UseApiResourceOptions = {
+  /**
+   * 監視系へ送る前にエラーを変換する。レスポンスに PII を含みうる API で、
+   * UI 用の元エラーは保持しつつ reportError へ渡す情報だけを削るために使う。
+   */
+  mapErrorForReporting?: (error: unknown) => unknown
+}
+
 /**
  * admin 画面向けの共通データ取得フック。`apiClient` の呼び出しを包み、
  * `{ data, error, isLoading, reload }` を返す。
@@ -27,15 +35,20 @@ type ApiResourceResult<T> = {
  * `fetcher` は ref 経由で最新を参照するため、呼び出し側はインライン関数を
  * そのまま渡してよい(再レンダーで再取得は走らない)。再取得は `reload()` のみ。
  */
-export function useApiResource<T>(fetcher: () => Promise<T>): {
+export function useApiResource<T>(
+  fetcher: () => Promise<T>,
+  options: UseApiResourceOptions = {}
+): {
   data: T | undefined
   error: unknown
   isLoading: boolean
   reload: () => void
 } {
   const fetcherRef = useRef(fetcher)
+  const mapErrorForReportingRef = useRef(options.mapErrorForReporting)
   useEffect(() => {
     fetcherRef.current = fetcher
+    mapErrorForReportingRef.current = options.mapErrorForReporting
   })
 
   const [version, setVersion] = useState(0)
@@ -51,15 +64,17 @@ export function useApiResource<T>(fetcher: () => Promise<T>): {
       },
       (error: unknown) => {
         if (cancelled) return
+        const errorForReporting =
+          mapErrorForReportingRef.current?.(error) ?? error
         const isExpected =
           error instanceof ApiError &&
           (error.status === 401 || error.status === 403)
         reportError(
           isExpected
             ? new ExpectedError("admin resource access denied", {
-                cause: error,
+                cause: errorForReporting,
               })
-            : error
+            : errorForReporting
         )
         setResult({ version, data: undefined, error })
       }
