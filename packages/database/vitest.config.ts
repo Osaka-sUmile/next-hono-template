@@ -3,8 +3,8 @@ import { configDefaults, defineConfig } from "vitest/config"
 // packages/database は「実 DB への結合テスト」が標準（詳細は CLAUDE.md / README の層別テスト戦略）。
 // テストは docker の Postgres + wsproxy に対して実行するため、
 //   1. docker compose up -d db neon-wsproxy
-//   2. packages/database/.env に DATABASE_URL を設定（.env.example を参照）
-//   3. pnpm --filter @workspace/database db:migrate:deploy
+//   2. packages/database/.env に TEST_DATABASE_URL を設定（.env.example を参照）
+//   3. pnpm --filter @workspace/database db:test:migrate:deploy
 // を前提とする。turbo test（= pnpm test）には載せず、test:integration で明示的に実行する。
 export default defineConfig({
   test: {

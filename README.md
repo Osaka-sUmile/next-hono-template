@@ -149,13 +149,20 @@ cp packages/database/.env.example packages/database/.env
 # 2. Postgres + wsproxy を起動
 docker compose up -d db neon-wsproxy
 
-# 3. マイグレーションを適用
-pnpm --filter @workspace/database db:migrate:deploy
+# 3. 初回のみ、結合テスト専用 DB を明示的に作成
+#    （すでに app_test が存在する場合は不要）
+docker compose exec db sh -c 'createdb --username "$POSTGRES_USER" "${POSTGRES_DB}_test"'
 
-# 4. 結合テストを実行
+# 4. テスト DB にマイグレーションを適用
+pnpm --filter @workspace/database db:test:migrate:deploy
+
+# 5. 結合テストを実行
 pnpm --filter @workspace/database test:integration
 ```
 
+- 結合テストは `packages/database/.env` の `TEST_DATABASE_URL` のみを使用します。開発用の `DATABASE_URL` にはフォールバックしません。
+- 誤 truncate 防止のため、`TEST_DATABASE_URL` のデータベース名は `_test` で終わる必要があります。
+- テスト DB の作成とマイグレーションは自動実行されません。初回作成と、マイグレーション追加後の `db:test:migrate:deploy` を明示的に実行してください。
 - ウォッチ実行は `pnpm --filter @workspace/database test:integration:watch`。
 - テスト間の独立性は `src/test-utils` の `resetDatabase`（各テストの `beforeEach` で truncate）で担保します。
 - CI では `.github/workflows/test-db.yml` が同じ docker 構成で自動実行します。

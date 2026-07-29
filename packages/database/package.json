@@ -19,9 +19,11 @@
     "db:generate": "prisma generate",
     "db:migrate:dev": "prisma migrate dev",
     "db:migrate:deploy": "prisma migrate deploy",
+    "db:test:migrate:deploy": "prisma migrate deploy --config prisma.test.config.ts",
     "db:migrate:status": "prisma migrate status",
     "db:studio": "prisma studio",
     "promote-admin": "tsx scripts/promote-admin.mts",
+    "test:unit": "vitest run --config vitest.unit.config.ts",
     "test:integration": "vitest run",
     "test:integration:watch": "vitest"
   },

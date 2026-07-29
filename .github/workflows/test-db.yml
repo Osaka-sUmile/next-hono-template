@@ -27,6 +27,9 @@ jobs:
       - name: Build workspace dependencies
         run: pnpm exec turbo run build --filter=@workspace/database^...
 
+      - name: Run DB test harness unit tests
+        run: pnpm --filter @workspace/database test:unit
+
       - name: Prepare env files
         run: |
           cp .env.example .env
@@ -36,8 +39,11 @@ jobs:
       - name: Start Postgres + wsproxy
         run: docker compose up -d --wait db neon-wsproxy
 
-      - name: Apply migrations
-        run: pnpm --filter @workspace/database db:migrate:deploy
+      - name: Create test database
+        run: docker compose exec -T db sh -c 'createdb --username "$POSTGRES_USER" "${POSTGRES_DB}_test"'
+
+      - name: Apply migrations to test database
+        run: pnpm --filter @workspace/database db:test:migrate:deploy
 
       - name: Run DB integration tests
         run: pnpm --filter @workspace/database test:integration
