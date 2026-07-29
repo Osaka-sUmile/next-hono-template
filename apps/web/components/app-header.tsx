@@ -1,15 +1,8 @@
 "use client"
 
-import { useState } from "react"
 import Link from "next/link"
-import { useRouter } from "next/navigation"
-import { useTheme } from "next-themes"
 import { HugeiconsIcon } from "@hugeicons/react"
-import {
-  Logout01Icon,
-  Menu01Icon,
-  UserCircleIcon,
-} from "@hugeicons/core-free-icons"
+import { Menu01Icon } from "@hugeicons/core-free-icons"
 import { Button } from "@workspace/ui/components/button"
 import {
   Sheet,
@@ -18,19 +11,8 @@ import {
   SheetTitle,
   SheetTrigger,
 } from "@workspace/ui/components/sheet"
-import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuLabel,
-  DropdownMenuSeparator,
-  DropdownMenuSub,
-  DropdownMenuSubContent,
-  DropdownMenuSubTrigger,
-  DropdownMenuTrigger,
-} from "@workspace/ui/components/dropdown-menu"
+import { AccountMenu } from "@/components/account-menu"
 import { authClient } from "@/lib/auth-client"
-import { reportError } from "@/lib/report-error"
 
 /**
  * 保護エリア共通のヘッダー。
@@ -38,31 +20,8 @@ import { reportError } from "@/lib/report-error"
  * テンプレートなのでナビ項目は最小限にとどめ、利用者が追加しやすい構成にしている。
  */
 export function AppHeader() {
-  const router = useRouter()
-  const { setTheme } = useTheme()
   const { data: session } = authClient.useSession()
-  const [error, setError] = useState<string | null>(null)
-  const [loading, setLoading] = useState(false)
-
-  async function handleSignOut() {
-    setError(null)
-    setLoading(true)
-    try {
-      // 戻り値の { error }(想定内エラー)は UI 通知のみ、
-      // reject(ネットワーク断など想定外エラー)は reportError で Sentry へ送る。
-      const { error } = await authClient.signOut()
-      if (error) {
-        setError("ログアウトに失敗しました。")
-        return
-      }
-      router.replace("/login")
-    } catch (err) {
-      reportError(err)
-      setError("ログアウトに失敗しました。")
-    } finally {
-      setLoading(false)
-    }
-  }
+  const isAdmin = session?.user.role === "admin"
 
   return (
     <header className="flex h-14 items-center justify-between border-b px-4">
@@ -84,6 +43,14 @@ export function AppHeader() {
               >
                 ダッシュボード
               </Link>
+              {isAdmin && (
+                <Link
+                  href="/admin"
+                  className="rounded-md px-3 py-2 text-sm hover:bg-accent hover:text-accent-foreground"
+                >
+                  管理画面
+                </Link>
+              )}
               {/* テンプレ利用者向け: ここにナビ項目を追加してください */}
             </nav>
           </SheetContent>
@@ -93,59 +60,7 @@ export function AppHeader() {
         </Link>
       </div>
 
-      <DropdownMenu>
-        <DropdownMenuTrigger asChild>
-          <Button variant="ghost" size="icon" aria-label="アカウントメニュー">
-            <HugeiconsIcon icon={UserCircleIcon} />
-          </Button>
-        </DropdownMenuTrigger>
-        <DropdownMenuContent align="end" className="w-56">
-          <DropdownMenuLabel>
-            <p className="truncate">
-              {session?.user.displayName ?? "ユーザー"}
-            </p>
-            <p className="truncate text-xs font-normal text-muted-foreground">
-              {session?.user.email}
-            </p>
-          </DropdownMenuLabel>
-          <DropdownMenuSeparator />
-          <DropdownMenuItem asChild>
-            <Link href="/change-email">メールアドレス変更</Link>
-          </DropdownMenuItem>
-          <DropdownMenuSub>
-            <DropdownMenuSubTrigger>外観</DropdownMenuSubTrigger>
-            <DropdownMenuSubContent>
-              <DropdownMenuItem onClick={() => setTheme("light")}>
-                ライト
-              </DropdownMenuItem>
-              <DropdownMenuItem onClick={() => setTheme("dark")}>
-                ダーク
-              </DropdownMenuItem>
-              <DropdownMenuItem onClick={() => setTheme("system")}>
-                システム
-              </DropdownMenuItem>
-            </DropdownMenuSubContent>
-          </DropdownMenuSub>
-          <DropdownMenuSeparator />
-          <DropdownMenuItem
-            variant="destructive"
-            disabled={loading}
-            onClick={handleSignOut}
-          >
-            <HugeiconsIcon icon={Logout01Icon} />
-            ログアウト
-          </DropdownMenuItem>
-        </DropdownMenuContent>
-      </DropdownMenu>
-
-      {error && (
-        <p
-          role="alert"
-          className="fixed right-4 bottom-4 text-sm text-destructive"
-        >
-          {error}
-        </p>
-      )}
+      <AccountMenu />
     </header>
   )
 }
