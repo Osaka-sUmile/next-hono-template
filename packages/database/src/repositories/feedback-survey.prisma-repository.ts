@@ -1,5 +1,6 @@
 import { Prisma, PrismaClient } from "@prisma/client"
 import {
+  EmptyActiveFeedbackSurveyError,
   FeedbackChoice,
   FeedbackQuestionEntity,
   FeedbackSurveyEntity,
@@ -126,18 +127,32 @@ export class FeedbackSurveyPrismaRepository implements IFeedbackSurveyRepository
    * Prisma スキーマは `UNIQUE ... WHERE "isActive"` の部分ユニークを表現できないため DB 制約は張らない。
    * 有効化が同時に走ると両方アクティブになりうるが、admin 限定・低並行性のため許容し、
    * `findActive()` の並び順は決定的に保つ。
+   *
+   * 設問件数の確認を同じトランザクション内で行うため、配列形式ではなく
+   * インタラクティブトランザクションを使う。これにより事前条件違反は
+   * 「他を無効化したのに対象を有効化できず、アクティブ 0 件になる」中間状態を残さず
+   * ロールバックされる。
    */
-  async activateExclusively(id: string): Promise<void> {
-    await this.prisma.$transaction([
-      this.prisma.feedbackSurvey.updateMany({
-        where: { isActive: true, id: { not: id } },
+  async activateExclusively(entity: FeedbackSurveyEntity): Promise<void> {
+    await this.prisma.$transaction(async (tx) => {
+      // Entity 側の不変条件（設問 0 件は公開不可）を永続化状態に対しても検証する。
+      // Entity は読み込み時点のスナップショットであり、その後に設問が消えている可能性がある。
+      const survey = await tx.feedbackSurvey.findUnique({
+        where: { id: entity.id },
+        select: { _count: { select: { questions: true } } },
+      })
+      if (!survey || survey._count.questions === 0) {
+        throw new EmptyActiveFeedbackSurveyError(entity.id)
+      }
+      await tx.feedbackSurvey.updateMany({
+        where: { isActive: true, id: { not: entity.id } },
         data: { isActive: false },
-      }),
-      this.prisma.feedbackSurvey.update({
-        where: { id },
+      })
+      await tx.feedbackSurvey.update({
+        where: { id: entity.id },
         data: { isActive: true },
-      }),
-    ])
+      })
+    })
   }
 
   private toDomain(model: FeedbackSurveyWithQuestions): FeedbackSurveyEntity {
@@ -177,6 +192,17 @@ export class FeedbackSurveyPrismaRepository implements IFeedbackSurveyRepository
   }
 }
 
+/**
+ * P2002 が「FeedbackSurvey.slug の衝突」かどうかを判定する。
+ *
+ * save() の create 分岐は FeedbackQuestion / FeedbackChoice をネスト作成するため、
+ * それらの主キーや `@@unique` 違反も同じ P2002 として到達しうる。しかも
+ * ネストした設問の主キー衝突は `meta.modelName` が外側の "FeedbackSurvey" になるため、
+ * モデル名では判別できない。違反した制約のフィールドで判定する必要がある。
+ *
+ * 判別できない場合は slug 衝突として扱わず、元のエラーをそのまま伝播させる。
+ * 真因を隠して「slug 重複」として後続層に見せるより、500 として観測できる方が安全。
+ */
 function isSlugUniqueViolation(error: unknown): boolean {
   if (
     !(error instanceof Prisma.PrismaClientKnownRequestError) ||
@@ -184,11 +210,40 @@ function isSlugUniqueViolation(error: unknown): boolean {
   ) {
     return false
   }
-  const target = error.meta?.["target"]
-  // target の形はドライバ・バージョンによって配列と文字列のどちらもありうる。
-  if (Array.isArray(target)) return target.includes("slug")
-  if (typeof target === "string") return target.includes("slug")
-  // target が取れない場合、FeedbackSurvey の他の一意制約は id (主キー) のみであり、
-  // id 衝突は upsert の update 分岐に入るためここには来ない。slug 衝突として扱う。
-  return true
+  const fields = extractUniqueConstraintFields(error.meta)
+  return fields !== null && fields.length === 1 && fields[0] === "slug"
+}
+
+/**
+ * P2002 の meta から違反した一意制約のフィールド名を取り出す。判別できなければ null。
+ *
+ * Prisma 7 を driver adapter (Neon) 経由で使うと `meta.target` は設定されず、
+ * `meta.driverAdapterError.cause.constraint.fields` に入る。素の engine 経由の
+ * `meta.target` も将来のドライバ差異に備えて読む。
+ */
+function extractUniqueConstraintFields(meta: unknown): string[] | null {
+  const target = asRecord(meta)?.["target"]
+  if (Array.isArray(target)) return target.map(normalizeFieldName)
+  if (typeof target === "string")
+    return target.split(",").map(normalizeFieldName)
+
+  const fields = asRecord(
+    asRecord(asRecord(asRecord(meta)?.["driverAdapterError"])?.["cause"])?.[
+      "constraint"
+    ]
+  )?.["fields"]
+  if (Array.isArray(fields)) return fields.map(normalizeFieldName)
+
+  return null
+}
+
+function asRecord(value: unknown): Record<string, unknown> | null {
+  return typeof value === "object" && value !== null
+    ? (value as Record<string, unknown>)
+    : null
+}
+
+// driver adapter は `"surveyId"` のように引用符付きのフィールド名を返すことがある。
+function normalizeFieldName(field: unknown): string {
+  return String(field).trim().replace(/^"|"$/g, "")
 }

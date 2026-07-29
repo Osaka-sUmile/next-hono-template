@@ -1,6 +1,7 @@
 import { afterAll, beforeAll, beforeEach, describe, expect, it } from "vitest"
 import type { PrismaClient } from "@prisma/client"
 import {
+  EmptyActiveFeedbackSurveyError,
   FeedbackSurveyDraft,
   FeedbackSurveyEntity,
   FeedbackSurveySlugConflictError,
@@ -221,6 +222,35 @@ describe("FeedbackSurveyPrismaRepository (integration)", () => {
     await expect(repository.findById("survey-2")).resolves.toBeNull()
   })
 
+  // create 分岐は設問・選択肢をネスト作成するため、それらの一意制約違反も同じ P2002 で届く。
+  // ネストした設問の主キー衝突は meta.modelName が外側の "FeedbackSurvey" になるため、
+  // slug 衝突と取り違えやすい。真因を隠さないことを固定する。
+  it("ネストした設問の主キー衝突を slug 衝突へ誤変換しない", async () => {
+    await repository.save(FeedbackSurveyEntity.create(surveyDraft()))
+
+    const collidingQuestionId = FeedbackSurveyEntity.create(
+      surveyDraft({
+        id: "survey-2",
+        slug: "second",
+        isActive: false,
+        questions: [
+          {
+            id: "question-1",
+            type: "text",
+            text: "既存の設問 id と衝突する設問",
+            required: false,
+            choices: [],
+          },
+        ],
+      })
+    )
+
+    const error = await repository.save(collidingQuestionId).catch((e) => e)
+
+    expect(error).not.toBeInstanceOf(FeedbackSurveySlugConflictError)
+    expect(error).toMatchObject({ code: "P2002" })
+  })
+
   it("既存アンケートへの save はスカラーだけを更新し、設問・選択肢を変更しない", async () => {
     await repository.save(FeedbackSurveyEntity.create(surveyDraft()))
 
@@ -261,26 +291,25 @@ describe("FeedbackSurveyPrismaRepository (integration)", () => {
 
   it("activateExclusively は対象を有効化し、他をすべて無効化する", async () => {
     await repository.save(FeedbackSurveyEntity.create(surveyDraft()))
-    await repository.save(
-      FeedbackSurveyEntity.create(
-        surveyDraft({
-          id: "survey-2",
-          slug: "second",
-          isActive: false,
-          questions: [
-            {
-              id: "question-3",
-              type: "text",
-              text: "2 つめの設問",
-              required: false,
-              choices: [],
-            },
-          ],
-        })
-      )
+    const second = FeedbackSurveyEntity.create(
+      surveyDraft({
+        id: "survey-2",
+        slug: "second",
+        isActive: false,
+        questions: [
+          {
+            id: "question-3",
+            type: "text",
+            text: "2 つめの設問",
+            required: false,
+            choices: [],
+          },
+        ],
+      })
     )
+    await repository.save(second)
 
-    await repository.activateExclusively("survey-2")
+    await repository.activateExclusively(second)
 
     const active = await prisma.feedbackSurvey.findMany({
       where: { isActive: true },
@@ -291,14 +320,55 @@ describe("FeedbackSurveyPrismaRepository (integration)", () => {
   })
 
   it("activateExclusively を同じアンケートに繰り返しても有効なのは 1 件のまま", async () => {
-    await repository.save(FeedbackSurveyEntity.create(surveyDraft()))
+    const entity = FeedbackSurveyEntity.create(surveyDraft())
+    await repository.save(entity)
 
-    await repository.activateExclusively("survey-1")
-    await repository.activateExclusively("survey-1")
+    await repository.activateExclusively(entity)
+    await repository.activateExclusively(entity)
 
     await expect(
       prisma.feedbackSurvey.count({ where: { isActive: true } })
     ).resolves.toBe(1)
+  })
+
+  // Entity の不変条件を迂回した有効化を防ぐ。これを許すと findActive() の
+  // reconstitute が常に失敗し、回答者向けフォームが壊れる。
+  it("設問 0 件のアンケートの activateExclusively は拒否し、他の有効化状態も変えない", async () => {
+    const active = FeedbackSurveyEntity.create(surveyDraft())
+    await repository.save(active)
+    const empty = FeedbackSurveyEntity.create(
+      surveyDraft({
+        id: "survey-empty",
+        slug: "empty",
+        isActive: false,
+        questions: [],
+      })
+    )
+    await repository.save(empty)
+
+    await expect(repository.activateExclusively(empty)).rejects.toBeInstanceOf(
+      EmptyActiveFeedbackSurveyError
+    )
+
+    // 「他を無効化したのに対象を有効化できない」中間状態を残さずロールバックされる。
+    const stillActive = await prisma.feedbackSurvey.findMany({
+      where: { isActive: true },
+      select: { id: true },
+    })
+    expect(stillActive).toEqual([{ id: "survey-1" }])
+  })
+
+  it("永続化状態から設問が消えている場合の activateExclusively も拒否する", async () => {
+    // Entity は読み込み時点のスナップショットなので、設問件数は DB 側でも検証する。
+    const entity = FeedbackSurveyEntity.create(surveyDraft())
+    await repository.save(entity)
+    await prisma.feedbackQuestion.deleteMany({
+      where: { surveyId: "survey-1" },
+    })
+
+    await expect(repository.activateExclusively(entity)).rejects.toBeInstanceOf(
+      EmptyActiveFeedbackSurveyError
+    )
   })
 
   it("回答のないアンケートの delete は設問・選択肢ごと削除する", async () => {
