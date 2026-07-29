@@ -300,16 +300,20 @@ export function AdminSurveyCreateForm({
           noValidate
           className="flex flex-col gap-6"
         >
-          <div className="flex flex-col gap-2">
-            <Label htmlFor="survey-title">タイトル</Label>
-            <Input
-              id="survey-title"
-              value={title}
-              maxLength={TITLE_MAX_LENGTH}
-              onChange={(e) => setTitle(e.target.value)}
-              placeholder="例: PMF アンケート 2026"
-            />
-          </div>
+          <fieldset
+            disabled={submitting}
+            className="m-0 flex min-w-0 flex-col gap-6 border-0 p-0 disabled:opacity-70"
+          >
+            <div className="flex flex-col gap-2">
+              <Label htmlFor="survey-title">タイトル</Label>
+              <Input
+                id="survey-title"
+                value={title}
+                maxLength={TITLE_MAX_LENGTH}
+                onChange={(e) => setTitle(e.target.value)}
+                placeholder="例: PMF アンケート 2026"
+              />
+            </div>
           <div className="flex flex-col gap-2">
             <Label htmlFor="survey-slug">slug</Label>
             <Input
@@ -327,6 +331,7 @@ export function AdminSurveyCreateForm({
             <Switch
               id="survey-active"
               checked={isActive}
+              disabled={submitting}
               onCheckedChange={setIsActive}
             />
             <Label htmlFor="survey-active">作成と同時に有効化する</Label>
@@ -381,6 +386,7 @@ export function AdminSurveyCreateForm({
                     <SelectTrigger
                       id={`question-${question.key}-type`}
                       className="w-48"
+                      disabled={submitting}
                     >
                       <SelectValue />
                     </SelectTrigger>
@@ -406,6 +412,7 @@ export function AdminSurveyCreateForm({
                   <Switch
                     id={`question-${question.key}-required`}
                     checked={question.required}
+                    disabled={submitting}
                     onCheckedChange={(checked) =>
                       updateQuestion(question.key, { required: checked })
                     }
@@ -485,6 +492,7 @@ export function AdminSurveyCreateForm({
               </div>
             ))}
           </div>
+          </fieldset>
 
           {error && (
             <p role="alert" className="text-sm text-destructive">

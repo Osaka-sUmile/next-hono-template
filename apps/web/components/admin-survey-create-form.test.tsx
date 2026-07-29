@@ -260,6 +260,8 @@ describe("AdminSurveyCreateForm", () => {
       expect(screen.getByRole("button", { name: "作成中..." })).toBeDisabled()
     })
     expect(screen.getByRole("button", { name: "キャンセル" })).toBeDisabled()
+    expect(screen.getByLabelText("タイトル")).toBeDisabled()
+    expect(screen.getByLabelText("slug")).toBeDisabled()
     expect(screen.getByRole("dialog")).toBeInTheDocument()
     expect(screen.getByLabelText("タイトル")).toHaveValue("進行中")
 
