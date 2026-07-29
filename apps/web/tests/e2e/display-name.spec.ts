@@ -1,4 +1,4 @@
-import { expect, test, type Page } from "@playwright/test";
+import { expect, test, type Page } from "@playwright/test"
 
 /**
  * 表示名更新フローの e2e。
@@ -9,19 +9,20 @@ import { expect, test, type Page } from "@playwright/test";
  * ブラウザの CORS 検証が効く。CORS ヘッダの付与と OPTIONS プリフライト処理が必須。
  */
 
-const FALLBACK_ORIGIN = "http://127.0.0.1:3000";
+const FALLBACK_ORIGIN = "http://127.0.0.1:3000"
 
 function corsHeaders(origin: string, methods = "GET,POST,OPTIONS") {
   return {
     "access-control-allow-origin": origin,
     "access-control-allow-credentials": "true",
-    "access-control-allow-headers": "content-type, x-signup-intent, x-captcha-response",
+    "access-control-allow-headers":
+      "content-type, x-signup-intent, x-captcha-response",
     "access-control-allow-methods": methods,
-  };
+  }
 }
 
-const NOW = "2026-07-15T00:00:00.000Z";
-const EXPIRES = "2026-07-22T00:00:00.000Z";
+const NOW = "2026-07-15T00:00:00.000Z"
+const EXPIRES = "2026-07-22T00:00:00.000Z"
 
 function makeUser(overrides: Record<string, unknown> = {}) {
   return {
@@ -35,7 +36,7 @@ function makeUser(overrides: Record<string, unknown> = {}) {
     role: "user",
     displayName: "テスト太郎",
     ...overrides,
-  };
+  }
 }
 
 function makeSession() {
@@ -48,10 +49,10 @@ function makeSession() {
     updatedAt: NOW,
     ipAddress: "",
     userAgent: "",
-  };
+  }
 }
 
-type SessionPayload = { session: object; user: object } | null;
+type SessionPayload = { session: object; user: object } | null
 
 /**
  * `/api/auth/*` と `/api/v1/me` をモックする。
@@ -61,54 +62,57 @@ type SessionPayload = { session: object; user: object } | null;
 async function mockDisplayNameFlow(page: Page) {
   const state: { session: SessionPayload } = {
     session: { session: makeSession(), user: makeUser() },
-  };
+  }
 
   await page.route("**/api/auth/**", async (route) => {
-    const request = route.request();
-    const origin = request.headers()["origin"] ?? FALLBACK_ORIGIN;
-    const cors = corsHeaders(origin);
+    const request = route.request()
+    const origin = request.headers()["origin"] ?? FALLBACK_ORIGIN
+    const cors = corsHeaders(origin)
 
     if (request.method() === "OPTIONS") {
-      await route.fulfill({ status: 204, headers: cors });
-      return;
+      await route.fulfill({ status: 204, headers: cors })
+      return
     }
 
-    const path = new URL(request.url()).pathname;
+    const path = new URL(request.url()).pathname
     const json = (status: number, body: unknown) =>
       route.fulfill({
         status,
         headers: { ...cors, "content-type": "application/json" },
         body: JSON.stringify(body),
-      });
+      })
 
     if (path.endsWith("/get-session")) {
-      await json(200, state.session);
-      return;
+      await json(200, state.session)
+      return
     }
     if (path.endsWith("/sign-out")) {
-      state.session = null;
-      await json(200, { success: true });
-      return;
+      state.session = null
+      await json(200, { success: true })
+      return
     }
-    await json(200, {});
-  });
+    await json(200, {})
+  })
 
   await page.route("**/api/v1/me", async (route) => {
-    const request = route.request();
-    const origin = request.headers()["origin"] ?? FALLBACK_ORIGIN;
-    const cors = corsHeaders(origin, "GET,POST,OPTIONS,PATCH");
+    const request = route.request()
+    const origin = request.headers()["origin"] ?? FALLBACK_ORIGIN
+    const cors = corsHeaders(origin, "GET,POST,OPTIONS,PATCH")
 
     if (request.method() === "OPTIONS") {
-      await route.fulfill({ status: 204, headers: cors });
-      return;
+      await route.fulfill({ status: 204, headers: cors })
+      return
     }
 
     if (request.method() === "PATCH") {
-      const body = request.postDataJSON() as { displayName?: string | null };
+      const body = request.postDataJSON() as { displayName?: string | null }
       if (state.session?.user) {
-        (state.session.user as { displayName?: string | null }).displayName = body.displayName ?? null;
+        ;(state.session.user as { displayName?: string | null }).displayName =
+          body.displayName ?? null
       }
-      const user = (state.session?.user ?? makeUser()) as ReturnType<typeof makeUser>;
+      const user = (state.session?.user ?? makeUser()) as ReturnType<
+        typeof makeUser
+      >
       await route.fulfill({
         status: 200,
         headers: { ...cors, "content-type": "application/json" },
@@ -119,36 +123,38 @@ async function mockDisplayNameFlow(page: Page) {
           role: user.role,
           displayName: body.displayName ?? null,
         }),
-      });
-      return;
+      })
+      return
     }
 
-    await route.fulfill({ status: 404, headers: cors });
-  });
+    await route.fulfill({ status: 404, headers: cors })
+  })
 
-  return { state };
+  return { state }
 }
 
 test.describe("表示名更新", () => {
-  test("表示名を保存すると PATCH が送信されダッシュボードに反映される", async ({ page }) => {
-    await mockDisplayNameFlow(page);
+  test("表示名を保存すると PATCH が送信されダッシュボードに反映される", async ({
+    page,
+  }) => {
+    await mockDisplayNameFlow(page)
 
-    await page.goto("/dashboard");
+    await page.goto("/dashboard")
 
-    await expect(page.getByText("テスト太郎")).toBeVisible();
+    await expect(page.getByText("テスト太郎")).toBeVisible()
 
-    await page.getByLabel("表示名").fill("新しい名前");
+    await page.getByLabel("表示名").fill("新しい名前")
 
-    const patchRequest = page.waitForRequest("**/api/v1/me");
-    await page.getByRole("button", { name: "表示名を保存" }).click();
-    const request = await patchRequest;
+    const patchRequest = page.waitForRequest("**/api/v1/me")
+    await page.getByRole("button", { name: "表示名を保存" }).click()
+    const request = await patchRequest
 
-    expect(request.method()).toBe("PATCH");
-    expect(request.postDataJSON()).toEqual({ displayName: "新しい名前" });
+    expect(request.method()).toBe("PATCH")
+    expect(request.postDataJSON()).toEqual({ displayName: "新しい名前" })
 
-    await expect(page.getByText("保存しました。")).toBeVisible();
+    await expect(page.getByText("保存しました。")).toBeVisible()
 
     // dl の先頭行が表示名。refetch 後のセッション反映で新しい表示名が出ることを確認する。
-    await expect(page.locator("dl dd").first()).toHaveText("新しい名前");
-  });
-});
+    await expect(page.locator("dl dd").first()).toHaveText("新しい名前")
+  })
+})

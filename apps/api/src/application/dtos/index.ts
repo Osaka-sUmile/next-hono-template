@@ -6,5 +6,8 @@ export type {
   FeedbackSubmissionResponseDto,
   FeedbackSummaryResponseDto,
   FeedbackSurveyResponseDto,
-} from "./feedback.response.dto";
-export type { UserResponseDto, UserProfileResponseDto } from "./user.response.dto";
+} from "./feedback.response.dto"
+export type {
+  UserResponseDto,
+  UserProfileResponseDto,
+} from "./user.response.dto"

@@ -1,17 +1,20 @@
-import { resolveSentryEnvironment, resolveTracesSampleRate } from "@workspace/common";
-import type { WorkerBindings } from "./env";
+import {
+  resolveSentryEnvironment,
+  resolveTracesSampleRate,
+} from "@workspace/common"
+import type { WorkerBindings } from "./env"
 
 export type SentryOptions = {
-  dsn: string;
-  environment: string | undefined;
-  tracesSampleRate: number;
-};
+  dsn: string
+  environment: string | undefined
+  tracesSampleRate: number
+}
 
 /** 検証前の生 binding から、空文字・空白のみ・非文字列を除いた値を取り出す。 */
 function readNonEmptyString(value: unknown): string | undefined {
-  if (typeof value !== "string") return undefined;
-  const trimmed = value.trim();
-  return trimmed === "" ? undefined : trimmed;
+  if (typeof value !== "string") return undefined
+  const trimmed = value.trim()
+  return trimmed === "" ? undefined : trimmed
 }
 
 /**
@@ -30,20 +33,25 @@ function readNonEmptyString(value: unknown): string | undefined {
  * 生 binding（`unknown`）を渡せる形に変換するのは api 側の責務として `readNonEmptyString`
  * を通す。
  */
-export function resolveSentryOptions(rawEnv: WorkerBindings): SentryOptions | undefined {
-  const dsn = readNonEmptyString(rawEnv.SENTRY_DSN);
-  if (dsn === undefined) return undefined;
+export function resolveSentryOptions(
+  rawEnv: WorkerBindings
+): SentryOptions | undefined {
+  const dsn = readNonEmptyString(rawEnv.SENTRY_DSN)
+  if (dsn === undefined) return undefined
 
   // preview / production はどちらも NODE_ENV=production のため、環境の識別には
   // SENTRY_ENVIRONMENT (wrangler.jsonc の env ごとの vars) を優先する。
-  const environment = resolveSentryEnvironment(rawEnv.SENTRY_ENVIRONMENT, rawEnv.NODE_ENV);
+  const environment = resolveSentryEnvironment(
+    rawEnv.SENTRY_ENVIRONMENT,
+    rawEnv.NODE_ENV
+  )
 
   return {
     dsn,
     environment,
     tracesSampleRate: resolveTracesSampleRate(
       readNonEmptyString(rawEnv.SENTRY_TRACES_SAMPLE_RATE),
-      environment,
+      environment
     ),
-  };
+  }
 }

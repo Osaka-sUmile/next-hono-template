@@ -1,9 +1,9 @@
-import { configDefaults, defineConfig } from 'vitest/config';
+import { configDefaults, defineConfig } from "vitest/config"
 
 export default defineConfig({
   test: {
-    environment: 'node',
+    environment: "node",
     globals: true,
-    exclude: [...configDefaults.exclude, 'dist/**'],
+    exclude: [...configDefaults.exclude, "dist/**"],
   },
-});
+})

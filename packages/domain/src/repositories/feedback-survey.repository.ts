@@ -1,5 +1,5 @@
-import { FeedbackSurveyEntity } from "../models";
+import { FeedbackSurveyEntity } from "../models"
 
 export interface IFeedbackSurveyRepository {
-  findActive(): Promise<FeedbackSurveyEntity | null>;
+  findActive(): Promise<FeedbackSurveyEntity | null>
 }

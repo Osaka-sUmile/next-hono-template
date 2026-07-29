@@ -1,4 +1,4 @@
-import { IRepository } from "./base.repository";
-import { UserEntity } from "../models/user.entity";
+import { IRepository } from "./base.repository"
+import { UserEntity } from "../models/user.entity"
 
-export type IUserRepository = IRepository<UserEntity, string>;
+export type IUserRepository = IRepository<UserEntity, string>

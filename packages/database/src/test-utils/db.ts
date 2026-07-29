@@ -1,6 +1,6 @@
-import "dotenv/config";
-import type { PrismaClient } from "@prisma/client";
-import { createPrismaClient } from "../client";
+import "dotenv/config"
+import type { PrismaClient } from "@prisma/client"
+import { createPrismaClient } from "../client"
 
 /**
  * 結合テスト用の PrismaClient を生成する。
@@ -9,14 +9,14 @@ import { createPrismaClient } from "../client";
  * 本番の Neon serverless driver と同じコードパスを実 DB に対して検証できる。
  */
 export function createTestPrismaClient(): PrismaClient {
-  const url = process.env.DATABASE_URL;
+  const url = process.env.DATABASE_URL
   if (!url) {
     throw new Error(
       "DATABASE_URL が未設定です。DB 結合テストには docker の Postgres/wsproxy と " +
-        "packages/database/.env が必要です (README の Testing セクション参照)。",
-    );
+        "packages/database/.env が必要です (README の Testing セクション参照)。"
+    )
   }
-  return createPrismaClient(url, { localProxy: true });
+  return createPrismaClient(url, { localProxy: true })
 }
 
 /**
@@ -29,8 +29,10 @@ export async function resetDatabase(prisma: PrismaClient): Promise<void> {
   const tables = await prisma.$queryRaw<Array<{ tablename: string }>>`
     SELECT tablename::text AS tablename FROM pg_tables
     WHERE schemaname = 'public' AND tablename <> '_prisma_migrations'
-  `;
-  if (tables.length === 0) return;
-  const list = tables.map((t) => `"public"."${t.tablename}"`).join(", ");
-  await prisma.$executeRawUnsafe(`TRUNCATE TABLE ${list} RESTART IDENTITY CASCADE`);
+  `
+  if (tables.length === 0) return
+  const list = tables.map((t) => `"public"."${t.tablename}"`).join(", ")
+  await prisma.$executeRawUnsafe(
+    `TRUNCATE TABLE ${list} RESTART IDENTITY CASCADE`
+  )
 }

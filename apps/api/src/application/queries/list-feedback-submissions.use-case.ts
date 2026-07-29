@@ -1,13 +1,13 @@
-import type { IFeedbackQueryService } from "@workspace/domain";
-import type { FeedbackSubmissionListResponseDto } from "../dtos";
-import { BaseQueryUseCase } from "./base.query";
+import type { IFeedbackQueryService } from "@workspace/domain"
+import type { FeedbackSubmissionListResponseDto } from "../dtos"
+import { BaseQueryUseCase } from "./base.query"
 
 export type ListFeedbackSubmissionsInput = {
-  limit: number;
-  offset: number;
+  limit: number
+  offset: number
   /** 未指定なら全アンケートを横断する。 */
-  surveyId?: string;
-};
+  surveyId?: string
+}
 
 /**
  * 管理者向けに提出を新しい順で一覧する Query ユースケース。
@@ -21,7 +21,7 @@ export class ListFeedbackSubmissionsUseCase extends BaseQueryUseCase<
   FeedbackSubmissionListResponseDto
 > {
   constructor(private readonly feedbackQueryService: IFeedbackQueryService) {
-    super();
+    super()
   }
 
   async execute({
@@ -33,8 +33,8 @@ export class ListFeedbackSubmissionsUseCase extends BaseQueryUseCase<
       limit,
       offset,
       ...(surveyId === undefined ? {} : { surveyId }),
-    });
+    })
 
-    return { items, total, limit, offset };
+    return { items, total, limit, offset }
   }
 }

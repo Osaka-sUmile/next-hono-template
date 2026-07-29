@@ -2,9 +2,9 @@ import createClient, {
   type ClientPathsWithMethod,
   type MaybeOptionalInit,
   type MethodResponse,
-} from "openapi-fetch";
-import { apiBaseUrl } from "./auth-client";
-import type { paths } from "./api-schema";
+} from "openapi-fetch"
+import { apiBaseUrl } from "./auth-client"
+import type { paths } from "./api-schema"
 
 /**
  * API が 2xx 以外を返したことを表すエラー。
@@ -22,10 +22,10 @@ import type { paths } from "./api-schema";
 export class ApiError extends Error {
   constructor(
     readonly status: number,
-    readonly body?: unknown,
+    readonly body?: unknown
   ) {
-    super(`API request failed with status ${status}`);
-    this.name = "ApiError";
+    super(`API request failed with status ${status}`)
+    this.name = "ApiError"
   }
 }
 
@@ -53,11 +53,11 @@ const rawClient = createClient<paths>({
   // JSON body の Content-Type も呼び出し側から変更できないよう、body がある場合は
   // application/json に固定する。
   fetch: (request) => {
-    const headers = new Headers(request.headers);
-    if (request.body !== null) headers.set("Content-Type", "application/json");
-    return fetch(new Request(request, { credentials: "include", headers }));
+    const headers = new Headers(request.headers)
+    if (request.body !== null) headers.set("Content-Type", "application/json")
+    return fetch(new Request(request, { credentials: "include", headers }))
   },
-});
+})
 
 /**
  * openapi-fetch の `{ data, error, response }` を「成功なら data、失敗なら throw」に畳む。
@@ -70,24 +70,24 @@ const rawClient = createClient<paths>({
  * openapi-fetch の判別共用体上 data が必ず存在することを型システムでは表現しきれないために
  * 必要な最小限のキャスト（公開 apiClient からは見えない）。
  */
-async function unwrap<Res extends { data?: unknown; error?: unknown; response: Response }>(
-  promise: Promise<Res>,
-): Promise<NonNullable<Res["data"]>> {
-  const { data, error, response } = await promise;
-  if (!response.ok) throw new ApiError(response.status, error);
-  return data as NonNullable<Res["data"]>;
+async function unwrap<
+  Res extends { data?: unknown; error?: unknown; response: Response },
+>(promise: Promise<Res>): Promise<NonNullable<Res["data"]>> {
+  const { data, error, response } = await promise
+  if (!response.ok) throw new ApiError(response.status, error)
+  return data as NonNullable<Res["data"]>
 }
 
-type SupportedMethod = "get" | "post" | "put" | "patch" | "delete";
+type SupportedMethod = "get" | "post" | "put" | "patch" | "delete"
 
 type RequiredKeys<T> = {
-  [K in keyof T]-?: object extends Pick<T, K> ? never : K;
-}[keyof T];
+  [K in keyof T]-?: object extends Pick<T, K> ? never : K
+}[keyof T]
 
 type InitParam<Init> =
   RequiredKeys<Init> extends never
     ? [(Init & { [key: string]: unknown })?]
-    : [Init & { [key: string]: unknown }];
+    : [Init & { [key: string]: unknown }]
 
 type ApiMethod<Method extends SupportedMethod> = <
   Path extends ClientPathsWithMethod<typeof rawClient, Method>,
@@ -95,20 +95,26 @@ type ApiMethod<Method extends SupportedMethod> = <
 >(
   path: Path,
   ...init: InitParam<Init>
-) => Promise<MethodResponse<typeof rawClient, Method, Path, Init>>;
+) => Promise<MethodResponse<typeof rawClient, Method, Path, Init>>
 
-type RawResult = { data?: unknown; error?: unknown; response: Response };
-type RawRequest = (method: SupportedMethod, path: string, init?: object) => Promise<RawResult>;
+type RawResult = { data?: unknown; error?: unknown; response: Response }
+type RawRequest = (
+  method: SupportedMethod,
+  path: string,
+  init?: object
+) => Promise<RawResult>
 
 /**
  * TypeScript は generic 関数の「入力型を保ったまま戻り値だけを変換する」型を
  * 実装から推論できないため、raw request との境界だけを非 generic な形に畳む。
  * 公開側の ApiMethod は OpenAPI 由来の path / init / response の関連を維持する。
  */
-function createApiMethod<Method extends SupportedMethod>(method: Method): ApiMethod<Method> {
-  const request = rawClient.request as unknown as RawRequest;
+function createApiMethod<Method extends SupportedMethod>(
+  method: Method
+): ApiMethod<Method> {
+  const request = rawClient.request as unknown as RawRequest
   return ((path: string, init?: object) =>
-    unwrap(request(method, path, init))) as ApiMethod<Method>;
+    unwrap(request(method, path, init))) as ApiMethod<Method>
 }
 
 /**
@@ -123,15 +129,15 @@ function createApiMethod<Method extends SupportedMethod>(method: Method): ApiMet
  * better-auth のエンドポイントは authClient (lib/auth-client.ts) が担当するため対象外。
  */
 export const apiClient: {
-  get: ApiMethod<"get">;
-  post: ApiMethod<"post">;
-  put: ApiMethod<"put">;
-  patch: ApiMethod<"patch">;
-  delete: ApiMethod<"delete">;
+  get: ApiMethod<"get">
+  post: ApiMethod<"post">
+  put: ApiMethod<"put">
+  patch: ApiMethod<"patch">
+  delete: ApiMethod<"delete">
 } = {
   get: createApiMethod("get"),
   post: createApiMethod("post"),
   put: createApiMethod("put"),
   patch: createApiMethod("patch"),
   delete: createApiMethod("delete"),
-};
+}

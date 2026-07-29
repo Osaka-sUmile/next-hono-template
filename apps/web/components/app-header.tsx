@@ -1,19 +1,23 @@
-"use client";
+"use client"
 
-import { useState } from "react";
-import Link from "next/link";
-import { useRouter } from "next/navigation";
-import { useTheme } from "next-themes";
-import { HugeiconsIcon } from "@hugeicons/react";
-import { Logout01Icon, Menu01Icon, UserCircleIcon } from "@hugeicons/core-free-icons";
-import { Button } from "@workspace/ui/components/button";
+import { useState } from "react"
+import Link from "next/link"
+import { useRouter } from "next/navigation"
+import { useTheme } from "next-themes"
+import { HugeiconsIcon } from "@hugeicons/react"
+import {
+  Logout01Icon,
+  Menu01Icon,
+  UserCircleIcon,
+} from "@hugeicons/core-free-icons"
+import { Button } from "@workspace/ui/components/button"
 import {
   Sheet,
   SheetContent,
   SheetHeader,
   SheetTitle,
   SheetTrigger,
-} from "@workspace/ui/components/sheet";
+} from "@workspace/ui/components/sheet"
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -24,9 +28,9 @@ import {
   DropdownMenuSubContent,
   DropdownMenuSubTrigger,
   DropdownMenuTrigger,
-} from "@workspace/ui/components/dropdown-menu";
-import { authClient } from "@/lib/auth-client";
-import { reportError } from "@/lib/report-error";
+} from "@workspace/ui/components/dropdown-menu"
+import { authClient } from "@/lib/auth-client"
+import { reportError } from "@/lib/report-error"
 
 /**
  * 保護エリア共通のヘッダー。
@@ -34,29 +38,29 @@ import { reportError } from "@/lib/report-error";
  * テンプレートなのでナビ項目は最小限にとどめ、利用者が追加しやすい構成にしている。
  */
 export function AppHeader() {
-  const router = useRouter();
-  const { setTheme } = useTheme();
-  const { data: session } = authClient.useSession();
-  const [error, setError] = useState<string | null>(null);
-  const [loading, setLoading] = useState(false);
+  const router = useRouter()
+  const { setTheme } = useTheme()
+  const { data: session } = authClient.useSession()
+  const [error, setError] = useState<string | null>(null)
+  const [loading, setLoading] = useState(false)
 
   async function handleSignOut() {
-    setError(null);
-    setLoading(true);
+    setError(null)
+    setLoading(true)
     try {
       // 戻り値の { error }(想定内エラー)は UI 通知のみ、
       // reject(ネットワーク断など想定外エラー)は reportError で Sentry へ送る。
-      const { error } = await authClient.signOut();
+      const { error } = await authClient.signOut()
       if (error) {
-        setError("ログアウトに失敗しました。");
-        return;
+        setError("ログアウトに失敗しました。")
+        return
       }
-      router.replace("/login");
+      router.replace("/login")
     } catch (err) {
-      reportError(err);
-      setError("ログアウトに失敗しました。");
+      reportError(err)
+      setError("ログアウトに失敗しました。")
     } finally {
-      setLoading(false);
+      setLoading(false)
     }
   }
 
@@ -97,8 +101,10 @@ export function AppHeader() {
         </DropdownMenuTrigger>
         <DropdownMenuContent align="end" className="w-56">
           <DropdownMenuLabel>
-            <p className="truncate">{session?.user.displayName ?? "ユーザー"}</p>
-            <p className="text-muted-foreground truncate text-xs font-normal">
+            <p className="truncate">
+              {session?.user.displayName ?? "ユーザー"}
+            </p>
+            <p className="truncate text-xs font-normal text-muted-foreground">
               {session?.user.email}
             </p>
           </DropdownMenuLabel>
@@ -109,13 +115,23 @@ export function AppHeader() {
           <DropdownMenuSub>
             <DropdownMenuSubTrigger>外観</DropdownMenuSubTrigger>
             <DropdownMenuSubContent>
-              <DropdownMenuItem onClick={() => setTheme("light")}>ライト</DropdownMenuItem>
-              <DropdownMenuItem onClick={() => setTheme("dark")}>ダーク</DropdownMenuItem>
-              <DropdownMenuItem onClick={() => setTheme("system")}>システム</DropdownMenuItem>
+              <DropdownMenuItem onClick={() => setTheme("light")}>
+                ライト
+              </DropdownMenuItem>
+              <DropdownMenuItem onClick={() => setTheme("dark")}>
+                ダーク
+              </DropdownMenuItem>
+              <DropdownMenuItem onClick={() => setTheme("system")}>
+                システム
+              </DropdownMenuItem>
             </DropdownMenuSubContent>
           </DropdownMenuSub>
           <DropdownMenuSeparator />
-          <DropdownMenuItem variant="destructive" disabled={loading} onClick={handleSignOut}>
+          <DropdownMenuItem
+            variant="destructive"
+            disabled={loading}
+            onClick={handleSignOut}
+          >
             <HugeiconsIcon icon={Logout01Icon} />
             ログアウト
           </DropdownMenuItem>
@@ -123,10 +139,13 @@ export function AppHeader() {
       </DropdownMenu>
 
       {error && (
-        <p role="alert" className="text-destructive fixed right-4 bottom-4 text-sm">
+        <p
+          role="alert"
+          className="fixed right-4 bottom-4 text-sm text-destructive"
+        >
           {error}
         </p>
       )}
     </header>
-  );
+  )
 }

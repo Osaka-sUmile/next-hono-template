@@ -1,5 +1,5 @@
-import type { Context } from "hono";
-import type { ErrorCode, ErrorResponseBody } from "../errors";
+import type { Context } from "hono"
+import type { ErrorCode, ErrorResponseBody } from "../errors"
 
 /**
  * errorResponse が返しうる HTTP ステータス。ErrorCodes 各コードが ErrorSchema に
@@ -7,7 +7,7 @@ import type { ErrorCode, ErrorResponseBody } from "../errors";
  * Hono の ContentfulStatusCode の部分集合。hono の非公開サブパス
  * (`hono/utils/http-status`) への deep import を避けるため、ここで自己完結させる。
  */
-type ErrorStatusCode = 400 | 401 | 403 | 404 | 429 | 500;
+type ErrorStatusCode = 400 | 401 | 403 | 404 | 429 | 500
 
 /**
  * エラーレスポンスを `{ error, code }` の形で組み立てて返す Presentation 層のヘルパ。
@@ -26,8 +26,8 @@ export function errorResponse<TStatus extends ErrorStatusCode>(
   c: Context,
   status: TStatus,
   code: ErrorCode,
-  message: string,
+  message: string
 ) {
-  const body: ErrorResponseBody = { error: message, code };
-  return c.json(body, status);
+  const body: ErrorResponseBody = { error: message, code }
+  return c.json(body, status)
 }

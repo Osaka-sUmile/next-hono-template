@@ -1,5 +1,8 @@
-import * as Sentry from "@sentry/nextjs";
-import { resolveSentryEnvironment, resolveTracesSampleRate } from "@workspace/common";
+import * as Sentry from "@sentry/nextjs"
+import {
+  resolveSentryEnvironment,
+  resolveTracesSampleRate,
+} from "@workspace/common"
 
 // クライアント側の Sentry 初期化。
 // NEXT_PUBLIC_SENTRY_DSN が未設定なら dsn が undefined となり、エラー監視は無効。
@@ -11,17 +14,17 @@ import { resolveSentryEnvironment, resolveTracesSampleRate } from "@workspace/co
 // これを設定して初めてページ遷移やブラウザ側の計測がトランザクションとして送られる。
 const environment = resolveSentryEnvironment(
   process.env.NEXT_PUBLIC_SENTRY_ENVIRONMENT,
-  process.env.NODE_ENV,
-);
+  process.env.NODE_ENV
+)
 
 Sentry.init({
   dsn: process.env.NEXT_PUBLIC_SENTRY_DSN,
   environment,
   tracesSampleRate: resolveTracesSampleRate(
     process.env.NEXT_PUBLIC_SENTRY_TRACES_SAMPLE_RATE,
-    environment,
+    environment
   ),
-});
+})
 
 // App Router のクライアントサイドナビゲーションを計測する。
-export const onRouterTransitionStart = Sentry.captureRouterTransitionStart;
+export const onRouterTransitionStart = Sentry.captureRouterTransitionStart

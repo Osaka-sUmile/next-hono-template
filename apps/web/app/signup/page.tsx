@@ -1,54 +1,56 @@
-"use client";
+"use client"
 
-import { useRef, useState } from "react";
-import Link from "next/link";
-import { useRouter } from "next/navigation";
-import { HugeiconsIcon } from "@hugeicons/react";
-import { AppleIcon, GoogleIcon } from "@hugeicons/core-free-icons";
-import type { TurnstileInstance } from "@marsidev/react-turnstile";
-import { Button } from "@workspace/ui/components/button";
-import { TurnstileWidget } from "@/components/turnstile-widget";
-import { authClient } from "@/lib/auth-client";
+import { useRef, useState } from "react"
+import Link from "next/link"
+import { useRouter } from "next/navigation"
+import { HugeiconsIcon } from "@hugeicons/react"
+import { AppleIcon, GoogleIcon } from "@hugeicons/core-free-icons"
+import type { TurnstileInstance } from "@marsidev/react-turnstile"
+import { Button } from "@workspace/ui/components/button"
+import { TurnstileWidget } from "@/components/turnstile-widget"
+import { authClient } from "@/lib/auth-client"
 
-type Step = "request" | "verify";
+type Step = "request" | "verify"
 
 export default function SignupPage() {
-  const router = useRouter();
-  const [step, setStep] = useState<Step>("request");
-  const [email, setEmail] = useState("");
-  const [displayName, setDisplayName] = useState("");
-  const [otp, setOtp] = useState("");
-  const [error, setError] = useState<string | null>(null);
-  const [loading, setLoading] = useState(false);
-  const [captchaToken, setCaptchaToken] = useState<string | null>(null);
-  const turnstileRef = useRef<TurnstileInstance>(null);
+  const router = useRouter()
+  const [step, setStep] = useState<Step>("request")
+  const [email, setEmail] = useState("")
+  const [displayName, setDisplayName] = useState("")
+  const [otp, setOtp] = useState("")
+  const [error, setError] = useState<string | null>(null)
+  const [loading, setLoading] = useState(false)
+  const [captchaToken, setCaptchaToken] = useState<string | null>(null)
+  const turnstileRef = useRef<TurnstileInstance>(null)
 
   async function handleRequest(e: React.FormEvent) {
-    e.preventDefault();
-    if (!captchaToken) return;
-    setError(null);
-    setLoading(true);
+    e.preventDefault()
+    if (!captchaToken) return
+    setError(null)
+    setLoading(true)
     // x-signup-intent ヘッダで登録意図をサーバーに伝える。
     // これがないと未登録メールは OTP が送られず「登録はこちら」案内メールになる。
     const { error } = await authClient.emailOtp.sendVerificationOtp(
       { email, type: "sign-in" },
-      { headers: { "x-signup-intent": "1", "x-captcha-response": captchaToken } },
-    );
-    setLoading(false);
+      {
+        headers: { "x-signup-intent": "1", "x-captcha-response": captchaToken },
+      }
+    )
+    setLoading(false)
     if (error) {
-      setError("送信に失敗しました。しばらく経ってから再試行してください。");
+      setError("送信に失敗しました。しばらく経ってから再試行してください。")
       // captcha トークンは 1 回限りのため、失敗時は破棄してウィジェットを再取得させる。
-      setCaptchaToken(null);
-      turnstileRef.current?.reset();
-      return;
+      setCaptchaToken(null)
+      turnstileRef.current?.reset()
+      return
     }
-    setStep("verify");
+    setStep("verify")
   }
 
   async function handleVerify(e: React.FormEvent) {
-    e.preventDefault();
-    setError(null);
-    setLoading(true);
+    e.preventDefault()
+    setError(null)
+    setLoading(true)
     // displayName は signIn.emailOtp の追加フィールドとして渡す。
     // 既存ユーザーのサインイン時はサーバー側で無視されるため、初回登録時にのみ反映される。
     // signUp: true は登録意図の明示。これがないリクエストはサーバー側フックが
@@ -58,18 +60,18 @@ export default function SignupPage() {
       otp,
       signUp: true,
       ...(displayName ? { displayName } : {}),
-    });
-    setLoading(false);
+    })
+    setLoading(false)
     if (error) {
-      setError("コードが正しくありません。または有効期限が切れています。");
-      return;
+      setError("コードが正しくありません。または有効期限が切れています。")
+      return
     }
-    router.replace("/dashboard");
+    router.replace("/dashboard")
   }
 
   async function handleSocial(provider: "google" | "apple") {
-    setError(null);
-    setLoading(true);
+    setError(null)
+    setLoading(true)
     // callbackURL は API オリジン基準で解決されるため、web 側の絶対 URL を渡す必要がある
     // requestSignUp: true は新規登録意図の明示(email OTP の signUp: true と対になる)。
     // provider 側は disableImplicitSignUp のため、これがないと未登録アカウントの作成は拒否される。
@@ -78,10 +80,10 @@ export default function SignupPage() {
       callbackURL: `${window.location.origin}/dashboard`,
       errorCallbackURL: `${window.location.origin}/signup`,
       requestSignUp: true,
-    });
+    })
     if (error) {
-      setLoading(false);
-      setError("登録に失敗しました。しばらく経ってから再試行してください。");
+      setLoading(false)
+      setError("登録に失敗しました。しばらく経ってから再試行してください。")
     }
   }
 
@@ -91,7 +93,7 @@ export default function SignupPage() {
         <div className="w-full max-w-sm space-y-4">
           <div className="space-y-1">
             <h1 className="text-2xl font-bold">コードを入力</h1>
-            <p className="text-muted-foreground text-sm">
+            <p className="text-sm text-muted-foreground">
               {email} に送信したコードを入力してください。
             </p>
           </div>
@@ -109,10 +111,10 @@ export default function SignupPage() {
                 value={otp}
                 onChange={(e) => setOtp(e.target.value)}
                 placeholder="123456"
-                className="w-full rounded-md border border-input bg-background px-3 py-2 text-sm placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-ring"
+                className="w-full rounded-md border border-input bg-background px-3 py-2 text-sm placeholder:text-muted-foreground focus:ring-2 focus:ring-ring focus:outline-none"
               />
             </div>
-            {error && <p className="text-destructive text-sm">{error}</p>}
+            {error && <p className="text-sm text-destructive">{error}</p>}
             <Button type="submit" className="w-full" disabled={loading}>
               {loading ? "処理中..." : "登録する"}
             </Button>
@@ -121,7 +123,11 @@ export default function SignupPage() {
             コードを受け取っていない場合は{" "}
             <button
               type="button"
-              onClick={() => { setStep("request"); setOtp(""); setError(null); }}
+              onClick={() => {
+                setStep("request")
+                setOtp("")
+                setError(null)
+              }}
               className="text-primary underline underline-offset-4"
             >
               再送信する
@@ -129,7 +135,7 @@ export default function SignupPage() {
           </p>
         </div>
       </div>
-    );
+    )
   }
 
   return (
@@ -137,7 +143,7 @@ export default function SignupPage() {
       <div className="w-full max-w-sm space-y-4">
         <div className="space-y-1">
           <h1 className="text-2xl font-bold">新規登録</h1>
-          <p className="text-muted-foreground text-sm">
+          <p className="text-sm text-muted-foreground">
             メールアドレスに認証コードを送信します。
           </p>
         </div>
@@ -153,7 +159,7 @@ export default function SignupPage() {
               value={email}
               onChange={(e) => setEmail(e.target.value)}
               placeholder="you@example.com"
-              className="w-full rounded-md border border-input bg-background px-3 py-2 text-sm placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-ring"
+              className="w-full rounded-md border border-input bg-background px-3 py-2 text-sm placeholder:text-muted-foreground focus:ring-2 focus:ring-ring focus:outline-none"
             />
           </div>
           <div className="space-y-1">
@@ -166,7 +172,7 @@ export default function SignupPage() {
               value={displayName}
               onChange={(e) => setDisplayName(e.target.value)}
               placeholder="山田 太郎"
-              className="w-full rounded-md border border-input bg-background px-3 py-2 text-sm placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-ring"
+              className="w-full rounded-md border border-input bg-background px-3 py-2 text-sm placeholder:text-muted-foreground focus:ring-2 focus:ring-ring focus:outline-none"
             />
           </div>
           <TurnstileWidget
@@ -174,14 +180,18 @@ export default function SignupPage() {
             onSuccess={setCaptchaToken}
             onExpire={() => setCaptchaToken(null)}
           />
-          {error && <p className="text-destructive text-sm">{error}</p>}
-          <Button type="submit" className="w-full" disabled={loading || !captchaToken}>
+          {error && <p className="text-sm text-destructive">{error}</p>}
+          <Button
+            type="submit"
+            className="w-full"
+            disabled={loading || !captchaToken}
+          >
             {loading ? "送信中..." : "認証コードを送信"}
           </Button>
         </form>
         <div className="flex items-center gap-3">
           <span className="h-px flex-1 bg-border" />
-          <span className="text-muted-foreground text-xs">または</span>
+          <span className="text-xs text-muted-foreground">または</span>
           <span className="h-px flex-1 bg-border" />
         </div>
         <div className="space-y-2">
@@ -208,11 +218,14 @@ export default function SignupPage() {
         </div>
         <p className="text-center text-sm text-muted-foreground">
           すでにアカウントをお持ちの方は{" "}
-          <Link href="/login" className="text-primary underline underline-offset-4">
+          <Link
+            href="/login"
+            className="text-primary underline underline-offset-4"
+          >
             ログイン
           </Link>
         </p>
       </div>
     </div>
-  );
+  )
 }

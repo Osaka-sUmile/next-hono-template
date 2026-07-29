@@ -1,11 +1,11 @@
-import type { ErrorHandler } from "hono";
-import { HTTPException } from "hono/http-exception";
-import * as Sentry from "@sentry/cloudflare";
-import { ZodError } from "zod";
-import { logger } from "../../infrastructure";
-import type { Env } from "../../infrastructure";
-import { ErrorCodes } from "../errors";
-import { errorResponse, formatZodError } from "../http";
+import type { ErrorHandler } from "hono"
+import { HTTPException } from "hono/http-exception"
+import * as Sentry from "@sentry/cloudflare"
+import { ZodError } from "zod"
+import { logger } from "../../infrastructure"
+import type { Env } from "../../infrastructure"
+import { ErrorCodes } from "../errors"
+import { errorResponse, formatZodError } from "../http"
 
 /**
  * 未処理エラーを捕捉するグローバルエラーハンドラーを生成する（Hono の app.onError に登録する）。
@@ -21,25 +21,30 @@ export function createErrorHandler(nodeEnv: Env["NODE_ENV"]): ErrorHandler {
   return (err, c) => {
     // リクエストボディのスキーマ検証失敗（Presentation 境界の Zod .parse()）。
     if (err instanceof ZodError) {
-      logger.info({ err }, "[errorHandler] Request validation failed");
-      return errorResponse(c, 400, ErrorCodes.VALIDATION_ERROR, formatZodError(err));
+      logger.info({ err }, "[errorHandler] Request validation failed")
+      return errorResponse(
+        c,
+        400,
+        ErrorCodes.VALIDATION_ERROR,
+        formatZodError(err)
+      )
     }
 
     // Hono の JSON validator はパース失敗時に HTTPException(400) を送出する。
     // 汎用 SyntaxError は拾わないため、アプリ内部由来の例外は引き続き 500 + Sentry になる。
     if (err instanceof HTTPException && err.status === 400) {
-      logger.info({ err }, "[errorHandler] Malformed JSON request body");
-      return errorResponse(c, 400, ErrorCodes.VALIDATION_ERROR, err.message);
+      logger.info({ err }, "[errorHandler] Malformed JSON request body")
+      return errorResponse(c, 400, ErrorCodes.VALIDATION_ERROR, err.message)
     }
 
     // 予期しないエラー。Sentry へ送信（DSN 未設定なら withSentry が初期化しないため no-op）。
-    Sentry.captureException(err);
-    logger.error({ err }, "[errorHandler] Unhandled error");
+    Sentry.captureException(err)
+    logger.error({ err }, "[errorHandler] Unhandled error")
     return errorResponse(
       c,
       500,
       ErrorCodes.INTERNAL_ERROR,
-      nodeEnv === "production" ? "Internal Server Error" : err.message,
-    );
-  };
+      nodeEnv === "production" ? "Internal Server Error" : err.message
+    )
+  }
 }

@@ -1,4 +1,4 @@
-import type { IIdGenerator } from "@workspace/domain";
+import type { IIdGenerator } from "@workspace/domain"
 
 /**
  * Web Crypto の randomUUID() を使う IIdGenerator 実装。
@@ -9,6 +9,6 @@ import type { IIdGenerator } from "@workspace/domain";
  */
 export class UuidIdGenerator implements IIdGenerator {
   generate(): string {
-    return crypto.randomUUID();
+    return crypto.randomUUID()
   }
 }

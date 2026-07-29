@@ -13,6 +13,8 @@
   "scripts": {
     "build": "tsc -p tsconfig.build.json",
     "lint": "eslint .",
+    "format": "prettier --write \"**/*.{ts,tsx}\" --ignore-path ../../.prettierignore",
+    "format:check": "prettier --check \"**/*.{ts,tsx}\" --ignore-path ../../.prettierignore",
     "typecheck": "tsc --noEmit",
     "db:generate": "prisma generate",
     "db:migrate:dev": "prisma migrate dev",

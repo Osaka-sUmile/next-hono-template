@@ -1,5 +1,5 @@
-import { PrismaClient, User as PrismaUser } from "@prisma/client";
-import { IUserRepository, UserEntity, parseUserRole } from "@workspace/domain";
+import { PrismaClient, User as PrismaUser } from "@prisma/client"
+import { IUserRepository, UserEntity, parseUserRole } from "@workspace/domain"
 
 export class UserPrismaRepository implements IUserRepository {
   constructor(private readonly prisma: PrismaClient) {}
@@ -11,17 +11,19 @@ export class UserPrismaRepository implements IUserRepository {
         model.email,
         model.name,
         parseUserRole(model.role),
-        model.displayName,
-      );
+        model.displayName
+      )
     } catch (err) {
-      throw new Error(`Failed to reconstitute UserEntity (id=${model.id}, role="${model.role}"): ${String(err)}`);
+      throw new Error(
+        `Failed to reconstitute UserEntity (id=${model.id}, role="${model.role}"): ${String(err)}`
+      )
     }
   }
 
   async findById(id: string): Promise<UserEntity | null> {
-    const user = await this.prisma.user.findUnique({ where: { id } });
-    if (!user) return null;
-    return this.toDomain(user);
+    const user = await this.prisma.user.findUnique({ where: { id } })
+    if (!user) return null
+    return this.toDomain(user)
   }
 
   async save(entity: UserEntity): Promise<UserEntity> {
@@ -43,11 +45,11 @@ export class UserPrismaRepository implements IUserRepository {
         // create 側は false 固定で問題ない（update 側も emailVerified を触らない設計）。
         emailVerified: false,
       },
-    });
-    return this.toDomain(model);
+    })
+    return this.toDomain(model)
   }
 
   async delete(entity: UserEntity): Promise<void> {
-    await this.prisma.user.delete({ where: { id: entity.id } });
+    await this.prisma.user.delete({ where: { id: entity.id } })
   }
 }

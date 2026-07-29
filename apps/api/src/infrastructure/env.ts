@@ -1,12 +1,12 @@
-import { z } from "zod";
+import { z } from "zod"
 
 const originUrlSchema = z
   .url()
   .refine((value) => {
-    const u = new URL(value);
-    return u.pathname === "/" && !u.search && !u.hash;
+    const u = new URL(value)
+    return u.pathname === "/" && !u.search && !u.hash
   }, "must be origin URL (no path/query/hash)")
-  .transform((value) => new URL(value).origin);
+  .transform((value) => new URL(value).origin)
 
 export const envSchema = z.object({
   NODE_ENV: z.enum(["development", "test", "production"]),
@@ -29,21 +29,21 @@ export const envSchema = z.object({
   SENTRY_ENVIRONMENT: z.string().trim().min(1).optional(),
   // Cloudflare Turnstile の secret key。emailOTP 送信系エンドポイントの captcha 検証に必須。
   TURNSTILE_SECRET_KEY: z.string().min(1),
-});
+})
 
-export type Env = z.infer<typeof envSchema>;
+export type Env = z.infer<typeof envSchema>
 
 /**
  * Cloudflare Workers から渡される検証前の生の bindings。
  * `parseEnv` を通すまでは値の型・存在は保証されないため、
  * 検証済みの `Env` とは区別して扱う。
  */
-export type WorkerBindings = Record<string, unknown>;
+export type WorkerBindings = Record<string, unknown>
 
 /** Cloudflare Workers の Rate Limiting binding（wrangler.jsonc の ratelimits で定義）。 */
 export type WorkerRateLimitBindings = {
-  AUTH_RATE_LIMITER?: RateLimit;
-};
+  AUTH_RATE_LIMITER?: RateLimit
+}
 
 /**
  * Cloudflare Workers の fetch handler が受け取る env オブジェクトを検証する。
@@ -51,5 +51,5 @@ export type WorkerRateLimitBindings = {
  * モジュールレベルの singleton は持たず、呼び出し側で都度 parse する。
  */
 export function parseEnv(source: WorkerBindings): Env {
-  return envSchema.parse(source);
+  return envSchema.parse(source)
 }

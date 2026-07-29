@@ -1,32 +1,39 @@
-import { createRoute, z } from "@hono/zod-openapi";
-import { errorResponses } from "../openapi";
+import { createRoute, z } from "@hono/zod-openapi"
+import { errorResponses } from "../openapi"
 
 /**
  * API 境界での入力上限。DB・メモリ負荷と、ドメイン検証まで到達させたくない
  * 明らかに過大な入力をここで弾く（issue #128）。
  * FEEDBACK_TEXT_MAX_LENGTH は FeedbackSubmissionEntity 側の上限と同じ値を保つ。
  */
-const FEEDBACK_ID_MAX_LENGTH = 64;
-const FEEDBACK_CHOICE_VALUE_MAX_LENGTH = 100;
-const FEEDBACK_TEXT_MAX_LENGTH = 2000;
-const FEEDBACK_ANSWERS_MAX_COUNT = 50;
-const SUBMISSION_LIST_MAX_LIMIT = 100;
-const SUBMISSION_LIST_DEFAULT_LIMIT = 20;
+const FEEDBACK_ID_MAX_LENGTH = 64
+const FEEDBACK_CHOICE_VALUE_MAX_LENGTH = 100
+const FEEDBACK_TEXT_MAX_LENGTH = 2000
+const FEEDBACK_ANSWERS_MAX_COUNT = 50
+const SUBMISSION_LIST_MAX_LIMIT = 100
+const SUBMISSION_LIST_DEFAULT_LIMIT = 20
 
-const feedbackIdSchema = z.string().trim().min(1).max(FEEDBACK_ID_MAX_LENGTH);
+const feedbackIdSchema = z.string().trim().min(1).max(FEEDBACK_ID_MAX_LENGTH)
 
 const FeedbackChoiceSchema = z
   .object({
-    value: z.string().openapi({ description: "Stable value used as the tally key" }),
+    value: z
+      .string()
+      .openapi({ description: "Stable value used as the tally key" }),
     label: z.string().openapi({ description: "Label shown to respondents" }),
-    sortOrder: z.number().int().openapi({ description: "Display order within the question" }),
+    sortOrder: z
+      .number()
+      .int()
+      .openapi({ description: "Display order within the question" }),
   })
-  .openapi("FeedbackChoice");
+  .openapi("FeedbackChoice")
 
 const FeedbackQuestionSchema = z
   .object({
     id: z.string(),
-    type: z.enum(["single_choice", "text"]).openapi({ description: "Answer input type" }),
+    type: z
+      .enum(["single_choice", "text"])
+      .openapi({ description: "Answer input type" }),
     text: z.string(),
     required: z.boolean(),
     sortOrder: z.number().int(),
@@ -34,7 +41,7 @@ const FeedbackQuestionSchema = z
       .array(FeedbackChoiceSchema)
       .openapi({ description: "Empty for text questions" }),
   })
-  .openapi("FeedbackQuestion");
+  .openapi("FeedbackQuestion")
 
 const FeedbackSurveySchema = z
   .object({
@@ -43,7 +50,7 @@ const FeedbackSurveySchema = z
     title: z.string(),
     questions: z.array(FeedbackQuestionSchema),
   })
-  .openapi("FeedbackSurvey");
+  .openapi("FeedbackSurvey")
 
 /**
  * 回答投稿のリクエストボディ。
@@ -66,11 +73,11 @@ const SubmitFeedbackBodySchema = z.strictObject({
           .max(FEEDBACK_TEXT_MAX_LENGTH)
           .optional()
           .openapi({ description: "Required for text questions" }),
-      }),
+      })
     )
     .max(FEEDBACK_ANSWERS_MAX_COUNT)
     .openapi({ description: "One entry per answered question" }),
-});
+})
 
 const FeedbackSubmissionAcceptedSchema = z
   .object({
@@ -78,7 +85,7 @@ const FeedbackSubmissionAcceptedSchema = z
     surveyId: z.string(),
     createdAt: z.string().datetime(),
   })
-  .openapi("FeedbackSubmissionAccepted");
+  .openapi("FeedbackSubmissionAccepted")
 
 const FeedbackSubmissionAnswerSchema = z
   .object({
@@ -88,7 +95,7 @@ const FeedbackSubmissionAnswerSchema = z
     choiceLabel: z.string().nullable(),
     textValue: z.string().nullable(),
   })
-  .openapi("FeedbackSubmissionAnswer");
+  .openapi("FeedbackSubmissionAnswer")
 
 const FeedbackSubmissionSchema = z
   .object({
@@ -103,35 +110,41 @@ const FeedbackSubmissionSchema = z
     createdAt: z.string().datetime(),
     answers: z.array(FeedbackSubmissionAnswerSchema),
   })
-  .openapi("FeedbackSubmission");
+  .openapi("FeedbackSubmission")
 
 const FeedbackSubmissionListSchema = z
   .object({
     items: z.array(FeedbackSubmissionSchema),
-    total: z.number().int().openapi({ description: "Total submissions matching the filter" }),
+    total: z
+      .number()
+      .int()
+      .openapi({ description: "Total submissions matching the filter" }),
     limit: z.number().int(),
     offset: z.number().int(),
   })
-  .openapi("FeedbackSubmissionList");
+  .openapi("FeedbackSubmissionList")
 
 const FeedbackSummarySchema = z
   .object({
     surveyId: z.string(),
-    respondentCount: z
-      .number()
-      .int()
-      .openapi({ description: "Distinct respondents, counting only each user's latest submission" }),
+    respondentCount: z.number().int().openapi({
+      description:
+        "Distinct respondents, counting only each user's latest submission",
+    }),
     tallies: z
       .array(
         z.object({
           questionId: z.string(),
           choiceValue: z.string(),
           count: z.number().int(),
-        }),
+        })
       )
-      .openapi({ description: "Single-choice tallies only; text answers are not aggregated" }),
+      .openapi({
+        description:
+          "Single-choice tallies only; text answers are not aggregated",
+      }),
   })
-  .openapi("FeedbackSummary");
+  .openapi("FeedbackSummary")
 
 const ListFeedbackSubmissionsQuerySchema = z.object({
   limit: z.coerce
@@ -149,26 +162,31 @@ const ListFeedbackSubmissionsQuerySchema = z.object({
   // nullable: true が載って apps/web の型が number | null になってしまうため。
   // クエリ文字列に null は現れないので、契約としては非 null の integer が正しい。
   // limit 側は min(1) が null 由来の 0 を弾くため、この指定は不要。
-  offset: z.coerce.number().int().min(0).default(0).openapi({
-    param: {
-      name: "offset",
-      in: "query",
-      schema: { type: "integer", minimum: 0, default: 0 },
-    },
-    description: "Number of submissions to skip",
-  }),
+  offset: z.coerce
+    .number()
+    .int()
+    .min(0)
+    .default(0)
+    .openapi({
+      param: {
+        name: "offset",
+        in: "query",
+        schema: { type: "integer", minimum: 0, default: 0 },
+      },
+      description: "Number of submissions to skip",
+    }),
   surveyId: feedbackIdSchema.optional().openapi({
     param: { name: "surveyId", in: "query" },
     description: "Restrict to one survey. Omit to include every survey.",
   }),
-});
+})
 
 const SummarizeFeedbackQuerySchema = z.object({
   surveyId: feedbackIdSchema.openapi({
     param: { name: "surveyId", in: "query" },
     description: "Survey to aggregate",
   }),
-});
+})
 
 export const getActiveFeedbackSurveyRoute = createRoute({
   method: "get",
@@ -189,7 +207,7 @@ export const getActiveFeedbackSurveyRoute = createRoute({
       500: "Internal Server Error",
     }),
   },
-});
+})
 
 export const submitFeedbackRoute = createRoute({
   method: "post",
@@ -200,12 +218,17 @@ export const submitFeedbackRoute = createRoute({
     "Records the authenticated user's answers. Repeat submissions are allowed; aggregation uses only each user's latest submission.",
   security: [{ cookieAuth: [] }],
   request: {
-    body: { required: true, content: { "application/json": { schema: SubmitFeedbackBodySchema } } },
+    body: {
+      required: true,
+      content: { "application/json": { schema: SubmitFeedbackBodySchema } },
+    },
   },
   responses: {
     201: {
       description: "The submission was recorded",
-      content: { "application/json": { schema: FeedbackSubmissionAcceptedSchema } },
+      content: {
+        "application/json": { schema: FeedbackSubmissionAcceptedSchema },
+      },
     },
     ...errorResponses({
       400: "Request validation failed (VALIDATION_ERROR) or the answers violate the survey contract (FEEDBACK_INVALID_ANSWER)",
@@ -214,7 +237,7 @@ export const submitFeedbackRoute = createRoute({
       500: "Internal Server Error",
     }),
   },
-});
+})
 
 export const listFeedbackSubmissionsRoute = createRoute({
   method: "get",
@@ -237,7 +260,7 @@ export const listFeedbackSubmissionsRoute = createRoute({
       500: "Internal Server Error",
     }),
   },
-});
+})
 
 export const summarizeFeedbackRoute = createRoute({
   method: "get",
@@ -260,4 +283,4 @@ export const summarizeFeedbackRoute = createRoute({
       500: "Internal Server Error",
     }),
   },
-});
+})

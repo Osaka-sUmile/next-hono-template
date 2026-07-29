@@ -1,69 +1,73 @@
-"use client";
+"use client"
 
-import { useRef, useState } from "react";
-import Link from "next/link";
-import type { TurnstileInstance } from "@marsidev/react-turnstile";
-import { Button } from "@workspace/ui/components/button";
-import { TurnstileWidget } from "@/components/turnstile-widget";
-import { authClient } from "@/lib/auth-client";
+import { useRef, useState } from "react"
+import Link from "next/link"
+import type { TurnstileInstance } from "@marsidev/react-turnstile"
+import { Button } from "@workspace/ui/components/button"
+import { TurnstileWidget } from "@/components/turnstile-widget"
+import { authClient } from "@/lib/auth-client"
 
-type Step = "request" | "verify" | "done";
+type Step = "request" | "verify" | "done"
 
 export default function ForgotPasswordPage() {
-  const [step, setStep] = useState<Step>("request");
-  const [email, setEmail] = useState("");
-  const [otp, setOtp] = useState("");
-  const [password, setPassword] = useState("");
-  const [error, setError] = useState<string | null>(null);
-  const [loading, setLoading] = useState(false);
-  const [captchaToken, setCaptchaToken] = useState<string | null>(null);
-  const turnstileRef = useRef<TurnstileInstance>(null);
+  const [step, setStep] = useState<Step>("request")
+  const [email, setEmail] = useState("")
+  const [otp, setOtp] = useState("")
+  const [password, setPassword] = useState("")
+  const [error, setError] = useState<string | null>(null)
+  const [loading, setLoading] = useState(false)
+  const [captchaToken, setCaptchaToken] = useState<string | null>(null)
+  const turnstileRef = useRef<TurnstileInstance>(null)
 
   async function handleRequest(e: React.FormEvent) {
-    e.preventDefault();
-    if (!captchaToken) return;
-    setError(null);
-    setLoading(true);
+    e.preventDefault()
+    if (!captchaToken) return
+    setError(null)
+    setLoading(true)
     const { error } = await authClient.emailOtp.requestPasswordReset(
       { email },
-      { headers: { "x-captcha-response": captchaToken } },
-    );
-    setLoading(false);
+      { headers: { "x-captcha-response": captchaToken } }
+    )
+    setLoading(false)
     if (error) {
-      setError("送信に失敗しました。しばらく経ってから再試行してください。");
+      setError("送信に失敗しました。しばらく経ってから再試行してください。")
       // captcha トークンは 1 回限りのため、失敗時は破棄してウィジェットを再取得させる。
-      setCaptchaToken(null);
-      turnstileRef.current?.reset();
-      return;
+      setCaptchaToken(null)
+      turnstileRef.current?.reset()
+      return
     }
-    setStep("verify");
+    setStep("verify")
   }
 
   async function handleVerify(e: React.FormEvent) {
-    e.preventDefault();
-    setError(null);
-    setLoading(true);
-    const { error } = await authClient.emailOtp.resetPassword({ email, otp, password });
-    setLoading(false);
+    e.preventDefault()
+    setError(null)
+    setLoading(true)
+    const { error } = await authClient.emailOtp.resetPassword({
+      email,
+      otp,
+      password,
+    })
+    setLoading(false)
     if (error) {
-      setError("コードが正しくありません。または有効期限が切れています。");
-      return;
+      setError("コードが正しくありません。または有効期限が切れています。")
+      return
     }
-    setStep("done");
+    setStep("done")
   }
 
   if (step === "done") {
     return (
       <div className="flex min-h-screen flex-col items-center justify-center gap-4 p-6">
         <h1 className="text-2xl font-bold">パスワードをリセットしました</h1>
-        <p className="text-muted-foreground text-center max-w-sm">
+        <p className="max-w-sm text-center text-muted-foreground">
           新しいパスワードでログインしてください。
         </p>
         <Link href="/" className="text-primary underline underline-offset-4">
           トップへ戻る
         </Link>
       </div>
-    );
+    )
   }
 
   if (step === "verify") {
@@ -72,7 +76,7 @@ export default function ForgotPasswordPage() {
         <div className="w-full max-w-sm space-y-4">
           <div className="space-y-1">
             <h1 className="text-2xl font-bold">パスワードをリセット</h1>
-            <p className="text-muted-foreground text-sm">
+            <p className="text-sm text-muted-foreground">
               {email} に送信したコードを入力してください。
             </p>
           </div>
@@ -90,7 +94,7 @@ export default function ForgotPasswordPage() {
                 value={otp}
                 onChange={(e) => setOtp(e.target.value)}
                 placeholder="123456"
-                className="w-full rounded-md border border-input bg-background px-3 py-2 text-sm placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-ring"
+                className="w-full rounded-md border border-input bg-background px-3 py-2 text-sm placeholder:text-muted-foreground focus:ring-2 focus:ring-ring focus:outline-none"
               />
             </div>
             <div className="space-y-1">
@@ -106,10 +110,10 @@ export default function ForgotPasswordPage() {
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
                 placeholder="••••••••"
-                className="w-full rounded-md border border-input bg-background px-3 py-2 text-sm placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-ring"
+                className="w-full rounded-md border border-input bg-background px-3 py-2 text-sm placeholder:text-muted-foreground focus:ring-2 focus:ring-ring focus:outline-none"
               />
             </div>
-            {error && <p className="text-destructive text-sm">{error}</p>}
+            {error && <p className="text-sm text-destructive">{error}</p>}
             <Button type="submit" className="w-full" disabled={loading}>
               {loading ? "処理中..." : "パスワードをリセット"}
             </Button>
@@ -118,7 +122,12 @@ export default function ForgotPasswordPage() {
             コードを受け取っていない場合は{" "}
             <button
               type="button"
-              onClick={() => { setStep("request"); setOtp(""); setPassword(""); setError(null); }}
+              onClick={() => {
+                setStep("request")
+                setOtp("")
+                setPassword("")
+                setError(null)
+              }}
               className="text-primary underline underline-offset-4"
             >
               再送信する
@@ -126,7 +135,7 @@ export default function ForgotPasswordPage() {
           </p>
         </div>
       </div>
-    );
+    )
   }
 
   return (
@@ -134,7 +143,7 @@ export default function ForgotPasswordPage() {
       <div className="w-full max-w-sm space-y-4">
         <div className="space-y-1">
           <h1 className="text-2xl font-bold">パスワードをお忘れですか？</h1>
-          <p className="text-muted-foreground text-sm">
+          <p className="text-sm text-muted-foreground">
             登録済みのメールアドレスにリセットコードを送信します。
           </p>
         </div>
@@ -150,7 +159,7 @@ export default function ForgotPasswordPage() {
               value={email}
               onChange={(e) => setEmail(e.target.value)}
               placeholder="you@example.com"
-              className="w-full rounded-md border border-input bg-background px-3 py-2 text-sm placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-ring"
+              className="w-full rounded-md border border-input bg-background px-3 py-2 text-sm placeholder:text-muted-foreground focus:ring-2 focus:ring-ring focus:outline-none"
             />
           </div>
           <TurnstileWidget
@@ -158,8 +167,12 @@ export default function ForgotPasswordPage() {
             onSuccess={setCaptchaToken}
             onExpire={() => setCaptchaToken(null)}
           />
-          {error && <p className="text-destructive text-sm">{error}</p>}
-          <Button type="submit" className="w-full" disabled={loading || !captchaToken}>
+          {error && <p className="text-sm text-destructive">{error}</p>}
+          <Button
+            type="submit"
+            className="w-full"
+            disabled={loading || !captchaToken}
+          >
             {loading ? "送信中..." : "リセットコードを送信"}
           </Button>
         </form>
@@ -170,5 +183,5 @@ export default function ForgotPasswordPage() {
         </p>
       </div>
     </div>
-  );
+  )
 }

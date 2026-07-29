@@ -1,14 +1,14 @@
-import { Prisma, PrismaClient } from "@prisma/client";
+import { Prisma, PrismaClient } from "@prisma/client"
 import {
   FeedbackSubmissionEntity,
   IFeedbackSubmissionRepository,
-} from "@workspace/domain";
+} from "@workspace/domain"
 
 type FeedbackSubmissionWithAnswers = Prisma.FeedbackSubmissionGetPayload<{
   include: {
-    answers: true;
-  };
-}>;
+    answers: true
+  }
+}>
 
 export class FeedbackSubmissionPrismaRepository implements IFeedbackSubmissionRepository {
   constructor(private readonly prisma: PrismaClient) {}
@@ -21,9 +21,9 @@ export class FeedbackSubmissionPrismaRepository implements IFeedbackSubmissionRe
           orderBy: [{ questionId: "asc" }, { id: "asc" }],
         },
       },
-    });
-    if (!submission) return null;
-    return this.toDomain(submission);
+    })
+    if (!submission) return null
+    return this.toDomain(submission)
   }
 
   async save(
@@ -33,7 +33,7 @@ export class FeedbackSubmissionPrismaRepository implements IFeedbackSubmissionRe
       questionId: answer.questionId,
       choiceId: answer.choiceId,
       textValue: answer.textValue,
-    }));
+    }))
     const submission = await this.prisma.feedbackSubmission.upsert({
       where: { id: entity.id },
       update: {
@@ -58,12 +58,12 @@ export class FeedbackSubmissionPrismaRepository implements IFeedbackSubmissionRe
           orderBy: [{ questionId: "asc" }, { id: "asc" }],
         },
       },
-    });
-    return this.toDomain(submission);
+    })
+    return this.toDomain(submission)
   }
 
   async delete(entity: FeedbackSubmissionEntity): Promise<void> {
-    await this.prisma.feedbackSubmission.delete({ where: { id: entity.id } });
+    await this.prisma.feedbackSubmission.delete({ where: { id: entity.id } })
   }
 
   private toDomain(
@@ -80,14 +80,14 @@ export class FeedbackSubmissionPrismaRepository implements IFeedbackSubmissionRe
           textValue: answer.textValue,
         })),
         model.createdAt
-      );
+      )
     } catch (error) {
       throw new Error(
         `Failed to reconstitute FeedbackSubmissionEntity (id=${model.id})`,
         {
           cause: error,
         }
-      );
+      )
     }
   }
 }

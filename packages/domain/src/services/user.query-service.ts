@@ -1,18 +1,18 @@
-import { UserRole } from "../models/user.entity";
+import { UserRole } from "../models/user.entity"
 
 export type UserQueryResult = {
-  id: string;
-  email: string;
-  name: string;
-  role: UserRole;
-  displayName: string | null;
-  image: string | null;
-  emailVerified: boolean;
-  createdAt: Date;
-};
+  id: string
+  email: string
+  name: string
+  role: UserRole
+  displayName: string | null
+  image: string | null
+  emailVerified: boolean
+  createdAt: Date
+}
 
 export interface IUserQueryService {
-  findById(id: string): Promise<UserQueryResult | null>;
+  findById(id: string): Promise<UserQueryResult | null>
   /** 全ユーザーを取得する。 */
-  findAll(): Promise<UserQueryResult[]>;
+  findAll(): Promise<UserQueryResult[]>
 }

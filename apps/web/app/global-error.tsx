@@ -1,17 +1,17 @@
-"use client";
+"use client"
 
-import { useEffect } from "react";
-import * as Sentry from "@sentry/nextjs";
+import { useEffect } from "react"
+import * as Sentry from "@sentry/nextjs"
 
 type Props = {
-  error: Error & { digest?: string };
-  reset: () => void;
-};
+  error: Error & { digest?: string }
+  reset: () => void
+}
 
 export default function GlobalError({ error, reset }: Props) {
   useEffect(() => {
-    Sentry.captureException(error);
-  }, [error]);
+    Sentry.captureException(error)
+  }, [error])
 
   return (
     <html lang="ja">
@@ -23,5 +23,5 @@ export default function GlobalError({ error, reset }: Props) {
         </div>
       </body>
     </html>
-  );
+  )
 }
