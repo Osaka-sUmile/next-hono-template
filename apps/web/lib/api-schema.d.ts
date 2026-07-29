@@ -816,7 +816,7 @@ export interface paths {
                 query?: never;
                 header?: never;
                 path: {
-                    /** @description Survey to retrieve */
+                    /** @description Survey to update */
                     surveyId: string;
                 };
                 cookie?: never;

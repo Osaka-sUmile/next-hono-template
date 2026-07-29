@@ -1,8 +1,6 @@
-import type {
-  FeedbackSurveyEntity,
-  IFeedbackSurveyRepository,
-} from "@workspace/domain"
+import type { IFeedbackSurveyRepository } from "@workspace/domain"
 import type { FeedbackSurveyMutationResponseDto } from "../dtos/feedback.response.dto"
+import { toFeedbackSurveyMutationResponseDto } from "../dtos/feedback.response.dto"
 import { FeedbackSurveyNotFoundError } from "../errors/feedback.error"
 import { BaseCommandUseCase } from "./base.command"
 
@@ -11,29 +9,6 @@ export type UpdateFeedbackSurveyInput = {
   slug?: string
   title?: string
   isActive?: boolean
-}
-
-function toMutationDto(
-  survey: FeedbackSurveyEntity
-): FeedbackSurveyMutationResponseDto {
-  return {
-    id: survey.id,
-    slug: survey.slug,
-    title: survey.title,
-    isActive: survey.isActive,
-    questions: survey.questions.map((question) => ({
-      id: question.id,
-      type: question.type,
-      text: question.text,
-      required: question.required,
-      sortOrder: question.sortOrder,
-      choices: question.choices.map((choice) => ({
-        value: choice.value,
-        label: choice.label,
-        sortOrder: choice.sortOrder,
-      })),
-    })),
-  }
 }
 
 /**
@@ -77,6 +52,6 @@ export class UpdateFeedbackSurveyUseCase extends BaseCommandUseCase<
       await this.feedbackSurveyRepository.activateExclusively(saved)
     }
 
-    return toMutationDto(saved)
+    return toFeedbackSurveyMutationResponseDto(saved)
   }
 }

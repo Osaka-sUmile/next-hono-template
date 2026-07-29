@@ -1520,10 +1520,10 @@
               "type": "string",
               "minLength": 1,
               "maxLength": 64,
-              "description": "Survey to retrieve"
+              "description": "Survey to update"
             },
             "required": true,
-            "description": "Survey to retrieve",
+            "description": "Survey to update",
             "name": "surveyId",
             "in": "path"
           }

@@ -5,6 +5,7 @@ import { createTestApp } from "../test-utils"
 type OpenApiParameter = {
   name: string
   in: string
+  description?: string
   schema: Record<string, unknown>
 }
 
@@ -182,18 +183,21 @@ describe("GET /api-docs/openapi.json", () => {
     const res = await app.request("/api-docs/openapi.json")
     const document = (await res.json()) as OpenApiDocument
 
-    const operations = [
-      document.paths["/api/v1/admin/users/{userId}/role"]?.patch,
+    const surveyWriteOperations = [
       document.paths["/api/v1/admin/feedback/surveys"]?.post,
       document.paths["/api/v1/admin/feedback/surveys/{surveyId}"]?.patch,
     ]
-    for (const operation of operations) {
+    const writeOperations = [
+      document.paths["/api/v1/admin/users/{userId}/role"]?.patch,
+      ...surveyWriteOperations,
+    ]
+    for (const operation of writeOperations) {
       expect(
         operation?.requestBody?.content?.["application/json"]?.schema
       ).toMatchObject({ type: "object", additionalProperties: false })
     }
 
-    for (const operation of operations.slice(1)) {
+    for (const operation of surveyWriteOperations) {
       expect(operation?.responses?.["409"]).toMatchObject({
         content: {
           "application/json": {
@@ -202,5 +206,11 @@ describe("GET /api-docs/openapi.json", () => {
         },
       })
     }
+
+    expect(
+      document.paths[
+        "/api/v1/admin/feedback/surveys/{surveyId}"
+      ]?.patch?.parameters?.find((parameter) => parameter.name === "surveyId")
+    ).toMatchObject({ description: "Survey to update" })
   })
 })

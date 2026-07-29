@@ -99,6 +99,13 @@ const GetFeedbackSurveyDetailParamsSchema = z.object({
   }),
 })
 
+const UpdateFeedbackSurveyParamsSchema = z.object({
+  surveyId: feedbackIdSchema.openapi({
+    param: { name: "surveyId", in: "path", required: true },
+    description: "Survey to update",
+  }),
+})
+
 // Domain の regex は非公開なので API 境界で同じ契約を明示的にミラーする。
 const FEEDBACK_SURVEY_SLUG_REGEX = /^[a-z0-9]+(?:-[a-z0-9]+)*$/
 
@@ -476,7 +483,7 @@ export const updateFeedbackSurveyRoute = createRoute({
     "Updates slug, title, or active state. Activating it deactivates every other survey.",
   security: [{ cookieAuth: [] }],
   request: {
-    params: GetFeedbackSurveyDetailParamsSchema,
+    params: UpdateFeedbackSurveyParamsSchema,
     body: {
       required: true,
       content: {

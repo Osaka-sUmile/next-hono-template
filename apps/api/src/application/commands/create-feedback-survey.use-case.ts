@@ -5,6 +5,7 @@ import type {
   IIdGenerator,
 } from "@workspace/domain"
 import type { FeedbackSurveyMutationResponseDto } from "../dtos/feedback.response.dto"
+import { toFeedbackSurveyMutationResponseDto } from "../dtos/feedback.response.dto"
 import { BaseCommandUseCase } from "./base.command"
 
 export type CreateFeedbackSurveyInput = {
@@ -17,29 +18,6 @@ export type CreateFeedbackSurveyInput = {
     required: boolean
     choices: readonly { value: string; label: string }[]
   }[]
-}
-
-function toMutationDto(
-  survey: FeedbackSurveyEntity
-): FeedbackSurveyMutationResponseDto {
-  return {
-    id: survey.id,
-    slug: survey.slug,
-    title: survey.title,
-    isActive: survey.isActive,
-    questions: survey.questions.map((question) => ({
-      id: question.id,
-      type: question.type,
-      text: question.text,
-      required: question.required,
-      sortOrder: question.sortOrder,
-      choices: question.choices.map((choice) => ({
-        value: choice.value,
-        label: choice.label,
-        sortOrder: choice.sortOrder,
-      })),
-    })),
-  }
 }
 
 /** 管理者がアンケートと設問・選択肢を一括作成する Command ユースケース。 */
@@ -85,6 +63,6 @@ export class CreateFeedbackSurveyUseCase extends BaseCommandUseCase<
       await this.feedbackSurveyRepository.activateExclusively(saved)
     }
 
-    return toMutationDto(saved)
+    return toFeedbackSurveyMutationResponseDto(saved)
   }
 }

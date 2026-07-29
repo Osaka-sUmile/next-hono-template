@@ -10,9 +10,9 @@ export class UserNotFoundError extends ApplicationError {
 /**
  * 自分自身の role を変更しようとした状態。403 CANNOT_CHANGE_OWN_ROLE へ変換する。
  *
- * このエンドポイントを呼べるのは admin だけなので、admin を 0 人にする唯一の経路は
- * 「最後の admin が自分を降格する」こと。これを禁じればロックアウトが構造的に起こらず
- * count() が不要になる。
+ * 自分自身を直接降格する単純なロックアウト経路を閉じる。
+ * 複数 admin の相互降格が並行した場合まで含む「admin を 0 人にしない」保証には
+ * DB トランザクション内の排他制御が必要なため、別 issue で扱う。
  */
 export class CannotChangeOwnRoleError extends ApplicationError {
   constructor(userId: string) {
