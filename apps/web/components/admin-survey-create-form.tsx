@@ -140,8 +140,14 @@ export function AdminSurveyCreateForm({
   }
 
   function handleOpenChange(nextOpen: boolean) {
+    // 送信中に閉じると、完了後の成功/失敗が別セッションのフォームへ誤って反映される。
+    if (!nextOpen && submitting) return
     setOpen(nextOpen)
     if (nextOpen) resetForm()
+  }
+
+  function preventDismissWhileSubmitting(event: Event) {
+    if (submitting) event.preventDefault()
   }
 
   function addQuestion() {
@@ -276,7 +282,12 @@ export function AdminSurveyCreateForm({
           アンケートを作成
         </Button>
       </DialogTrigger>
-      <DialogContent className="max-h-[85vh] overflow-y-auto sm:max-w-2xl">
+      <DialogContent
+        className="max-h-[85vh] overflow-y-auto sm:max-w-2xl"
+        showCloseButton={!submitting}
+        onInteractOutside={preventDismissWhileSubmitting}
+        onEscapeKeyDown={preventDismissWhileSubmitting}
+      >
         <DialogHeader>
           <DialogTitle>アンケートを作成</DialogTitle>
           <DialogDescription>
@@ -483,7 +494,7 @@ export function AdminSurveyCreateForm({
 
           <DialogFooter>
             <DialogClose asChild>
-              <Button type="button" variant="outline">
+              <Button type="button" variant="outline" disabled={submitting}>
                 キャンセル
               </Button>
             </DialogClose>

@@ -241,6 +241,37 @@ describe("AdminSurveyCreateForm", () => {
     expect(mocks.reportError).toHaveBeenCalledWith(boom)
   })
 
+  it("送信中はダイアログを閉じられず、完了後に正しく閉じる", async () => {
+    const user = userEvent.setup()
+    const onCreated = vi.fn()
+    let resolvePost!: (value: unknown) => void
+    const postPromise = new Promise((resolve) => {
+      resolvePost = resolve
+    })
+    mocks.post.mockReturnValue(postPromise)
+    render(<AdminSurveyCreateForm onCreated={onCreated} />)
+
+    await openDialog(user)
+    await user.type(screen.getByLabelText("タイトル"), "進行中")
+    await user.type(screen.getByLabelText("slug"), "pending-2027")
+    await user.click(screen.getByRole("button", { name: "作成" }))
+
+    await waitFor(() => {
+      expect(screen.getByRole("button", { name: "作成中..." })).toBeDisabled()
+    })
+    expect(screen.getByRole("button", { name: "キャンセル" })).toBeDisabled()
+    expect(screen.getByRole("dialog")).toBeInTheDocument()
+    expect(screen.getByLabelText("タイトル")).toHaveValue("進行中")
+
+    resolvePost({})
+    await waitFor(() => {
+      expect(onCreated).toHaveBeenCalledTimes(1)
+    })
+    await waitFor(() => {
+      expect(screen.queryByRole("dialog")).not.toBeInTheDocument()
+    })
+  })
+
   it("設問と選択肢の削除ボタンで行を取り除ける", async () => {
     const user = userEvent.setup()
     render(<AdminSurveyCreateForm onCreated={vi.fn()} />)
