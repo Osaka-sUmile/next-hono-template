@@ -140,9 +140,10 @@ model FeedbackSubmission {
   createdAt DateTime         @default(now())
   answers   FeedbackAnswer[]
 
-  @@index([surveyId, createdAt])
+  @@index([surveyId, createdAt(sort: Desc), id(sort: Desc)])
   // 「ユーザーごとに最新 1 件」を DISTINCT ON で引くための複合インデックス
-  @@index([surveyId, userId, createdAt])
+  @@index([surveyId, userId, createdAt(sort: Desc), id(sort: Desc)])
+  @@index([createdAt(sort: Desc), id(sort: Desc)])
 }
 
 model FeedbackAnswer {

@@ -450,6 +450,24 @@ describe("FeedbackQueryService (integration)", () => {
       })
     })
 
+    it("回答が0件の提出も母数に数える", async () => {
+      await seedSurvey()
+      await seedUser("user-1")
+      await prisma.feedbackSubmission.create({
+        data: {
+          id: "submission-without-answers",
+          surveyId: "survey-1",
+          userId: "user-1",
+          createdAt: new Date("2026-07-26T02:00:00.000Z"),
+        },
+      })
+
+      await expect(queryService.summarize("survey-1")).resolves.toEqual({
+        respondentCount: 1,
+        tallies: [],
+      })
+    })
+
     it("他アンケートの提出を母数・tally のどちらにも混ぜない", async () => {
       await seedSurvey()
       await seedOtherSurvey()
