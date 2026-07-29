@@ -77,6 +77,7 @@ export const listUsersRoute = createRoute({
       content: { "application/json": { schema: UserListSchema } },
     },
     ...errorResponses({
+      400: "Invalid paging or filter parameters (VALIDATION_ERROR)",
       401: "Unauthorized (missing or invalid session)",
       403: "Forbidden (authenticated but not an admin)",
       500: "Internal Server Error",

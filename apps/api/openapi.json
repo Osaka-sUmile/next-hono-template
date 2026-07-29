@@ -737,6 +737,16 @@
               }
             }
           },
+          "400": {
+            "description": "Invalid paging or filter parameters (VALIDATION_ERROR)",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
           "401": {
             "description": "Unauthorized (missing or invalid session)",
             "content": {

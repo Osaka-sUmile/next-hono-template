@@ -7,6 +7,18 @@ import {
   parseUserRole,
 } from "@workspace/domain"
 
+type RawUserQueryResult = Omit<UserQueryResult, "role"> & { role: string }
+
+function toUserQueryResult(raw: RawUserQueryResult): UserQueryResult {
+  try {
+    return { ...raw, role: parseUserRole(raw.role) }
+  } catch (err) {
+    throw new Error(
+      `Failed to map user query result (id=${raw.id}, role="${raw.role}"): ${String(err)}`
+    )
+  }
+}
+
 export class UserQueryService implements IUserQueryService {
   constructor(private readonly prisma: PrismaClient) {}
 
@@ -25,13 +37,7 @@ export class UserQueryService implements IUserQueryService {
       },
     })
     if (!raw) return null
-    try {
-      return { ...raw, role: parseUserRole(raw.role) }
-    } catch (err) {
-      throw new Error(
-        `Failed to map user query result (id=${raw.id}, role="${raw.role}"): ${String(err)}`
-      )
-    }
+    return toUserQueryResult(raw)
   }
 
   async search({
@@ -74,16 +80,6 @@ export class UserQueryService implements IUserQueryService {
       }),
     ])
 
-    const items = rows.map((raw) => {
-      try {
-        return { ...raw, role: parseUserRole(raw.role) }
-      } catch (err) {
-        throw new Error(
-          `Failed to map user query result (id=${raw.id}, role="${raw.role}"): ${String(err)}`
-        )
-      }
-    })
-
-    return { items, total }
+    return { items: rows.map(toUserQueryResult), total }
   }
 }

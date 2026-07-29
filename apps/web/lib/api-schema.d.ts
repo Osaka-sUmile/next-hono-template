@@ -198,6 +198,15 @@ export interface paths {
                         "application/json": components["schemas"]["UserList"];
                     };
                 };
+                /** @description Invalid paging or filter parameters (VALIDATION_ERROR) */
+                400: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["Error"];
+                    };
+                };
                 /** @description Unauthorized (missing or invalid session) */
                 401: {
                     headers: {

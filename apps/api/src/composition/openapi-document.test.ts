@@ -11,6 +11,7 @@ type OpenApiParameter = {
 type OpenApiOperation = {
   security?: unknown
   parameters?: OpenApiParameter[]
+  responses?: Record<string, unknown>
 }
 
 type OpenApiDocument = {
@@ -136,5 +137,14 @@ describe("GET /api-docs/openapi.json", () => {
     })
     expect(byName.get("limit")?.schema).not.toHaveProperty("nullable")
     expect(byName.get("offset")?.schema).not.toHaveProperty("nullable")
+    expect(
+      document.paths["/api/v1/admin/users"]?.get?.responses?.["400"]
+    ).toMatchObject({
+      content: {
+        "application/json": {
+          schema: { $ref: "#/components/schemas/Error" },
+        },
+      },
+    })
   })
 })
