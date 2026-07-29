@@ -185,6 +185,42 @@ describe("AdminUsersTable", () => {
     })
   })
 
+  it("検索入力は API の上限(100 文字)までに制限される", async () => {
+    mocks.get.mockResolvedValue(makePage([makeUser()]))
+    render(<AdminUsersTable />)
+
+    expect(
+      await screen.findByRole("searchbox", { name: "ユーザーを検索" })
+    ).toHaveAttribute("maxlength", "100")
+  })
+
+  it("reload 後に total が現在のページより減ったら最終ページへ巻き戻す", async () => {
+    const user = userEvent.setup()
+    mocks.get
+      // 1 ページ目(offset 0, total 21)
+      .mockResolvedValueOnce({
+        items: [makeUser()],
+        total: 21,
+        limit: 20,
+        offset: 0,
+      })
+      // 2 ページ目に進んだ直後、対象がフィルタから外れて total 20 に減った
+      .mockResolvedValueOnce({ items: [], total: 20, limit: 20, offset: 20 })
+      // 巻き戻し後の 1 ページ目
+      .mockResolvedValue(makePage([makeUser()], 20))
+    render(<AdminUsersTable />)
+    await screen.findByText("1–20 / 21 件")
+
+    await user.click(screen.getByRole("button", { name: "次へ" }))
+
+    await waitFor(() => {
+      expect(mocks.get).toHaveBeenLastCalledWith("/api/v1/admin/users", {
+        params: { query: { limit: 20, offset: 0 } },
+      })
+    })
+    expect(await screen.findByText("member@example.com")).toBeInTheDocument()
+  })
+
   it("0 件のときは空状態メッセージを表示する", async () => {
     mocks.get.mockResolvedValue(makePage([]))
     render(<AdminUsersTable />)

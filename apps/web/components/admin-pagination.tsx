@@ -24,7 +24,9 @@ export function AdminPagination({
   limit,
   onOffsetChange,
 }: AdminPaginationProps) {
-  const start = total === 0 ? 0 : offset + 1
+  // 呼び出し側の外で total が減り offset が範囲外になっても、start > end の
+  // 不整合な表示(「21–5 / 5 件」等)にならないよう total で clamp する
+  const start = total === 0 ? 0 : Math.min(offset + 1, total)
   const end = Math.min(offset + limit, total)
   const hasPrev = offset > 0
   const hasNext = end < total

@@ -79,6 +79,19 @@ describe("AdminPagination", () => {
     expect(onOffsetChange).toHaveBeenCalledWith(20)
   })
 
+  it("offset が total を超えていても start が end を超えない", () => {
+    render(
+      <AdminPagination
+        total={5}
+        offset={20}
+        limit={20}
+        onOffsetChange={vi.fn()}
+      />
+    )
+
+    expect(screen.getByText("5–5 / 5 件")).toBeInTheDocument()
+  })
+
   it("前へで負の offset にならない", async () => {
     const user = userEvent.setup()
     const onOffsetChange = vi.fn()

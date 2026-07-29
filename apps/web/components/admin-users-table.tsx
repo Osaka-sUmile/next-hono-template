@@ -72,6 +72,13 @@ export function AdminUsersTable() {
     })
   )
 
+  // reload の結果 total が現在のページより手前まで減った場合(例: role フィルタ中に
+  // ページ最後の 1 件のロールを変更した場合)、最終ページへ巻き戻す。
+  // レンダー中の状態調整パターン。offset の変更は下の effect が reload に変換する
+  if (data && offset > 0 && data.total <= offset) {
+    setOffset(Math.max(0, Math.floor((data.total - 1) / PAGE_SIZE) * PAGE_SIZE))
+  }
+
   // 検索入力のデバウンス。確定時に 1 ページ目へ戻す
   useEffect(() => {
     const timer = setTimeout(() => {
@@ -124,6 +131,9 @@ export function AdminUsersTable() {
           onChange={(event) => setSearchInput(event.target.value)}
           placeholder="メール・名前・表示名で検索"
           aria-label="ユーザーを検索"
+          // API 側 ListUsersQuerySchema の search 上限(100 文字)のミラー。
+          // 超過入力をそのまま送ると 400 になり、エラーパネルから復帰できない
+          maxLength={100}
           className="max-w-xs"
         />
         <Select value={roleFilter} onValueChange={handleRoleFilterChange}>
