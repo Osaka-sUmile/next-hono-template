@@ -61,4 +61,19 @@ export class UserEntity extends BaseEntity<string> {
       displayName
     )
   }
+
+  /**
+   * ロールを変更した新しい UserEntity を返す（このインスタンスは変更しない）。
+   * 「admin を 0 人にしない」等の運用上の制約は Domain では表現できない（他ユーザーの状態が必要）ため、
+   * Application 層（自己降格の禁止）で担保する。
+   */
+  changeRole(role: UserRole): UserEntity {
+    return new UserEntity(
+      this.id,
+      this.email,
+      this.name,
+      role,
+      this.displayName
+    )
+  }
 }

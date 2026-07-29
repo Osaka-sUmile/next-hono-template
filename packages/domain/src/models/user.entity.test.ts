@@ -1,6 +1,11 @@
 import { describe, expect, it } from "vitest"
 import { InvalidArgumentError } from "../errors"
-import { parseUserRole, InvalidUserRoleError, UserEntity } from "./user.entity"
+import {
+  parseUserRole,
+  InvalidUserRoleError,
+  UserEntity,
+  UserRole,
+} from "./user.entity"
 
 describe("parseUserRole", () => {
   it("returns 'user' for valid 'user' role", () => {
@@ -97,5 +102,47 @@ describe("UserEntity.changeDisplayName", () => {
     expect(() => createUser(null).changeDisplayName(displayName)).toThrow(
       "displayName must be 100 characters or fewer"
     )
+  })
+})
+
+describe("UserEntity.changeRole", () => {
+  const createUser = (role: UserRole = "user") =>
+    UserEntity.reconstitute(
+      "user-1",
+      "test@example.com",
+      "Test User",
+      role,
+      "表示名"
+    )
+
+  it("ロールを変更した新しいインスタンスを返し、元のインスタンスは変更されない", () => {
+    const original = createUser("user")
+    const updated = original.changeRole("admin")
+
+    expect(updated.role).toBe("admin")
+    expect(original.role).toBe("user")
+    expect(updated).not.toBe(original)
+  })
+
+  it("変更後のインスタンスの id/email/name/displayName が元と同一である", () => {
+    const original = createUser("user")
+    const updated = original.changeRole("admin")
+
+    expect(updated.id).toBe(original.id)
+    expect(updated.email).toBe(original.email)
+    expect(updated.name).toBe(original.name)
+    expect(updated.displayName).toBe(original.displayName)
+  })
+
+  it("admin から user への降格も同じ形で表現できる", () => {
+    expect(createUser("admin").changeRole("user").role).toBe("user")
+  })
+
+  it("同じロールを渡しても新しいインスタンスを返す", () => {
+    const original = createUser("user")
+    const updated = original.changeRole("user")
+
+    expect(updated).not.toBe(original)
+    expect(updated.role).toBe("user")
   })
 })

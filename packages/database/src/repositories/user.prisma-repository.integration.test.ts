@@ -76,6 +76,32 @@ describe("UserPrismaRepository (integration)", () => {
     expect(found?.displayName).toBe("Nick")
   })
 
+  it("changeRole で昇格したユーザーを save → findById で往復できる", async () => {
+    const saved = await repository.save(
+      UserEntity.reconstitute(
+        "user-role",
+        "role@example.com",
+        "Role User",
+        "user",
+        "ロール"
+      )
+    )
+
+    await repository.save(saved.changeRole("admin"))
+    const promoted = await repository.findById("user-role")
+
+    expect(promoted?.role).toBe("admin")
+    // role 以外のフィールドが道連れで変わらないことを確認する。
+    expect(promoted?.email).toBe("role@example.com")
+    expect(promoted?.name).toBe("Role User")
+    expect(promoted?.displayName).toBe("ロール")
+
+    const demoted = await repository.save(promoted!.changeRole("user"))
+
+    expect(demoted.role).toBe("user")
+    expect((await repository.findById("user-role"))?.role).toBe("user")
+  })
+
   it("delete でユーザーを削除する", async () => {
     const entity = UserEntity.reconstitute(
       "user-3",
