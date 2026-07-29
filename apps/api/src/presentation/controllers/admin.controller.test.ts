@@ -11,6 +11,59 @@ const userSession = {
   session: { id: "sess-2" },
 }
 
+describe("GET /api/v1/admin/summary", () => {
+  it("returns 200 with KPI summary for an authenticated admin", async () => {
+    const summary = {
+      userCount: 12,
+      adminCount: 2,
+      surveyCount: 4,
+      activeSurveyCount: 1,
+      submissionCount: 30,
+      submissionCountLast7Days: 8,
+    }
+    const { app, getAdminSummary } = createTestApp({
+      getSession: vi.fn().mockResolvedValue(adminSession),
+      getAdminSummary: vi.fn().mockResolvedValue(summary),
+    })
+
+    const res = await app.request("/api/v1/admin/summary")
+
+    expect(res.status).toBe(200)
+    expect(await res.json()).toEqual(summary)
+    expect(getAdminSummary).toHaveBeenCalledOnce()
+  })
+
+  it("returns 401 without a session and does not query the summary", async () => {
+    const { app, getAdminSummary } = createTestApp({
+      getSession: vi.fn().mockResolvedValue(null),
+    })
+
+    const res = await app.request("/api/v1/admin/summary")
+
+    expect(res.status).toBe(401)
+    expect(await res.json()).toEqual({
+      error: "Unauthorized",
+      code: ErrorCodes.SESSION_INVALID,
+    })
+    expect(getAdminSummary).not.toHaveBeenCalled()
+  })
+
+  it("returns 403 for a non-admin user and does not query the summary", async () => {
+    const { app, getAdminSummary } = createTestApp({
+      getSession: vi.fn().mockResolvedValue(userSession),
+    })
+
+    const res = await app.request("/api/v1/admin/summary")
+
+    expect(res.status).toBe(403)
+    expect(await res.json()).toEqual({
+      error: "Forbidden",
+      code: ErrorCodes.FORBIDDEN,
+    })
+    expect(getAdminSummary).not.toHaveBeenCalled()
+  })
+})
+
 describe("GET /api/v1/admin/users", () => {
   it("returns 200 with users for an authenticated admin", async () => {
     const result = {

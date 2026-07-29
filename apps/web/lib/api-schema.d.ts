@@ -160,6 +160,72 @@ export interface paths {
         };
         trace?: never;
     };
+    "/api/v1/admin/summary": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Get admin dashboard summary
+         * @description Returns user, survey, and submission KPIs. Requires an authenticated session whose role is admin.
+         */
+        get: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path?: never;
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description Admin dashboard KPI summary */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["AdminSummary"];
+                    };
+                };
+                /** @description Unauthorized (missing or invalid session) */
+                401: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["Error"];
+                    };
+                };
+                /** @description Forbidden (authenticated but not an admin) */
+                403: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["Error"];
+                    };
+                };
+                /** @description Internal Server Error */
+                500: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["Error"];
+                    };
+                };
+            };
+        };
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/admin/users": {
         parameters: {
             query?: never;
@@ -765,6 +831,14 @@ export interface components {
             /** @enum {string} */
             role: "user" | "admin";
             displayName: string | null;
+        };
+        AdminSummary: {
+            userCount: number;
+            adminCount: number;
+            surveyCount: number;
+            activeSurveyCount: number;
+            submissionCount: number;
+            submissionCountLast7Days: number;
         };
         UserList: {
             items: components["schemas"]["User"][];

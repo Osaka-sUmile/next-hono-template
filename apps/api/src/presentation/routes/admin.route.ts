@@ -5,6 +5,38 @@ import { UserSchema } from "./user.route"
 const USER_LIST_DEFAULT_LIMIT = 20
 const USER_LIST_MAX_LIMIT = 100
 
+export const AdminSummarySchema = z
+  .object({
+    userCount: z.number().int().nonnegative(),
+    adminCount: z.number().int().nonnegative(),
+    surveyCount: z.number().int().nonnegative(),
+    activeSurveyCount: z.number().int().nonnegative(),
+    submissionCount: z.number().int().nonnegative(),
+    submissionCountLast7Days: z.number().int().nonnegative(),
+  })
+  .openapi("AdminSummary")
+
+export const getAdminSummaryRoute = createRoute({
+  method: "get",
+  path: "/admin/summary",
+  tags: ["Admin"],
+  summary: "Get admin dashboard summary",
+  description:
+    "Returns user, survey, and submission KPIs. Requires an authenticated session whose role is admin.",
+  security: [{ cookieAuth: [] }],
+  responses: {
+    200: {
+      description: "Admin dashboard KPI summary",
+      content: { "application/json": { schema: AdminSummarySchema } },
+    },
+    ...errorResponses({
+      401: "Unauthorized (missing or invalid session)",
+      403: "Forbidden (authenticated but not an admin)",
+      500: "Internal Server Error",
+    }),
+  },
+})
+
 export const ListUsersQuerySchema = z.object({
   limit: z.coerce
     .number()

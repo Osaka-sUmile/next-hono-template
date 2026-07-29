@@ -2,6 +2,7 @@
 // 上位層からは個別ファイルではなくこの index.ts 経由で参照すること。
 export * from "./base.query"
 export * from "./get-active-feedback-survey.use-case"
+export * from "./get-admin-summary.use-case"
 export * from "./get-current-user.use-case"
 export * from "./get-feedback-survey-detail.use-case"
 export * from "./list-feedback-submissions.use-case"
