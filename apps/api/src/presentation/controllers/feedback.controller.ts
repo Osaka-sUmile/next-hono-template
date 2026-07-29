@@ -1,6 +1,8 @@
 import type { RouteHandler } from "@hono/zod-openapi"
-import { FeedbackAnswerContractError } from "@workspace/domain"
-import { ActiveFeedbackSurveyNotFoundError } from "../../application"
+import {
+  ActiveFeedbackSurveyNotFoundError,
+  InvalidFeedbackAnswerError,
+} from "../../application"
 import type {
   GetActiveFeedbackSurveyUseCase,
   ListFeedbackSubmissionsUseCase,
@@ -67,7 +69,7 @@ export class FeedbackController {
           error.message
         )
       }
-      if (error instanceof FeedbackAnswerContractError) {
+      if (error instanceof InvalidFeedbackAnswerError) {
         return errorResponse(
           c,
           400,

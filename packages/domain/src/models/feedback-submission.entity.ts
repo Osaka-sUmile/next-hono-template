@@ -1,4 +1,4 @@
-import { DomainError, InvalidArgumentError } from "../errors"
+import { DomainRuleViolationError, InvalidArgumentError } from "../errors"
 import { BaseEntity } from "./base.entity"
 import {
   FeedbackQuestionEntity,
@@ -21,13 +21,11 @@ export type FeedbackSubmissionAnswer = {
 
 /**
  * 送られた回答がアンケートの契約に合わないことを示すエラーの基底。
- * Presentation はこの型 1 つで 400 FEEDBACK_INVALID_ANSWER へ写せる。
+ * Application はこの型をユースケース固有の ApplicationError へ翻訳できる。
  *
- * DomainError を一律 400 に写さないのは意図的である。永続化データからの復元失敗
- * (InvalidArgumentError 等) も DomainError であり、それを 400 に丸めると
- * データ不整合という内部障害が利用者の入力不備として隠れてしまう。
+ * HTTP への変換は Domain ではなく Application / Presentation の境界で行う。
  */
-export abstract class FeedbackAnswerContractError extends DomainError {}
+export abstract class FeedbackAnswerContractError extends DomainRuleViolationError {}
 
 export class RequiredFeedbackAnswerMissingError extends FeedbackAnswerContractError {
   constructor(questionId: string) {

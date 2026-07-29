@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest"
-import { DomainError, InvalidArgumentError } from "../errors"
+import { DomainRuleViolationError, InvalidArgumentError } from "../errors"
 import { FeedbackAnswerContractError } from "./feedback-submission.entity"
 import * as feedbackSubmissionModule from "./feedback-submission.entity"
 import {
@@ -16,7 +16,7 @@ import {
 } from "./index"
 
 describe("feedback submission error classification", () => {
-  it("classifies every exported DomainError descendant as an answer-contract error", () => {
+  it("classifies every exported rule violation as an answer-contract error", () => {
     const unclassifiedErrorNames = Object.entries(
       feedbackSubmissionModule
     ).flatMap(([name, exported]) => {
@@ -26,7 +26,7 @@ describe("feedback submission error classification", () => {
       ) {
         return []
       }
-      return exported.prototype instanceof DomainError &&
+      return exported.prototype instanceof DomainRuleViolationError &&
         !(exported.prototype instanceof FeedbackAnswerContractError)
         ? [name]
         : []

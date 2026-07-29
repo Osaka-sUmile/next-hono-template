@@ -4,7 +4,7 @@ import {
   FeedbackQuestionEntity,
   FeedbackSubmissionEntity,
   FeedbackSurveyEntity,
-  RequiredFeedbackAnswerMissingError,
+  InvalidArgumentError,
   UnknownFeedbackQuestionError,
 } from "@workspace/domain"
 import type {
@@ -12,7 +12,10 @@ import type {
   IFeedbackSurveyRepository,
   IIdGenerator,
 } from "@workspace/domain"
-import { ActiveFeedbackSurveyNotFoundError } from "../errors"
+import {
+  ActiveFeedbackSurveyNotFoundError,
+  InvalidFeedbackAnswerError,
+} from "../errors"
 import { SubmitFeedbackUseCase } from "./submit-feedback.use-case"
 
 function createSurvey(): FeedbackSurveyEntity {
@@ -149,7 +152,7 @@ describe("SubmitFeedbackUseCase", () => {
     expect(deps.save).not.toHaveBeenCalled()
   })
 
-  it("propagates the domain error for an unknown question and does not save", async () => {
+  it("translates an unknown-question rule violation at the Application boundary", async () => {
     const deps = createDeps()
     const useCase = new SubmitFeedbackUseCase(
       deps.surveyRepository,
@@ -162,11 +165,14 @@ describe("SubmitFeedbackUseCase", () => {
         userId: "user-1",
         answers: [{ questionId: "q-unknown", textValue: "hello" }],
       })
-    ).rejects.toBeInstanceOf(UnknownFeedbackQuestionError)
+    ).rejects.toMatchObject({
+      cause: expect.any(UnknownFeedbackQuestionError),
+      name: "InvalidFeedbackAnswerError",
+    })
     expect(deps.save).not.toHaveBeenCalled()
   })
 
-  it("propagates the domain error when a required answer is missing and does not save", async () => {
+  it("translates a missing-answer rule violation at the Application boundary", async () => {
     const deps = createDeps()
     const useCase = new SubmitFeedbackUseCase(
       deps.surveyRepository,
@@ -179,7 +185,24 @@ describe("SubmitFeedbackUseCase", () => {
         userId: "user-1",
         answers: [{ questionId: "q-2", textValue: "value" }],
       })
-    ).rejects.toBeInstanceOf(RequiredFeedbackAnswerMissingError)
+    ).rejects.toBeInstanceOf(InvalidFeedbackAnswerError)
+    expect(deps.save).not.toHaveBeenCalled()
+  })
+
+  it("does not translate an invariant error into an expected Application error", async () => {
+    const invariantError = new InvalidArgumentError("corrupt survey row")
+    const deps = createDeps({
+      findActive: vi.fn().mockRejectedValue(invariantError),
+    })
+    const useCase = new SubmitFeedbackUseCase(
+      deps.surveyRepository,
+      deps.submissionRepository,
+      deps.idGenerator
+    )
+
+    await expect(
+      useCase.execute({ userId: "user-1", answers: [] })
+    ).rejects.toBe(invariantError)
     expect(deps.save).not.toHaveBeenCalled()
   })
 })

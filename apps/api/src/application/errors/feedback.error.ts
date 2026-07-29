@@ -11,3 +11,10 @@ export class ActiveFeedbackSurveyNotFoundError extends ApplicationError {
     super("No active feedback survey is available")
   }
 }
+
+/** 回答が公開中アンケートの業務ルールを満たさず、利用者による修正が必要な状態。 */
+export class InvalidFeedbackAnswerError extends ApplicationError {
+  constructor(message: string, options?: ErrorOptions) {
+    super(message, options)
+  }
+}

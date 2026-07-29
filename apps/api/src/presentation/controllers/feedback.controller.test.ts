@@ -1,9 +1,8 @@
 import { describe, expect, it, vi } from "vitest"
 import {
-  InvalidArgumentError,
-  UnknownFeedbackQuestionError,
-} from "@workspace/domain"
-import { ActiveFeedbackSurveyNotFoundError } from "../../application"
+  ActiveFeedbackSurveyNotFoundError,
+  InvalidFeedbackAnswerError,
+} from "../../application"
 import { createTestApp } from "../../test-utils"
 import { ErrorCodes } from "../errors"
 
@@ -208,7 +207,11 @@ describe("POST /api/v1/feedback/submissions", () => {
       getSession: vi.fn().mockResolvedValue(userSession),
       submitFeedback: vi
         .fn()
-        .mockRejectedValue(new UnknownFeedbackQuestionError("q-9")),
+        .mockRejectedValue(
+          new InvalidFeedbackAnswerError(
+            'Unknown feedback question: questionId="q-9"'
+          )
+        ),
     })
 
     const res = await app.request(
@@ -240,14 +243,14 @@ describe("POST /api/v1/feedback/submissions", () => {
     )
   })
 
-  it("returns 500 for a domain error that is not an answer-contract violation", async () => {
-    // 壊れた DB データからの復元失敗 (InvalidArgumentError) を利用者の入力不備として
-    // 400 に丸めないことを固定する。DomainError を一律 400 に写すと障害を見逃す。
+  it("returns 500 for an unexpected error", async () => {
+    // DomainInvariantError を含む想定外エラーは ApplicationError に翻訳されず、
+    // 500 と監視対象になる。Presentation は Domain の具体型を知る必要がない。
     const { app } = createTestApp({
       getSession: vi.fn().mockResolvedValue(userSession),
       submitFeedback: vi
         .fn()
-        .mockRejectedValue(new InvalidArgumentError("corrupt survey row")),
+        .mockRejectedValue(new Error("corrupt survey row")),
     })
 
     const res = await app.request(

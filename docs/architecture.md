@@ -34,6 +34,34 @@
 | 入力検証 | Presentation | 不正なリクエストの弾き (Zod) |
 | ビジネス検証 | Domain | ルール違反の防止 (Entityメソッド) |
 
+## エラー境界
+
+エラーは「どのHTTPステータスにするか」ではなく、発生した層と利用者が修正可能かで分類する。
+
+| 分類                       | 定義場所                           | 意味                                        | 境界での扱い                                               |
+| :------------------------- | :--------------------------------- | :------------------------------------------ | :--------------------------------------------------------- |
+| `DomainRuleViolationError` | `packages/domain/src/errors/`      | 形式上は正しい操作が業務ルールを満たさない  | Application がユースケース固有の `ApplicationError` へ翻訳 |
+| `DomainInvariantError`     | `packages/domain/src/errors/`      | DB 不整合、復元失敗、プログラム上の前提違反 | catch せず 500 + Sentry                                    |
+| `ApplicationError`         | `apps/api/src/application/errors/` | ユースケース上で正常に起こり得る失敗        | Presentation が HTTP ステータスと公開エラーコードへ変換    |
+| その他の `Error`           | 各層                               | 想定外の障害                                | 中央エラーハンドラが 500 + Sentry                          |
+
+依存と変換の流れは次の一方向に固定する。
+
+```text
+DomainRuleViolationError
+  → ApplicationError（Application 境界で意味を翻訳）
+  → HTTP error response（Presentation 境界でプロトコルへ変換）
+
+DomainInvariantError / unexpected Error
+  → global error handler
+  → 500 INTERNAL_ERROR + Sentry
+```
+
+Presentation は Domain Error の具体型を知らない。これにより、Domain の分類変更が離れた
+Controller のクラス列挙との暗黙の同期に依存することを防ぐ。新しい Domain Error は
+`DomainRuleViolationError` / `DomainInvariantError` のどちらかに必ず属し、公開 export の
+走査テストで未分類を検知する。
+
 ## 📂 フォルダ構造
 
 ```

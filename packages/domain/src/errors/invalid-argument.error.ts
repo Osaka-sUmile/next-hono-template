@@ -1,6 +1,6 @@
-import { DomainError } from "./domain.error"
+import { DomainInvariantError } from "./domain-invariant.error"
 
-export class InvalidArgumentError extends DomainError {
+export class InvalidArgumentError extends DomainInvariantError {
   constructor(message: string) {
     super(message)
   }

@@ -14,7 +14,12 @@
 ## DTO / エラーの責務
 - **Request DTO**: `presentation/routes/` の `createRoute.request` Zod スキーマから `c.req.valid()` で得る。
 - **Response DTO**: Application で組み立て、その形を `routes/` の Zod レスポンススキーマで宣言する。
-- **Domain Error / Application Error**: `apps/api/src/application/errors/` に集約し、Presentation で HTTP エラーへ変換する。
+- **Domain Error**: `packages/domain/src/errors/` に置き、必ず次のどちらかへ分類する。
+  - `DomainRuleViolationError`: 形式上は正しい操作が業務ルールを満たさず、利用者が修正できる拒否。
+  - `DomainInvariantError`: DB 不整合・復元失敗・プログラム上の前提違反。500 + Sentry の対象。
+- **Application Error**: `apps/api/src/application/errors/` に置き、ユースケース上で正常に起こり得る失敗を表す。
+- `DomainRuleViolationError` は Application 境界でユースケース固有の `ApplicationError` へ翻訳する。Presentation から `@workspace/domain` を import して直接 catch してはならない。
+- Presentation は `ApplicationError` の具体型を HTTP ステータス・公開エラーコードへ変換する。`DomainInvariantError` とその他の想定外エラーは捕捉せず、中央エラーハンドラの 500 + Sentry へ流す。
 
 ## エラーコードの追加手順
 `apps/api/src/presentation/errors/error-codes.ts` の `ErrorCodes` に 1 行追加するだけでよい。

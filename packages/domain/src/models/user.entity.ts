@@ -1,11 +1,11 @@
 import { BaseEntity } from "./base.entity"
-import { DomainError, InvalidArgumentError } from "../errors"
+import { DomainInvariantError, InvalidArgumentError } from "../errors"
 
 export type UserRole = "user" | "admin"
 
 const USER_ROLES: ReadonlySet<string> = new Set<UserRole>(["user", "admin"])
 
-export class InvalidUserRoleError extends DomainError {
+export class InvalidUserRoleError extends DomainInvariantError {
   constructor(value: string) {
     super(`Invalid UserRole: "${value}"`)
   }

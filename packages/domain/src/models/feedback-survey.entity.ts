@@ -1,4 +1,4 @@
-import { DomainError, InvalidArgumentError } from "../errors"
+import { DomainInvariantError, InvalidArgumentError } from "../errors"
 import { BaseEntity } from "./base.entity"
 
 export type FeedbackQuestionType = "single_choice" | "text"
@@ -6,7 +6,7 @@ export type FeedbackQuestionType = "single_choice" | "text"
 const FEEDBACK_QUESTION_TYPES: ReadonlySet<string> =
   new Set<FeedbackQuestionType>(["single_choice", "text"])
 
-export class InvalidFeedbackQuestionTypeError extends DomainError {
+export class InvalidFeedbackQuestionTypeError extends DomainInvariantError {
   constructor(value: string) {
     super(`Invalid FeedbackQuestionType: "${value}"`)
   }

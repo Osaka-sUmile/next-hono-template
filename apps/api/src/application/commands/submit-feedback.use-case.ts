@@ -1,4 +1,7 @@
-import { FeedbackSubmissionEntity } from "@workspace/domain"
+import {
+  FeedbackAnswerContractError,
+  FeedbackSubmissionEntity,
+} from "@workspace/domain"
 import type {
   FeedbackAnswerInput,
   IFeedbackSubmissionRepository,
@@ -6,7 +9,10 @@ import type {
   IIdGenerator,
 } from "@workspace/domain"
 import type { FeedbackSubmissionAcceptedResponseDto } from "../dtos"
-import { ActiveFeedbackSurveyNotFoundError } from "../errors"
+import {
+  ActiveFeedbackSurveyNotFoundError,
+  InvalidFeedbackAnswerError,
+} from "../errors"
 import { BaseCommandUseCase } from "./base.command"
 
 export type SubmitFeedbackInput = {
@@ -46,12 +52,20 @@ export class SubmitFeedbackUseCase extends BaseCommandUseCase<
       throw new ActiveFeedbackSurveyNotFoundError()
     }
 
-    const submission = FeedbackSubmissionEntity.create(
-      this.idGenerator.generate(),
-      survey,
-      userId,
-      answers
-    )
+    let submission: FeedbackSubmissionEntity
+    try {
+      submission = FeedbackSubmissionEntity.create(
+        this.idGenerator.generate(),
+        survey,
+        userId,
+        answers
+      )
+    } catch (error) {
+      if (error instanceof FeedbackAnswerContractError) {
+        throw new InvalidFeedbackAnswerError(error.message, { cause: error })
+      }
+      throw error
+    }
     const saved = await this.feedbackSubmissionRepository.save(submission)
 
     return {
