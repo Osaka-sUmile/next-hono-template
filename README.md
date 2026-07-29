@@ -146,8 +146,8 @@
 cp .env.example .env
 cp packages/database/.env.example packages/database/.env
 
-# 2. Postgres + wsproxy を起動
-docker compose up -d db neon-wsproxy
+# 2. Postgres + wsproxy を起動し、DB の起動完了を待つ
+docker compose up -d --wait db neon-wsproxy
 
 # 3. 初回のみ、結合テスト専用 DB を明示的に作成
 #    （すでに app_test が存在する場合は不要）
@@ -186,4 +186,4 @@ pnpm --filter @workspace/database test:integration
 | **CI (E2Eテスト)** | `.github/workflows/e2e.yml` | Playwright を用いたフロントエンドのE2Eテストを実行 |
 | **CD (デプロイ)** | `.github/workflows/deploy.yml` | develop → preview / main → production へ Cloudflare Workers に自動デプロイ（詳細は `docs/deployment.md`） |
 
-※ **注意:** GitHub Actions の実行時間（制限・コスト）を節約するため、**CI 上での単体テスト自動実行は行わない方針** としています。コードの品質保証に関する単体テストは、コミット時の Git Hooks (`pre-commit`) で自己検証される前提です。
+※ **注意:** GitHub Actions の実行時間（制限・コスト）を節約するため、DB 接続先の安全性を担保するテストハーネスの単体テストを除き、**CI 上での単体テスト自動実行は行わない方針** としています。その他の単体テストは、コミット時の Git Hooks (`pre-commit`) で自己検証される前提です。

@@ -48,9 +48,26 @@ describe("getTestDatabaseUrl", () => {
     ).toThrow(/データベース名/)
   })
 
-  it("PostgreSQL URL でなければ拒否する", () => {
+  it("URL として解析できなければ拒否する", () => {
     expect(() =>
       getTestDatabaseUrl({ TEST_DATABASE_URL: "not-a-url" })
+    ).toThrow(/PostgreSQL URL/)
+  })
+
+  it("PostgreSQL 以外の URL なら拒否する", () => {
+    expect(() =>
+      getTestDatabaseUrl({
+        TEST_DATABASE_URL: "https://localhost/app_test",
+      })
+    ).toThrow(/PostgreSQL URL/)
+  })
+
+  it("不正な percent encoding を含む URL なら明示的に拒否する", () => {
+    expect(() =>
+      getTestDatabaseUrl({
+        TEST_DATABASE_URL:
+          "postgresql://user:password@localhost:5432/app%_test",
+      })
     ).toThrow(/PostgreSQL URL/)
   })
 })
@@ -71,5 +88,24 @@ describe("resetDatabase", () => {
     )
 
     await expect(resetDatabase(prisma as never)).rejects.toThrow(/_test/)
+  })
+
+  it("createTestPrismaClient 以外で作られた client を拒否する", async () => {
+    vi.stubEnv(
+      "TEST_DATABASE_URL",
+      "postgresql://user:password@localhost:5432/app_test"
+    )
+    const prisma = new Proxy(
+      {},
+      {
+        get() {
+          throw new Error("PrismaClient にアクセスしました")
+        },
+      }
+    )
+
+    await expect(resetDatabase(prisma as never)).rejects.toThrow(
+      /createTestPrismaClient/
+    )
   })
 })

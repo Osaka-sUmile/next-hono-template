@@ -32,7 +32,14 @@ export function getTestDatabaseUrl(
     )
   }
 
-  const databaseName = decodeURIComponent(url.pathname.slice(1))
+  let databaseName: string
+  try {
+    databaseName = decodeURIComponent(url.pathname.slice(1))
+  } catch {
+    throw new Error(
+      "TEST_DATABASE_URL には有効な PostgreSQL URL を指定してください。"
+    )
+  }
   if (!databaseName) {
     throw new Error(
       "TEST_DATABASE_URL に結合テスト専用のデータベース名を指定してください。"
