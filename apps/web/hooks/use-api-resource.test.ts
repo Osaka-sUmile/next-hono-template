@@ -107,6 +107,41 @@ describe("useApiResource", () => {
     expect(fetcher).toHaveBeenCalledTimes(2)
   })
 
+  it("初回が保留中に reload した場合、後から解決した古い応答は新しい値を上書きしない", async () => {
+    function deferred<T>() {
+      let resolve!: (value: T) => void
+      const promise = new Promise<T>((r) => {
+        resolve = r
+      })
+      return { promise, resolve }
+    }
+    const first = deferred<{ count: number }>()
+    const second = deferred<{ count: number }>()
+    const fetcher = vi
+      .fn()
+      .mockReturnValueOnce(first.promise)
+      .mockReturnValueOnce(second.promise)
+    const { result } = renderHook(() => useApiResource(fetcher))
+
+    // 初回を解決させないまま再取得させ、古いリクエストを追い越させる
+    act(() => {
+      result.current.reload()
+    })
+
+    await act(async () => {
+      second.resolve({ count: 2 })
+    })
+    expect(result.current.data).toEqual({ count: 2 })
+
+    // 遅れて解決した初回のレスポンスは破棄される
+    await act(async () => {
+      first.resolve({ count: 1 })
+    })
+    expect(result.current.data).toEqual({ count: 2 })
+    expect(result.current.isLoading).toBe(false)
+    expect(fetcher).toHaveBeenCalledTimes(2)
+  })
+
   it("エラー後の reload で成功すれば error がクリアされる", async () => {
     const fetcher = vi
       .fn()
