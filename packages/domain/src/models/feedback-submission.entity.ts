@@ -19,25 +19,35 @@ export type FeedbackSubmissionAnswer = {
   textValue: string | null
 }
 
-export class RequiredFeedbackAnswerMissingError extends DomainError {
+/**
+ * 送られた回答がアンケートの契約に合わないことを示すエラーの基底。
+ * Presentation はこの型 1 つで 400 FEEDBACK_INVALID_ANSWER へ写せる。
+ *
+ * DomainError を一律 400 に写さないのは意図的である。永続化データからの復元失敗
+ * (InvalidArgumentError 等) も DomainError であり、それを 400 に丸めると
+ * データ不整合という内部障害が利用者の入力不備として隠れてしまう。
+ */
+export abstract class FeedbackAnswerContractError extends DomainError {}
+
+export class RequiredFeedbackAnswerMissingError extends FeedbackAnswerContractError {
   constructor(questionId: string) {
     super(`Required feedback answer is missing: questionId="${questionId}"`)
   }
 }
 
-export class UnknownFeedbackQuestionError extends DomainError {
+export class UnknownFeedbackQuestionError extends FeedbackAnswerContractError {
   constructor(questionId: string) {
     super(`Unknown feedback question: questionId="${questionId}"`)
   }
 }
 
-export class DuplicateFeedbackAnswerError extends DomainError {
+export class DuplicateFeedbackAnswerError extends FeedbackAnswerContractError {
   constructor(questionId: string) {
     super(`Duplicate feedback answer: questionId="${questionId}"`)
   }
 }
 
-export class InvalidFeedbackChoiceError extends DomainError {
+export class InvalidFeedbackChoiceError extends FeedbackAnswerContractError {
   constructor(questionId: string, choiceValue: string) {
     super(
       `Invalid feedback choice: questionId="${questionId}", choiceValue="${choiceValue}"`
@@ -45,7 +55,7 @@ export class InvalidFeedbackChoiceError extends DomainError {
   }
 }
 
-export class FeedbackAnswerTypeMismatchError extends DomainError {
+export class FeedbackAnswerTypeMismatchError extends FeedbackAnswerContractError {
   constructor(questionId: string, expected: FeedbackQuestionEntity["type"]) {
     super(
       `Feedback answer type mismatch: questionId="${questionId}", expected="${expected}"`
@@ -53,7 +63,7 @@ export class FeedbackAnswerTypeMismatchError extends DomainError {
   }
 }
 
-export class FeedbackTextTooLongError extends DomainError {
+export class FeedbackTextTooLongError extends FeedbackAnswerContractError {
   constructor(questionId: string) {
     super(
       `Feedback text must be ${FEEDBACK_TEXT_MAX_LENGTH} characters or fewer: questionId="${questionId}"`

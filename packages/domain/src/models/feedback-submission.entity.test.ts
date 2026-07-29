@@ -1,5 +1,7 @@
 import { describe, expect, it } from "vitest"
-import { InvalidArgumentError } from "../errors"
+import { DomainError, InvalidArgumentError } from "../errors"
+import { FeedbackAnswerContractError } from "./feedback-submission.entity"
+import * as feedbackSubmissionModule from "./feedback-submission.entity"
 import {
   DuplicateFeedbackAnswerError,
   FeedbackAnswerTypeMismatchError,
@@ -12,6 +14,27 @@ import {
   RequiredFeedbackAnswerMissingError,
   UnknownFeedbackQuestionError,
 } from "./index"
+
+describe("feedback submission error classification", () => {
+  it("classifies every exported DomainError descendant as an answer-contract error", () => {
+    const unclassifiedErrorNames = Object.entries(
+      feedbackSubmissionModule
+    ).flatMap(([name, exported]) => {
+      if (
+        exported === FeedbackAnswerContractError ||
+        typeof exported !== "function"
+      ) {
+        return []
+      }
+      return exported.prototype instanceof DomainError &&
+        !(exported.prototype instanceof FeedbackAnswerContractError)
+        ? [name]
+        : []
+    })
+
+    expect(unclassifiedErrorNames).toEqual([])
+  })
+})
 
 const createSurvey = (): FeedbackSurveyEntity =>
   FeedbackSurveyEntity.reconstitute(

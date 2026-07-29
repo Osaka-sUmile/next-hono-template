@@ -1,12 +1,5 @@
 import type { RouteHandler } from "@hono/zod-openapi"
-import {
-  DuplicateFeedbackAnswerError,
-  FeedbackAnswerTypeMismatchError,
-  FeedbackTextTooLongError,
-  InvalidFeedbackChoiceError,
-  RequiredFeedbackAnswerMissingError,
-  UnknownFeedbackQuestionError,
-} from "@workspace/domain"
+import { FeedbackAnswerContractError } from "@workspace/domain"
 import { ActiveFeedbackSurveyNotFoundError } from "../../application"
 import type {
   GetActiveFeedbackSurveyUseCase,
@@ -23,29 +16,6 @@ import type {
   submitFeedbackRoute,
   summarizeFeedbackRoute,
 } from "../routes"
-
-/**
- * 「送られた回答がアンケートの契約に合わない」ことを示すドメインエラー。
- * これらは利用者の入力起因の想定内エラーなので 400 FEEDBACK_INVALID_ANSWER に写す。
- *
- * DomainError を一律 400 に写さないのは意図的である。永続化データからの復元失敗
- * （InvalidArgumentError 等）も DomainError であり、それを 400 に丸めると
- * データ不整合という内部障害が利用者の入力不備として隠れてしまう。
- */
-const ANSWER_CONTRACT_ERRORS = [
-  DuplicateFeedbackAnswerError,
-  FeedbackAnswerTypeMismatchError,
-  FeedbackTextTooLongError,
-  InvalidFeedbackChoiceError,
-  RequiredFeedbackAnswerMissingError,
-  UnknownFeedbackQuestionError,
-] as const
-
-function isAnswerContractError(error: unknown): error is Error {
-  return ANSWER_CONTRACT_ERRORS.some(
-    (errorClass) => error instanceof errorClass
-  )
-}
 
 export class FeedbackController {
   constructor(
@@ -97,7 +67,7 @@ export class FeedbackController {
           error.message
         )
       }
-      if (isAnswerContractError(error)) {
+      if (error instanceof FeedbackAnswerContractError) {
         return errorResponse(
           c,
           400,
