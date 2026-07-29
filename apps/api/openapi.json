@@ -136,6 +136,43 @@
           "displayName"
         ]
       },
+      "AdminSummary": {
+        "type": "object",
+        "properties": {
+          "userCount": {
+            "type": "integer",
+            "minimum": 0
+          },
+          "adminCount": {
+            "type": "integer",
+            "minimum": 0
+          },
+          "surveyCount": {
+            "type": "integer",
+            "minimum": 0
+          },
+          "activeSurveyCount": {
+            "type": "integer",
+            "minimum": 0
+          },
+          "submissionCount": {
+            "type": "integer",
+            "minimum": 0
+          },
+          "submissionCountLast7Days": {
+            "type": "integer",
+            "minimum": 0
+          }
+        },
+        "required": [
+          "userCount",
+          "adminCount",
+          "surveyCount",
+          "activeSurveyCount",
+          "submissionCount",
+          "submissionCountLast7Days"
+        ]
+      },
       "UserList": {
         "type": "object",
         "properties": {
@@ -652,6 +689,62 @@
           },
           "500": {
             "description": "Unexpected internal server error (INTERNAL_ERROR).",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/admin/summary": {
+      "get": {
+        "tags": [
+          "Admin"
+        ],
+        "summary": "Get admin dashboard summary",
+        "description": "Returns user, survey, and submission KPIs. Requires an authenticated session whose role is admin.",
+        "security": [
+          {
+            "cookieAuth": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Admin dashboard KPI summary",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AdminSummary"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Unauthorized (missing or invalid session)",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Forbidden (authenticated but not an admin)",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Internal Server Error",
             "content": {
               "application/json": {
                 "schema": {

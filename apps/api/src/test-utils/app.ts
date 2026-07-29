@@ -2,6 +2,7 @@ import { vi } from "vitest"
 import type { AuthInstance } from "@workspace/auth/server"
 import type {
   GetActiveFeedbackSurveyUseCase,
+  GetAdminSummaryUseCase,
   GetCurrentUserUseCase,
   GetFeedbackSurveyDetailUseCase,
   ListFeedbackSubmissionsUseCase,
@@ -50,6 +51,7 @@ export function createTestApp(
     execute?: ReturnType<typeof vi.fn>
     updateProfile?: ReturnType<typeof vi.fn>
     listUsers?: ReturnType<typeof vi.fn>
+    getAdminSummary?: ReturnType<typeof vi.fn>
     getFeedbackSurvey?: ReturnType<typeof vi.fn>
     submitFeedback?: ReturnType<typeof vi.fn>
     listFeedbackSurveys?: ReturnType<typeof vi.fn>
@@ -63,6 +65,7 @@ export function createTestApp(
   const execute = overrides.execute ?? vi.fn()
   const updateProfile = overrides.updateProfile ?? vi.fn()
   const listUsers = overrides.listUsers ?? vi.fn()
+  const getAdminSummary = overrides.getAdminSummary ?? vi.fn()
   const getFeedbackSurvey = overrides.getFeedbackSurvey ?? vi.fn()
   const submitFeedback = overrides.submitFeedback ?? vi.fn()
   const listFeedbackSurveys = overrides.listFeedbackSurveys ?? vi.fn()
@@ -80,6 +83,9 @@ export function createTestApp(
     execute: updateProfile,
   } as unknown as UpdateUserProfileUseCase
   const listUsersUseCase = { execute: listUsers } as unknown as ListUsersUseCase
+  const getAdminSummaryUseCase = {
+    execute: getAdminSummary,
+  } as unknown as GetAdminSummaryUseCase
   const getActiveFeedbackSurveyUseCase = {
     execute: getFeedbackSurvey,
   } as unknown as GetActiveFeedbackSurveyUseCase
@@ -104,7 +110,10 @@ export function createTestApp(
     auth,
     healthController: new HealthController(),
     userController: new UserController(useCase, updateUserProfileUseCase),
-    adminController: new AdminController(listUsersUseCase),
+    adminController: new AdminController(
+      listUsersUseCase,
+      getAdminSummaryUseCase
+    ),
     feedbackController: new FeedbackController(
       getActiveFeedbackSurveyUseCase,
       submitFeedbackUseCase,
@@ -121,6 +130,7 @@ export function createTestApp(
     execute,
     updateProfile,
     listUsers,
+    getAdminSummary,
     getFeedbackSurvey,
     submitFeedback,
     listFeedbackSurveys,

@@ -4,6 +4,7 @@ import { secureHeaders } from "hono/secure-headers"
 import { createAuth } from "@workspace/auth/server"
 import type { AuthInstance } from "@workspace/auth/server"
 import {
+  AdminQueryService,
   createPrismaClient,
   FeedbackQueryService,
   FeedbackSubmissionPrismaRepository,
@@ -13,6 +14,7 @@ import {
 } from "@workspace/database"
 import {
   GetActiveFeedbackSurveyUseCase,
+  GetAdminSummaryUseCase,
   GetCurrentUserUseCase,
   GetFeedbackSurveyDetailUseCase,
   ListFeedbackSubmissionsUseCase,
@@ -33,6 +35,7 @@ import {
   createRequireAuth,
   requireAdmin,
   healthRoute,
+  getAdminSummaryRoute,
   getUserMeRoute,
   updateUserMeRoute,
   listUsersRoute,
@@ -101,6 +104,7 @@ export function buildApp(deps: AppDeps): OpenAPIHono<AppEnv> {
   v1.openapi(healthRoute, deps.healthController.check)
   v1.openapi(getUserMeRoute, deps.userController.getUserMe)
   v1.openapi(updateUserMeRoute, deps.userController.updateUserMe)
+  v1.openapi(getAdminSummaryRoute, deps.adminController.getSummary)
   v1.openapi(listUsersRoute, deps.adminController.listUsers)
   v1.openapi(
     getActiveFeedbackSurveyRoute,
@@ -163,9 +167,11 @@ export async function createApp(env: Env): Promise<CreatedApp> {
     })
 
     const userQueryService = new UserQueryService(prisma)
+    const adminQueryService = new AdminQueryService(prisma)
     const userRepository = new UserPrismaRepository(prisma)
     const getCurrentUserUseCase = new GetCurrentUserUseCase(userQueryService)
     const listUsersUseCase = new ListUsersUseCase(userQueryService)
+    const getAdminSummaryUseCase = new GetAdminSummaryUseCase(adminQueryService)
     const updateUserProfileUseCase = new UpdateUserProfileUseCase(
       userRepository
     )
@@ -205,7 +211,10 @@ export async function createApp(env: Env): Promise<CreatedApp> {
         getCurrentUserUseCase,
         updateUserProfileUseCase
       ),
-      adminController: new AdminController(listUsersUseCase),
+      adminController: new AdminController(
+        listUsersUseCase,
+        getAdminSummaryUseCase
+      ),
       feedbackController: new FeedbackController(
         getActiveFeedbackSurveyUseCase,
         submitFeedbackUseCase,

@@ -1,3 +1,4 @@
+export type { AdminSummaryResponseDto } from "./admin.response.dto"
 export type {
   FeedbackChoiceResponseDto,
   FeedbackQuestionResponseDto,

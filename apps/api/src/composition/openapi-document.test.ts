@@ -40,6 +40,7 @@ describe("GET /api-docs/openapi.json", () => {
     expect(document.paths).toMatchObject({
       "/api/v1/health": { get: expect.any(Object) },
       "/api/v1/me": { get: expect.any(Object), patch: expect.any(Object) },
+      "/api/v1/admin/summary": { get: expect.any(Object) },
       "/api/v1/admin/users": { get: expect.any(Object) },
       "/api/v1/feedback/survey": { get: expect.any(Object) },
       "/api/v1/feedback/submissions": { post: expect.any(Object) },
@@ -63,6 +64,9 @@ describe("GET /api-docs/openapi.json", () => {
       { cookieAuth: [] },
     ])
     expect(document.paths["/api/v1/admin/users"]?.get?.security).toEqual([
+      { cookieAuth: [] },
+    ])
+    expect(document.paths["/api/v1/admin/summary"]?.get?.security).toEqual([
       { cookieAuth: [] },
     ])
     expect(document.paths["/api/v1/feedback/survey"]?.get?.security).toEqual([

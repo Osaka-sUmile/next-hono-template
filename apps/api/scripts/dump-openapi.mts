@@ -4,6 +4,7 @@ import { fileURLToPath } from "node:url";
 import type { AuthInstance } from "@workspace/auth/server";
 import type {
   GetActiveFeedbackSurveyUseCase,
+  GetAdminSummaryUseCase,
   GetCurrentUserUseCase,
   GetFeedbackSurveyDetailUseCase,
   ListFeedbackSubmissionsUseCase,
@@ -67,7 +68,10 @@ async function main(): Promise<void> {
       {} as GetCurrentUserUseCase,
       {} as UpdateUserProfileUseCase,
     ),
-    adminController: new AdminController({} as ListUsersUseCase),
+    adminController: new AdminController(
+      {} as ListUsersUseCase,
+      {} as GetAdminSummaryUseCase,
+    ),
     feedbackController: new FeedbackController(
       {} as GetActiveFeedbackSurveyUseCase,
       {} as SubmitFeedbackUseCase,
