@@ -67,96 +67,120 @@ describe("UserQueryService (integration)", () => {
     })
   })
 
-  describe("findAll", () => {
-    it("複数ユーザーを createdAt 昇順で、読み取り専用 DTO の配列にして返す", async () => {
-      // 並び順を決定的にするため createdAt を明示する (同一時刻だと DB は順序を保証しないため)。
-      const admin = await prisma.user.create({
-        data: {
-          email: "admin@example.com",
-          name: "Admin User",
-          role: "admin",
-          displayName: "Boss",
-          emailVerified: true,
-          createdAt: new Date("2026-01-01T00:00:00.000Z"),
-        },
-      })
-      const member = await prisma.user.create({
-        data: {
-          email: "member@example.com",
-          name: "Member User",
-          role: "user",
-          createdAt: new Date("2026-01-02T00:00:00.000Z"),
-        },
+  describe("search", () => {
+    it("ページ境界を適用し、全件数と決定的な並び順を返す", async () => {
+      const sameTime = new Date("2026-03-01T00:00:00.000Z")
+      await prisma.user.createMany({
+        data: [
+          {
+            id: "u-b",
+            email: "b@example.com",
+            name: "B",
+            createdAt: sameTime,
+          },
+          {
+            id: "u-a",
+            email: "a@example.com",
+            name: "A",
+            createdAt: sameTime,
+          },
+          {
+            id: "u-c",
+            email: "c@example.com",
+            name: "C",
+            createdAt: new Date("2026-03-02T00:00:00.000Z"),
+          },
+        ],
       })
 
-      const results = await queryService.findAll()
+      const result = await queryService.search({ limit: 1, offset: 1 })
 
-      expect(results).toHaveLength(2)
-      expect(results.map((r) => r.email)).toEqual([
-        "admin@example.com",
-        "member@example.com",
-      ])
-      expect(results[0]).toEqual({
-        id: admin.id,
-        email: "admin@example.com",
-        name: "Admin User",
-        role: "admin",
-        displayName: "Boss",
-        image: null,
-        emailVerified: true,
-        createdAt: admin.createdAt,
-      })
-      expect(results[1]).toEqual({
-        id: member.id,
-        email: "member@example.com",
-        name: "Member User",
+      expect(result.total).toBe(3)
+      expect(result.items.map((item) => item.id)).toEqual(["u-b"])
+      expect(result.items[0]).toMatchObject({
+        email: "b@example.com",
         role: "user",
         displayName: null,
         image: null,
         emailVerified: false,
-        createdAt: member.createdAt,
       })
     })
 
-    it("createdAt が同一のユーザーは id 昇順で決定的に並ぶ", async () => {
-      const sameTime = new Date("2026-03-01T00:00:00.000Z")
-      // id 昇順が投入順と逆になるよう、先に id="u-b" を投入する。
-      await prisma.user.create({
-        data: {
-          id: "u-b",
-          email: "b@example.com",
-          name: "B",
-          createdAt: sameTime,
-        },
-      })
-      await prisma.user.create({
-        data: {
-          id: "u-a",
-          email: "a@example.com",
-          name: "A",
-          createdAt: sameTime,
-        },
+    it.each([
+      ["email", "needle.email@example.com", "Other", null],
+      ["name", "other@example.com", "Needle Name", null],
+      ["displayName", "other@example.com", "Other", "Needle Display"],
+    ] as const)(
+      "%s を大文字小文字を区別せず検索する",
+      async (_field, email, name, displayName) => {
+        await prisma.user.createMany({
+          data: [
+            { email, name, displayName },
+            {
+              email: "unmatched@example.com",
+              name: "Unmatched",
+              displayName: "Unmatched",
+            },
+          ],
+        })
+
+        const result = await queryService.search({
+          limit: 20,
+          offset: 0,
+          search: "NEEDLE",
+        })
+
+        expect(result.total).toBe(1)
+        expect(result.items.map((item) => item.email)).toEqual([email])
+      }
+    )
+
+    it("role と search の両フィルタに一致する件数だけを total に返す", async () => {
+      await prisma.user.createMany({
+        data: [
+          {
+            email: "admin-match@example.com",
+            name: "Match",
+            role: "admin",
+          },
+          {
+            email: "user-match@example.com",
+            name: "Match",
+            role: "user",
+          },
+          {
+            email: "admin-other@example.com",
+            name: "Other",
+            role: "admin",
+          },
+        ],
       })
 
-      const results = await queryService.findAll()
+      const result = await queryService.search({
+        limit: 20,
+        offset: 0,
+        search: "match",
+        role: "admin",
+      })
 
-      // 投入順ではなく id 昇順 (tie-breaker) で並ぶこと。
-      expect(results.map((r) => r.id)).toEqual(["u-a", "u-b"])
+      expect(result.total).toBe(1)
+      expect(result.items.map((item) => item.email)).toEqual([
+        "admin-match@example.com",
+      ])
     })
 
-    it("ユーザーが存在しない場合は空配列を返す", async () => {
-      await expect(queryService.findAll()).resolves.toEqual([])
-    })
-
-    it("role のデフォルト値 (user) を含めて正しくマッピングする", async () => {
+    it("一致するユーザーがいなければ空ページを返す", async () => {
       await prisma.user.create({
         data: { email: "member@example.com", name: "Member" },
       })
 
-      const results = await queryService.findAll()
-
-      expect(results[0]?.role).toBe("user")
-      expect(results[0]?.displayName).toBeNull()
+      await expect(
+        queryService.search({
+          limit: 20,
+          offset: 0,
+          search: "missing",
+        })
+      ).resolves.toEqual({ items: [], total: 0 })
     })
   })
 })

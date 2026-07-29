@@ -7,9 +7,15 @@ import type { listUsersRoute } from "../routes"
 export class AdminController {
   constructor(private readonly listUsersUseCase: ListUsersUseCase) {}
 
-  /** 全ユーザー一覧を JSON で返す。requireAdmin ミドルウェア通過後にのみ到達する。 */
+  /** ユーザー検索結果を JSON で返す。requireAdmin ミドルウェア通過後にのみ到達する。 */
   listUsers: RouteHandler<typeof listUsersRoute, AppEnv> = async (c) => {
-    const users = await this.listUsersUseCase.execute()
-    return c.json(users, 200)
+    const { limit, offset, search, role } = c.req.valid("query")
+    const result = await this.listUsersUseCase.execute({
+      limit,
+      offset,
+      ...(search === undefined ? {} : { search }),
+      ...(role === undefined ? {} : { role }),
+    })
+    return c.json(result, 200)
   }
 }
