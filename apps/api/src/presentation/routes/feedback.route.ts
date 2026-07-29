@@ -197,6 +197,7 @@ const UpdateFeedbackSurveyBodySchema = z
   .refine((body) => Object.keys(body).length > 0, {
     message: "at least one of slug, title, or isActive must be provided",
   })
+  .openapi({ minProperties: 1 })
 
 const FeedbackSurveyMutationResultSchema = z
   .object({

@@ -130,6 +130,28 @@ describe("UpdateFeedbackSurveyUseCase", () => {
     expect(result.isActive).toBe(true)
   })
 
+  it("propagates an exclusive activation failure after saving", async () => {
+    const calls: string[] = []
+    const failure = new Error("activation failed")
+    const save = vi
+      .fn()
+      .mockImplementation(async (entity: FeedbackSurveyEntity) => {
+        calls.push("save")
+        return entity
+      })
+    const activateExclusively = vi.fn().mockImplementation(async () => {
+      calls.push("activateExclusively")
+      throw failure
+    })
+    const deps = createDeps({ save, activateExclusively })
+    const useCase = new UpdateFeedbackSurveyUseCase(deps.repository)
+
+    await expect(
+      useCase.execute({ surveyId: "survey-1", isActive: true })
+    ).rejects.toBe(failure)
+    expect(calls).toEqual(["save", "activateExclusively"])
+  })
+
   it("does not exclusively activate when deactivating", async () => {
     const deps = createDeps({
       findById: vi.fn().mockResolvedValue(createSurvey({ isActive: true })),

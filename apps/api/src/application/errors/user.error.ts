@@ -12,7 +12,7 @@ export class UserNotFoundError extends ApplicationError {
  *
  * 自分自身を直接降格する単純なロックアウト経路を閉じる。
  * 複数 admin の相互降格が並行した場合まで含む「admin を 0 人にしない」保証には
- * DB トランザクション内の排他制御が必要なため、別 issue で扱う。
+ * DB トランザクション内の排他制御が必要なため、issue #156 で扱う。
  */
 export class CannotChangeOwnRoleError extends ApplicationError {
   constructor(userId: string) {

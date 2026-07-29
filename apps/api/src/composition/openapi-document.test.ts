@@ -212,5 +212,9 @@ describe("GET /api-docs/openapi.json", () => {
         "/api/v1/admin/feedback/surveys/{surveyId}"
       ]?.patch?.parameters?.find((parameter) => parameter.name === "surveyId")
     ).toMatchObject({ description: "Survey to update" })
+    expect(
+      document.paths["/api/v1/admin/feedback/surveys/{surveyId}"]?.patch
+        ?.requestBody?.content?.["application/json"]?.schema
+    ).toMatchObject({ minProperties: 1 })
   })
 })

@@ -16,7 +16,7 @@ export type UpdateFeedbackSurveyInput = {
  *
  * save() 成功後に activateExclusively() が失敗すると複数アクティブが残りうるが、
  * findActive() は createdAt / id で決定的に解決するため既知リスクとして受容する。
- * PR11 で設問削除を追加する際に、トランザクションまたは部分ユニーク制約を再検討する。
+ * 原子的な保存・有効化と並行実行時の排他制御は issue #157 で扱う。
  */
 export class UpdateFeedbackSurveyUseCase extends BaseCommandUseCase<
   UpdateFeedbackSurveyInput,

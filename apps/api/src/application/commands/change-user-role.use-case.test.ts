@@ -1,10 +1,7 @@
 import { describe, expect, it, vi } from "vitest"
 import type { IUserRepository } from "@workspace/domain"
 import { UserEntity } from "@workspace/domain"
-import {
-  CannotChangeOwnRoleError,
-  UserNotFoundError,
-} from "../errors/user.error"
+import { CannotChangeOwnRoleError, UserNotFoundError } from "../errors"
 import { ChangeUserRoleUseCase } from "./change-user-role.use-case"
 
 const createUser = (role: "user" | "admin") =>
