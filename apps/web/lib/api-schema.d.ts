@@ -168,25 +168,43 @@ export interface paths {
             cookie?: never;
         };
         /**
-         * List all users (admin only)
-         * @description Retrieve all users. Requires an authenticated session whose role is admin.
+         * Search users (admin only)
+         * @description Search and page through users. Requires an authenticated session whose role is admin.
          */
         get: {
             parameters: {
-                query?: never;
+                query?: {
+                    /** @description Page size (1-100) */
+                    limit?: number;
+                    /** @description Number of users to skip */
+                    offset?: number;
+                    /** @description Case-insensitive match against email, name, or display name */
+                    search?: string;
+                    /** @description Restrict results to one user role */
+                    role?: "user" | "admin";
+                };
                 header?: never;
                 path?: never;
                 cookie?: never;
             };
             requestBody?: never;
             responses: {
-                /** @description A list of users */
+                /** @description A page of users */
                 200: {
                     headers: {
                         [name: string]: unknown;
                     };
                     content: {
-                        "application/json": components["schemas"]["User"][];
+                        "application/json": components["schemas"]["UserList"];
+                    };
+                };
+                /** @description Invalid paging or filter parameters (VALIDATION_ERROR) */
+                400: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["Error"];
                     };
                 };
                 /** @description Unauthorized (missing or invalid session) */
@@ -747,6 +765,13 @@ export interface components {
             /** @enum {string} */
             role: "user" | "admin";
             displayName: string | null;
+        };
+        UserList: {
+            items: components["schemas"]["User"][];
+            /** @description Total users matching the filters */
+            total: number;
+            limit: number;
+            offset: number;
         };
         FeedbackSurvey: {
             id: string;

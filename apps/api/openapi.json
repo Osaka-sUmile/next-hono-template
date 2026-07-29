@@ -136,6 +136,33 @@
           "displayName"
         ]
       },
+      "UserList": {
+        "type": "object",
+        "properties": {
+          "items": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/User"
+            }
+          },
+          "total": {
+            "type": "integer",
+            "description": "Total users matching the filters"
+          },
+          "limit": {
+            "type": "integer"
+          },
+          "offset": {
+            "type": "integer"
+          }
+        },
+        "required": [
+          "items",
+          "total",
+          "limit",
+          "offset"
+        ]
+      },
       "FeedbackSurvey": {
         "type": "object",
         "properties": {
@@ -641,23 +668,81 @@
         "tags": [
           "Admin"
         ],
-        "summary": "List all users (admin only)",
-        "description": "Retrieve all users. Requires an authenticated session whose role is admin.",
+        "summary": "Search users (admin only)",
+        "description": "Search and page through users. Requires an authenticated session whose role is admin.",
         "security": [
           {
             "cookieAuth": []
           }
         ],
+        "parameters": [
+          {
+            "schema": {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 100,
+              "default": 20,
+              "description": "Page size (1-100)"
+            },
+            "required": false,
+            "description": "Page size (1-100)",
+            "name": "limit",
+            "in": "query"
+          },
+          {
+            "schema": {
+              "type": "integer",
+              "minimum": 0,
+              "default": 0
+            },
+            "required": false,
+            "description": "Number of users to skip",
+            "name": "offset",
+            "in": "query"
+          },
+          {
+            "schema": {
+              "type": "string",
+              "maxLength": 100,
+              "description": "Case-insensitive match against email, name, or display name"
+            },
+            "required": false,
+            "description": "Case-insensitive match against email, name, or display name",
+            "name": "search",
+            "in": "query"
+          },
+          {
+            "schema": {
+              "type": "string",
+              "enum": [
+                "user",
+                "admin"
+              ],
+              "description": "Restrict results to one user role"
+            },
+            "required": false,
+            "description": "Restrict results to one user role",
+            "name": "role",
+            "in": "query"
+          }
+        ],
         "responses": {
           "200": {
-            "description": "A list of users",
+            "description": "A page of users",
             "content": {
               "application/json": {
                 "schema": {
-                  "type": "array",
-                  "items": {
-                    "$ref": "#/components/schemas/User"
-                  }
+                  "$ref": "#/components/schemas/UserList"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Invalid paging or filter parameters (VALIDATION_ERROR)",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
                 }
               }
             }

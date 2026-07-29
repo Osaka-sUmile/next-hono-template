@@ -11,6 +11,13 @@ export type UserResponseDto = {
   createdAt: Date
 }
 
+export type UserListResponseDto = {
+  items: UserResponseDto[]
+  total: number
+  limit: number
+  offset: number
+}
+
 /**
  * Command（書き込み）が返すプロフィール DTO。
  * Query 系（UserResponseDto）と異なり、Command は Repository が復元する UserEntity の

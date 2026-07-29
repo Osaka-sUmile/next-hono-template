@@ -13,28 +13,79 @@ const userSession = {
 
 describe("GET /api/v1/admin/users", () => {
   it("returns 200 with users for an authenticated admin", async () => {
-    const users = [
-      {
-        id: "user-1",
-        email: "user@example.com",
-        name: "User",
-        role: "user" as const,
-        displayName: null,
-        image: null,
-        emailVerified: true,
-        createdAt: new Date("2024-01-01"),
-      },
-    ]
+    const result = {
+      items: [
+        {
+          id: "user-1",
+          email: "user@example.com",
+          name: "User",
+          role: "user" as const,
+          displayName: null,
+          image: null,
+          emailVerified: true,
+          createdAt: new Date("2024-01-01"),
+        },
+      ],
+      total: 1,
+      limit: 10,
+      offset: 5,
+    }
     const { app, listUsers } = createTestApp({
       getSession: vi.fn().mockResolvedValue(adminSession),
-      listUsers: vi.fn().mockResolvedValue(users),
+      listUsers: vi.fn().mockResolvedValue(result),
+    })
+
+    const res = await app.request(
+      "/api/v1/admin/users?limit=10&offset=5&search=%20USER%20&role=user"
+    )
+
+    expect(res.status).toBe(200)
+    expect(await res.json()).toEqual(JSON.parse(JSON.stringify(result)))
+    expect(listUsers).toHaveBeenCalledWith({
+      limit: 10,
+      offset: 5,
+      search: "USER",
+      role: "user",
+    })
+  })
+
+  it("uses paging defaults and omits optional filters", async () => {
+    const { app, listUsers } = createTestApp({
+      getSession: vi.fn().mockResolvedValue(adminSession),
+      listUsers: vi
+        .fn()
+        .mockResolvedValue({ items: [], total: 0, limit: 20, offset: 0 }),
     })
 
     const res = await app.request("/api/v1/admin/users")
 
     expect(res.status).toBe(200)
-    expect(await res.json()).toEqual(JSON.parse(JSON.stringify(users)))
-    expect(listUsers).toHaveBeenCalledOnce()
+    expect(listUsers).toHaveBeenCalledWith({ limit: 20, offset: 0 })
+  })
+
+  it.each(["limit=0", "limit=101"])(
+    "returns 400 for invalid paging query %s",
+    async (query) => {
+      const { app, listUsers } = createTestApp({
+        getSession: vi.fn().mockResolvedValue(adminSession),
+      })
+
+      const res = await app.request(`/api/v1/admin/users?${query}`)
+
+      expect(res.status).toBe(400)
+      expect(listUsers).not.toHaveBeenCalled()
+    }
+  )
+
+  it("returns 400 for an unsupported role", async () => {
+    const { app, listUsers } = createTestApp({
+      getSession: vi.fn().mockResolvedValue(adminSession),
+    })
+
+    const res = await app.request("/api/v1/admin/users?role=owner")
+
+    expect(res.status).toBe(400)
+    expect(listUsers).not.toHaveBeenCalled()
   })
 
   it("returns 401 without a session and does not query users", async () => {

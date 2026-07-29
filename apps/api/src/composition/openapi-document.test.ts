@@ -11,6 +11,7 @@ type OpenApiParameter = {
 type OpenApiOperation = {
   security?: unknown
   parameters?: OpenApiParameter[]
+  responses?: Record<string, unknown>
 }
 
 type OpenApiDocument = {
@@ -111,5 +112,39 @@ describe("GET /api-docs/openapi.json", () => {
     })
     expect(byName.get("limit")?.schema).not.toHaveProperty("nullable")
     expect(byName.get("offset")?.schema).not.toHaveProperty("nullable")
+  })
+
+  it("documents the user paging params as non-nullable integers", async () => {
+    const { app } = createTestApp()
+
+    const res = await app.request("/api-docs/openapi.json")
+    const document = (await res.json()) as OpenApiDocument
+
+    const parameters =
+      document.paths["/api/v1/admin/users"]?.get?.parameters ?? []
+    const byName = new Map(
+      parameters.map((parameter) => [parameter.name, parameter])
+    )
+
+    expect(byName.get("limit")?.schema).toMatchObject({
+      type: "integer",
+      minimum: 1,
+      maximum: 100,
+    })
+    expect(byName.get("offset")?.schema).toMatchObject({
+      type: "integer",
+      minimum: 0,
+    })
+    expect(byName.get("limit")?.schema).not.toHaveProperty("nullable")
+    expect(byName.get("offset")?.schema).not.toHaveProperty("nullable")
+    expect(
+      document.paths["/api/v1/admin/users"]?.get?.responses?.["400"]
+    ).toMatchObject({
+      content: {
+        "application/json": {
+          schema: { $ref: "#/components/schemas/Error" },
+        },
+      },
+    })
   })
 })

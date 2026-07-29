@@ -11,6 +11,7 @@ export type {
   FeedbackSurveyResponseDto,
 } from "./feedback.response.dto"
 export type {
+  UserListResponseDto,
   UserResponseDto,
   UserProfileResponseDto,
 } from "./user.response.dto"

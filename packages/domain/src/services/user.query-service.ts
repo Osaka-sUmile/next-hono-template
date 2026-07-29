@@ -11,8 +11,20 @@ export type UserQueryResult = {
   createdAt: Date
 }
 
+export type UserSearchParams = {
+  limit: number
+  offset: number
+  search?: string
+  role?: UserRole
+}
+
+export type UserSearchResult = {
+  items: UserQueryResult[]
+  total: number
+}
+
 export interface IUserQueryService {
   findById(id: string): Promise<UserQueryResult | null>
-  /** 全ユーザーを取得する。 */
-  findAll(): Promise<UserQueryResult[]>
+  /** 管理者向けにユーザーを検索し、ページングした結果と一致件数を返す。 */
+  search(params: UserSearchParams): Promise<UserSearchResult>
 }
