@@ -9,3 +9,10 @@ if (typeof Element !== "undefined") {
   Element.prototype.releasePointerCapture ??= () => {}
   Element.prototype.scrollIntoView ??= () => {}
 }
+
+// jsdom は ResizeObserver も実装していない(Radix UI の Select 等が要求する)。
+globalThis.ResizeObserver ??= class ResizeObserver {
+  observe() {}
+  unobserve() {}
+  disconnect() {}
+}
