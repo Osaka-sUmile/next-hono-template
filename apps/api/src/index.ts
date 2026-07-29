@@ -1,6 +1,10 @@
-import * as Sentry from "@sentry/cloudflare";
-import { createApp } from "./composition";
-import { parseEnv, resolveSentryOptions, type WorkerBindings } from "./infrastructure";
+import * as Sentry from "@sentry/cloudflare"
+import { createApp } from "./composition"
+import {
+  parseEnv,
+  resolveSentryOptions,
+  type WorkerBindings,
+} from "./infrastructure"
 
 // rawEnv は Cloudflare Workers から渡される未検証の生 binding。
 // 検証は parseEnv で行い、検証済みの Env はアプリ構築にのみ渡す。
@@ -12,16 +16,16 @@ import { parseEnv, resolveSentryOptions, type WorkerBindings } from "./infrastru
 // prisma.$disconnect() を waitUntil で実行する。
 const handler = {
   async fetch(req, rawEnv, ctx) {
-    const { app, prisma } = await createApp(parseEnv(rawEnv));
+    const { app, prisma } = await createApp(parseEnv(rawEnv))
     try {
-      return await app.fetch(req, rawEnv, ctx);
+      return await app.fetch(req, rawEnv, ctx)
     } finally {
-      ctx.waitUntil(prisma.$disconnect());
+      ctx.waitUntil(prisma.$disconnect())
     }
   },
-} satisfies ExportedHandler<WorkerBindings>;
+} satisfies ExportedHandler<WorkerBindings>
 
 // オプションの組み立ては infrastructure/sentry-options.ts に集約している。
 // withSentry のコールバックは parseEnv を通す前の生 binding を受け取るため、
 // 値の解釈（DSN の有無・環境名・サンプリング率）はそちらでテスト可能な形にしてある。
-export default Sentry.withSentry<WorkerBindings>(resolveSentryOptions, handler);
+export default Sentry.withSentry<WorkerBindings>(resolveSentryOptions, handler)

@@ -1,10 +1,10 @@
-import type { IFeedbackQueryService } from "@workspace/domain";
-import type { FeedbackSummaryResponseDto } from "../dtos";
-import { BaseQueryUseCase } from "./base.query";
+import type { IFeedbackQueryService } from "@workspace/domain"
+import type { FeedbackSummaryResponseDto } from "../dtos"
+import { BaseQueryUseCase } from "./base.query"
 
 export type SummarizeFeedbackInput = {
-  surveyId: string;
-};
+  surveyId: string
+}
 
 /**
  * 管理者向けに選択式設問を集計する Query ユースケース。
@@ -18,11 +18,14 @@ export class SummarizeFeedbackUseCase extends BaseQueryUseCase<
   FeedbackSummaryResponseDto
 > {
   constructor(private readonly feedbackQueryService: IFeedbackQueryService) {
-    super();
+    super()
   }
 
-  async execute({ surveyId }: SummarizeFeedbackInput): Promise<FeedbackSummaryResponseDto> {
-    const { respondentCount, tallies } = await this.feedbackQueryService.summarize(surveyId);
-    return { surveyId, respondentCount, tallies };
+  async execute({
+    surveyId,
+  }: SummarizeFeedbackInput): Promise<FeedbackSummaryResponseDto> {
+    const { respondentCount, tallies } =
+      await this.feedbackQueryService.summarize(surveyId)
+    return { surveyId, respondentCount, tallies }
   }
 }

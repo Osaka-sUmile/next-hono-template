@@ -1,100 +1,100 @@
-"use client";
+"use client"
 
-import { Suspense, useRef, useState } from "react";
-import Link from "next/link";
-import { useRouter, useSearchParams } from "next/navigation";
-import { HugeiconsIcon } from "@hugeicons/react";
-import { AppleIcon, GoogleIcon } from "@hugeicons/core-free-icons";
-import type { TurnstileInstance } from "@marsidev/react-turnstile";
-import { Button } from "@workspace/ui/components/button";
-import { TurnstileWidget } from "@/components/turnstile-widget";
-import { authClient } from "@/lib/auth-client";
+import { Suspense, useRef, useState } from "react"
+import Link from "next/link"
+import { useRouter, useSearchParams } from "next/navigation"
+import { HugeiconsIcon } from "@hugeicons/react"
+import { AppleIcon, GoogleIcon } from "@hugeicons/core-free-icons"
+import type { TurnstileInstance } from "@marsidev/react-turnstile"
+import { Button } from "@workspace/ui/components/button"
+import { TurnstileWidget } from "@/components/turnstile-widget"
+import { authClient } from "@/lib/auth-client"
 
-type Step = "request" | "verify";
+type Step = "request" | "verify"
 
 // social ログインの失敗時に表示するメッセージ。useEffect(?error 受信時)と
 // handleSocial(呼び出し失敗時)の両方で使うため定数化してドリフトを防ぐ。
 const SOCIAL_LOGIN_FAILED_MESSAGE =
-  "ログインに失敗しました。しばらく経ってから再試行してください。";
+  "ログインに失敗しました。しばらく経ってから再試行してください。"
 const ACCOUNT_NOT_FOUND_MESSAGE =
-  "このアカウントは登録されていません。新規登録してください。";
+  "このアカウントは登録されていません。新規登録してください。"
 
 export default function LoginPage() {
   return (
     <Suspense>
       <LoginPageContent />
     </Suspense>
-  );
+  )
 }
 
 function LoginPageContent() {
-  const router = useRouter();
-  const searchParams = useSearchParams();
-  const [step, setStep] = useState<Step>("request");
-  const [email, setEmail] = useState("");
-  const [otp, setOtp] = useState("");
+  const router = useRouter()
+  const searchParams = useSearchParams()
+  const [step, setStep] = useState<Step>("request")
+  const [email, setEmail] = useState("")
+  const [otp, setOtp] = useState("")
   // social ログインが失敗すると errorCallbackURL(=/login)へ ?error= 付きで戻ってくる。
   // 未登録アカウントでのログインは provider の disableImplicitSignUp により拒否され、
   // better-auth が signup_disabled を返す。この場合は新規登録へ誘導する。
   // social は Google/Apple 側で本人認証を済ませた後にしか到達しないため、
   // /login で「未登録」を明示してもアカウント列挙のリスクにはならない。
-  const initialErrorCode = searchParams.get("error");
+  const initialErrorCode = searchParams.get("error")
   const [error, setError] = useState<string | null>(
     initialErrorCode === "signup_disabled"
       ? ACCOUNT_NOT_FOUND_MESSAGE
       : initialErrorCode
         ? SOCIAL_LOGIN_FAILED_MESSAGE
-        : null,
-  );
-  const [loading, setLoading] = useState(false);
-  const [captchaToken, setCaptchaToken] = useState<string | null>(null);
-  const turnstileRef = useRef<TurnstileInstance>(null);
+        : null
+  )
+  const [loading, setLoading] = useState(false)
+  const [captchaToken, setCaptchaToken] = useState<string | null>(null)
+  const turnstileRef = useRef<TurnstileInstance>(null)
 
   async function handleRequest(e: React.FormEvent) {
-    e.preventDefault();
-    if (!captchaToken) return;
-    setError(null);
-    setLoading(true);
+    e.preventDefault()
+    if (!captchaToken) return
+    setError(null)
+    setLoading(true)
     const { error } = await authClient.emailOtp.sendVerificationOtp(
       { email, type: "sign-in" },
-      { headers: { "x-captcha-response": captchaToken } },
-    );
-    setLoading(false);
+      { headers: { "x-captcha-response": captchaToken } }
+    )
+    setLoading(false)
     if (error) {
-      setError("送信に失敗しました。しばらく経ってから再試行してください。");
+      setError("送信に失敗しました。しばらく経ってから再試行してください。")
       // captcha トークンは 1 回限りのため、失敗時は破棄してウィジェットを再取得させる。
-      setCaptchaToken(null);
-      turnstileRef.current?.reset();
-      return;
+      setCaptchaToken(null)
+      turnstileRef.current?.reset()
+      return
     }
-    setStep("verify");
+    setStep("verify")
   }
 
   async function handleVerify(e: React.FormEvent) {
-    e.preventDefault();
-    setError(null);
-    setLoading(true);
-    const { error } = await authClient.signIn.emailOtp({ email, otp });
+    e.preventDefault()
+    setError(null)
+    setLoading(true)
+    const { error } = await authClient.signIn.emailOtp({ email, otp })
     if (error) {
-      setLoading(false);
-      setError("コードが正しくありません。または有効期限が切れています。");
-      return;
+      setLoading(false)
+      setError("コードが正しくありません。または有効期限が切れています。")
+      return
     }
-    router.replace("/dashboard");
+    router.replace("/dashboard")
   }
 
   async function handleSocial(provider: "google" | "apple") {
-    setError(null);
-    setLoading(true);
+    setError(null)
+    setLoading(true)
     // callbackURL は API オリジン基準で解決されるため、web 側の絶対 URL を渡す必要がある
     const { error } = await authClient.signIn.social({
       provider,
       callbackURL: `${window.location.origin}/dashboard`,
       errorCallbackURL: `${window.location.origin}/login`,
-    });
+    })
     if (error) {
-      setLoading(false);
-      setError(SOCIAL_LOGIN_FAILED_MESSAGE);
+      setLoading(false)
+      setError(SOCIAL_LOGIN_FAILED_MESSAGE)
     }
   }
 
@@ -104,7 +104,7 @@ function LoginPageContent() {
         <div className="w-full max-w-sm space-y-4">
           <div className="space-y-1">
             <h1 className="text-2xl font-bold">コードを入力</h1>
-            <p className="text-muted-foreground text-sm">
+            <p className="text-sm text-muted-foreground">
               {email} に送信したコードを入力してください。
             </p>
           </div>
@@ -122,10 +122,10 @@ function LoginPageContent() {
                 value={otp}
                 onChange={(e) => setOtp(e.target.value)}
                 placeholder="123456"
-                className="w-full rounded-md border border-input bg-background px-3 py-2 text-sm placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-ring"
+                className="w-full rounded-md border border-input bg-background px-3 py-2 text-sm placeholder:text-muted-foreground focus:ring-2 focus:ring-ring focus:outline-none"
               />
             </div>
-            {error && <p className="text-destructive text-sm">{error}</p>}
+            {error && <p className="text-sm text-destructive">{error}</p>}
             <Button type="submit" className="w-full" disabled={loading}>
               {loading ? "処理中..." : "ログイン"}
             </Button>
@@ -134,7 +134,11 @@ function LoginPageContent() {
             コードを受け取っていない場合は{" "}
             <button
               type="button"
-              onClick={() => { setStep("request"); setOtp(""); setError(null); }}
+              onClick={() => {
+                setStep("request")
+                setOtp("")
+                setError(null)
+              }}
               className="text-primary underline underline-offset-4"
             >
               再送信する
@@ -142,7 +146,7 @@ function LoginPageContent() {
           </p>
         </div>
       </div>
-    );
+    )
   }
 
   return (
@@ -150,7 +154,7 @@ function LoginPageContent() {
       <div className="w-full max-w-sm space-y-4">
         <div className="space-y-1">
           <h1 className="text-2xl font-bold">ログイン</h1>
-          <p className="text-muted-foreground text-sm">
+          <p className="text-sm text-muted-foreground">
             メールアドレスに認証コードを送信します。
           </p>
         </div>
@@ -166,7 +170,7 @@ function LoginPageContent() {
               value={email}
               onChange={(e) => setEmail(e.target.value)}
               placeholder="you@example.com"
-              className="w-full rounded-md border border-input bg-background px-3 py-2 text-sm placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-ring"
+              className="w-full rounded-md border border-input bg-background px-3 py-2 text-sm placeholder:text-muted-foreground focus:ring-2 focus:ring-ring focus:outline-none"
             />
           </div>
           <TurnstileWidget
@@ -174,14 +178,18 @@ function LoginPageContent() {
             onSuccess={setCaptchaToken}
             onExpire={() => setCaptchaToken(null)}
           />
-          {error && <p className="text-destructive text-sm">{error}</p>}
-          <Button type="submit" className="w-full" disabled={loading || !captchaToken}>
+          {error && <p className="text-sm text-destructive">{error}</p>}
+          <Button
+            type="submit"
+            className="w-full"
+            disabled={loading || !captchaToken}
+          >
             {loading ? "送信中..." : "認証コードを送信"}
           </Button>
         </form>
         <div className="flex items-center gap-3">
           <span className="h-px flex-1 bg-border" />
-          <span className="text-muted-foreground text-xs">または</span>
+          <span className="text-xs text-muted-foreground">または</span>
           <span className="h-px flex-1 bg-border" />
         </div>
         <div className="space-y-2">
@@ -208,16 +216,22 @@ function LoginPageContent() {
         </div>
         <p className="text-center text-sm text-muted-foreground">
           アカウントをお持ちでない方は{" "}
-          <Link href="/signup" className="text-primary underline underline-offset-4">
+          <Link
+            href="/signup"
+            className="text-primary underline underline-offset-4"
+          >
             新規登録
           </Link>
         </p>
         <p className="text-center text-sm text-muted-foreground">
-          <Link href="/forgot-password" className="text-primary underline underline-offset-4">
+          <Link
+            href="/forgot-password"
+            className="text-primary underline underline-offset-4"
+          >
             パスワードをお忘れですか？
           </Link>
         </p>
       </div>
     </div>
-  );
+  )
 }

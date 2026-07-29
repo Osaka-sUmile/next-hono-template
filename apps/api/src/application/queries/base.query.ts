@@ -4,5 +4,5 @@
  * クエリサービスを利用して、取得したデータを返します。
  */
 export abstract class BaseQueryUseCase<TInput, TOutput> {
-  abstract execute(input: TInput): Promise<TOutput>;
+  abstract execute(input: TInput): Promise<TOutput>
 }

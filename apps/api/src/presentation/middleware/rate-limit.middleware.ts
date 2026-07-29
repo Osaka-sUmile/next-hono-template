@@ -1,9 +1,9 @@
-import type { MiddlewareHandler } from "hono";
-import type { WorkerRateLimitBindings } from "../../infrastructure";
-import { ErrorCodes } from "../errors";
-import { errorResponse } from "../http";
+import type { MiddlewareHandler } from "hono"
+import type { WorkerRateLimitBindings } from "../../infrastructure"
+import { ErrorCodes } from "../errors"
+import { errorResponse } from "../http"
 
-type AuthLimiterEnv = { Bindings: WorkerRateLimitBindings };
+type AuthLimiterEnv = { Bindings: WorkerRateLimitBindings }
 
 /**
  * 認証系エンドポイント(email OTP 送信・サインイン・パスワードリセット)向けのレートリミッター。
@@ -16,18 +16,23 @@ type AuthLimiterEnv = { Bindings: WorkerRateLimitBindings };
  */
 export function createAuthLimiter(): MiddlewareHandler<AuthLimiterEnv> {
   return async (c, next) => {
-    const limiter = c.env?.AUTH_RATE_LIMITER;
+    const limiter = c.env?.AUTH_RATE_LIMITER
     if (!limiter) {
-      await next();
-      return;
+      await next()
+      return
     }
 
-    const key = c.req.header("cf-connecting-ip") ?? "unknown";
-    const { success } = await limiter.limit({ key });
+    const key = c.req.header("cf-connecting-ip") ?? "unknown"
+    const { success } = await limiter.limit({ key })
     if (!success) {
-      return errorResponse(c, 429, ErrorCodes.RATE_LIMIT_EXCEEDED, "Too many requests");
+      return errorResponse(
+        c,
+        429,
+        ErrorCodes.RATE_LIMIT_EXCEEDED,
+        "Too many requests"
+      )
     }
 
-    await next();
-  };
+    await next()
+  }
 }

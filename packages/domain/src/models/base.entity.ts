@@ -6,22 +6,22 @@ export abstract class BaseEntity<TId> {
   protected constructor(protected readonly _id: TId) {}
 
   get id(): TId {
-    return this._id;
+    return this._id
   }
 
   // エンティティの同一性はIDによって判定されます
   public equals(other?: BaseEntity<TId>): boolean {
     if (other === null || other === undefined) {
-      return false;
+      return false
     }
     if (this === other) {
-      return true;
+      return true
     }
     // IDがValue Objectなどであり、equalsメソッドを持つ場合はそちらを優先する
     if (hasEquals(this._id)) {
-      return this._id.equals(other._id);
+      return this._id.equals(other._id)
     }
-    return this._id === other._id;
+    return this._id === other._id
   }
 
   /**
@@ -35,15 +35,21 @@ export abstract class BaseEntity<TId> {
    */
   protected ensure(condition: unknown, error: Error): asserts condition {
     if (!condition) {
-      throw error;
+      throw error
     }
   }
 }
 
 type Equatable<T> = {
-  equals(other: T): boolean;
-};
+  equals(other: T): boolean
+}
 
 function hasEquals<T>(value: T): value is T & Equatable<T> {
-  return value !== null && value !== undefined && typeof value === "object" && "equals" in value && typeof (value as Record<string, unknown>).equals === "function";
+  return (
+    value !== null &&
+    value !== undefined &&
+    typeof value === "object" &&
+    "equals" in value &&
+    typeof (value as Record<string, unknown>).equals === "function"
+  )
 }

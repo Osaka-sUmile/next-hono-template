@@ -1,8 +1,8 @@
-import { OpenAPIHono } from "@hono/zod-openapi";
-import { cors } from "hono/cors";
-import { secureHeaders } from "hono/secure-headers";
-import { createAuth } from "@workspace/auth/server";
-import type { AuthInstance } from "@workspace/auth/server";
+import { OpenAPIHono } from "@hono/zod-openapi"
+import { cors } from "hono/cors"
+import { secureHeaders } from "hono/secure-headers"
+import { createAuth } from "@workspace/auth/server"
+import type { AuthInstance } from "@workspace/auth/server"
 import {
   createPrismaClient,
   FeedbackQueryService,
@@ -10,7 +10,7 @@ import {
   FeedbackSurveyPrismaRepository,
   UserPrismaRepository,
   UserQueryService,
-} from "@workspace/database";
+} from "@workspace/database"
 import {
   GetActiveFeedbackSurveyUseCase,
   GetCurrentUserUseCase,
@@ -19,7 +19,7 @@ import {
   SubmitFeedbackUseCase,
   SummarizeFeedbackUseCase,
   UpdateUserProfileUseCase,
-} from "../application";
+} from "../application"
 import {
   AdminController,
   FeedbackController,
@@ -39,70 +39,76 @@ import {
   summarizeFeedbackRoute,
   validationErrorHook,
   type AppEnv,
-} from "../presentation";
-import { setupSwagger, UuidIdGenerator, type Env } from "../infrastructure";
+} from "../presentation"
+import { setupSwagger, UuidIdGenerator, type Env } from "../infrastructure"
 
 export type AppDeps = {
-  env: Env;
-  auth: AuthInstance;
-  healthController: HealthController;
-  userController: UserController;
-  adminController: AdminController;
-  feedbackController: FeedbackController;
-};
+  env: Env
+  auth: AuthInstance
+  healthController: HealthController
+  userController: UserController
+  adminController: AdminController
+  feedbackController: FeedbackController
+}
 
 /**
  * 依存を受け取り Hono アプリを組み立てる。
  * 実依存の構築は createApp() が担い、テストではモック依存を渡して app.request() で検証する。
  */
 export function buildApp(deps: AppDeps): OpenAPIHono<AppEnv> {
-  const app = new OpenAPIHono<AppEnv>({ defaultHook: validationErrorHook });
+  const app = new OpenAPIHono<AppEnv>({ defaultHook: validationErrorHook })
 
   // 未処理エラーは onError で一元的に捕捉する（Sentry 送信・ログもここで実施）。
-  app.onError(createErrorHandler(deps.env.NODE_ENV));
+  app.onError(createErrorHandler(deps.env.NODE_ENV))
 
-  app.use(secureHeaders());
+  app.use(secureHeaders())
   // cors はすべてのルートに適用するため先行させる
-  app.use(cors({ origin: deps.env.WEB_BASE_URL, credentials: true }));
+  app.use(cors({ origin: deps.env.WEB_BASE_URL, credentials: true }))
 
   // better-auth ハンドラ。Web 標準の Request をそのまま渡す。
   // レート制限は認証ミューテーション系(メール送信・サインイン・パスワードリセット)のみに絞る。
   // /api/auth/* 全体にかけると get-session 等の高頻度な参照系まで巻き込み、共有 IP 環境で
   // アプリ全体が誤 429 になりうるため。
-  app.use("/api/auth/email-otp/*", createAuthLimiter());
-  app.use("/api/auth/sign-in/*", createAuthLimiter());
-  app.use("/api/auth/forget-password/*", createAuthLimiter());
-  app.on(["GET", "POST"], "/api/auth/*", (c) => deps.auth.handler(c.req.raw));
+  app.use("/api/auth/email-otp/*", createAuthLimiter())
+  app.use("/api/auth/sign-in/*", createAuthLimiter())
+  app.use("/api/auth/forget-password/*", createAuthLimiter())
+  app.on(["GET", "POST"], "/api/auth/*", (c) => deps.auth.handler(c.req.raw))
 
-  const requireAuth = createRequireAuth(deps.auth);
+  const requireAuth = createRequireAuth(deps.auth)
 
-  const v1 = new OpenAPIHono<AppEnv>({ defaultHook: validationErrorHook });
+  const v1 = new OpenAPIHono<AppEnv>({ defaultHook: validationErrorHook })
   // v1 配下のデフォルトキャッシュ方針。個別ハンドラが上書き可能なよう next() より前に設定する。
   v1.use(async (c, next) => {
-    c.header("Cache-Control", "private, no-cache, no-store, must-revalidate");
-    await next();
-  });
+    c.header("Cache-Control", "private, no-cache, no-store, must-revalidate")
+    await next()
+  })
   // 認証・認可は composition に集約し、入出力契約は routes/ が担う。
-  v1.use("/me", requireAuth);
-  v1.use("/admin/users", requireAuth, requireAdmin);
+  v1.use("/me", requireAuth)
+  v1.use("/admin/users", requireAuth, requireAdmin)
   // フィードバックは回答者を認証セッションから決めるため参照・投稿の双方で認証を要求し、
   // 回答者の氏名・メール・自由記述を含む管理系は admin に限定する。
-  v1.use("/feedback/*", requireAuth);
-  v1.use("/admin/feedback/*", requireAuth, requireAdmin);
-  v1.openapi(healthRoute, deps.healthController.check);
-  v1.openapi(getUserMeRoute, deps.userController.getUserMe);
-  v1.openapi(updateUserMeRoute, deps.userController.updateUserMe);
-  v1.openapi(listUsersRoute, deps.adminController.listUsers);
-  v1.openapi(getActiveFeedbackSurveyRoute, deps.feedbackController.getActiveSurvey);
-  v1.openapi(submitFeedbackRoute, deps.feedbackController.submitFeedback);
-  v1.openapi(listFeedbackSubmissionsRoute, deps.feedbackController.listSubmissions);
-  v1.openapi(summarizeFeedbackRoute, deps.feedbackController.getSummary);
+  v1.use("/feedback/*", requireAuth)
+  v1.use("/admin/feedback/*", requireAuth, requireAdmin)
+  v1.openapi(healthRoute, deps.healthController.check)
+  v1.openapi(getUserMeRoute, deps.userController.getUserMe)
+  v1.openapi(updateUserMeRoute, deps.userController.updateUserMe)
+  v1.openapi(listUsersRoute, deps.adminController.listUsers)
+  v1.openapi(
+    getActiveFeedbackSurveyRoute,
+    deps.feedbackController.getActiveSurvey
+  )
+  v1.openapi(submitFeedbackRoute, deps.feedbackController.submitFeedback)
+  v1.openapi(
+    listFeedbackSubmissionsRoute,
+    deps.feedbackController.listSubmissions
+  )
+  v1.openapi(summarizeFeedbackRoute, deps.feedbackController.getSummary)
 
-  app.route("/api/v1", v1);
+  app.route("/api/v1", v1)
 
-  setupSwagger(app);
+  setupSwagger(app)
 
-  return app;
+  return app
 }
 
 /**
@@ -113,15 +119,15 @@ export function buildApp(deps: AppDeps): OpenAPIHono<AppEnv> {
  * 呼び出し側 (index.ts) がクリーンアップできるよう prisma も併せて返す。
  */
 export type CreatedApp = {
-  app: OpenAPIHono<AppEnv>;
-  prisma: ReturnType<typeof createPrismaClient>;
-};
+  app: OpenAPIHono<AppEnv>
+  prisma: ReturnType<typeof createPrismaClient>
+}
 
 export async function createApp(env: Env): Promise<CreatedApp> {
   const prisma = createPrismaClient(env.DATABASE_URL, {
     queryLogging: env.NODE_ENV === "development",
     localProxy: env.NODE_ENV === "development",
-  });
+  })
   try {
     const auth = createAuth({
       prisma,
@@ -131,50 +137,68 @@ export async function createApp(env: Env): Promise<CreatedApp> {
       trustedOrigins: [env.WEB_BASE_URL],
       resendApiKey: env.RESEND_API_KEY,
       resendFromEmail: env.RESEND_FROM_EMAIL,
-      google: { clientId: env.GOOGLE_CLIENT_ID, clientSecret: env.GOOGLE_CLIENT_SECRET },
-      apple: { clientId: env.APPLE_CLIENT_ID, clientSecret: env.APPLE_CLIENT_SECRET },
+      google: {
+        clientId: env.GOOGLE_CLIENT_ID,
+        clientSecret: env.GOOGLE_CLIENT_SECRET,
+      },
+      apple: {
+        clientId: env.APPLE_CLIENT_ID,
+        clientSecret: env.APPLE_CLIENT_SECRET,
+      },
       turnstile: { secretKey: env.TURNSTILE_SECRET_KEY },
-    });
+    })
 
+    const userQueryService = new UserQueryService(prisma)
+    const userRepository = new UserPrismaRepository(prisma)
+    const getCurrentUserUseCase = new GetCurrentUserUseCase(userQueryService)
+    const listUsersUseCase = new ListUsersUseCase(userQueryService)
+    const updateUserProfileUseCase = new UpdateUserProfileUseCase(
+      userRepository
+    )
 
-    const userQueryService = new UserQueryService(prisma);
-    const userRepository = new UserPrismaRepository(prisma);
-    const getCurrentUserUseCase = new GetCurrentUserUseCase(userQueryService);
-    const listUsersUseCase = new ListUsersUseCase(userQueryService);
-    const updateUserProfileUseCase = new UpdateUserProfileUseCase(userRepository);
-
-    const feedbackQueryService = new FeedbackQueryService(prisma);
-    const feedbackSurveyRepository = new FeedbackSurveyPrismaRepository(prisma);
-    const feedbackSubmissionRepository = new FeedbackSubmissionPrismaRepository(prisma);
-    const idGenerator = new UuidIdGenerator();
-    const getActiveFeedbackSurveyUseCase = new GetActiveFeedbackSurveyUseCase(feedbackQueryService);
+    const feedbackQueryService = new FeedbackQueryService(prisma)
+    const feedbackSurveyRepository = new FeedbackSurveyPrismaRepository(prisma)
+    const feedbackSubmissionRepository = new FeedbackSubmissionPrismaRepository(
+      prisma
+    )
+    const idGenerator = new UuidIdGenerator()
+    const getActiveFeedbackSurveyUseCase = new GetActiveFeedbackSurveyUseCase(
+      feedbackQueryService
+    )
     const submitFeedbackUseCase = new SubmitFeedbackUseCase(
       feedbackSurveyRepository,
       feedbackSubmissionRepository,
-      idGenerator,
-    );
-    const listFeedbackSubmissionsUseCase = new ListFeedbackSubmissionsUseCase(feedbackQueryService);
-    const summarizeFeedbackUseCase = new SummarizeFeedbackUseCase(feedbackQueryService);
+      idGenerator
+    )
+    const listFeedbackSubmissionsUseCase = new ListFeedbackSubmissionsUseCase(
+      feedbackQueryService
+    )
+    const summarizeFeedbackUseCase = new SummarizeFeedbackUseCase(
+      feedbackQueryService
+    )
 
     const app = buildApp({
       env,
       auth,
       healthController: new HealthController(),
-      userController: new UserController(getCurrentUserUseCase, updateUserProfileUseCase),
+      userController: new UserController(
+        getCurrentUserUseCase,
+        updateUserProfileUseCase
+      ),
       adminController: new AdminController(listUsersUseCase),
       feedbackController: new FeedbackController(
         getActiveFeedbackSurveyUseCase,
         submitFeedbackUseCase,
         listFeedbackSubmissionsUseCase,
-        summarizeFeedbackUseCase,
+        summarizeFeedbackUseCase
       ),
-    });
+    })
 
-    return { app, prisma };
+    return { app, prisma }
   } catch (error) {
     // 構築途中で失敗した場合、呼び出し側(index.ts)は prisma を受け取れず後始末できないためここで解放する。
     // $disconnect() 自体の失敗で元の構築エラーを握り潰さないよう、後始末のエラーは無視して元の error を再送出する。
-    await prisma.$disconnect().catch(() => {});
-    throw error;
+    await prisma.$disconnect().catch(() => {})
+    throw error
   }
 }

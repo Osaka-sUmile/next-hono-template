@@ -1,8 +1,8 @@
-"use client";
+"use client"
 
-import { useEffect } from "react";
-import { useRouter } from "next/navigation";
-import { authClient } from "@/lib/auth-client";
+import { useEffect } from "react"
+import { useRouter } from "next/navigation"
+import { authClient } from "@/lib/auth-client"
 
 /**
  * クライアントサイドの認証ガード。
@@ -16,26 +16,26 @@ import { authClient } from "@/lib/auth-client";
  * - `isRefetching`(タブ復帰時などの再検証)では children を維持し、チラつきを避ける。
  */
 export function AuthGuard({ children }: { children: React.ReactNode }) {
-  const router = useRouter();
-  const { data: session, isPending } = authClient.useSession();
+  const router = useRouter()
+  const { data: session, isPending } = authClient.useSession()
 
   useEffect(() => {
     if (!isPending && !session) {
-      router.replace("/login");
+      router.replace("/login")
     }
-  }, [isPending, session, router]);
+  }, [isPending, session, router])
 
   if (isPending) {
     return (
       <div className="flex min-h-screen items-center justify-center">
-        <p className="text-muted-foreground text-sm">読み込み中...</p>
+        <p className="text-sm text-muted-foreground">読み込み中...</p>
       </div>
-    );
+    )
   }
 
   if (!session) {
-    return null;
+    return null
   }
 
-  return <>{children}</>;
+  return <>{children}</>
 }

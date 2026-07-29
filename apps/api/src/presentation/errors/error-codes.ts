@@ -16,12 +16,12 @@ export const ErrorCodes = {
   VALIDATION_ERROR: "VALIDATION_ERROR",
   // Generic errors
   INTERNAL_ERROR: "INTERNAL_ERROR",
-} as const;
+} as const
 
-export type ErrorCode = (typeof ErrorCodes)[keyof typeof ErrorCodes];
+export type ErrorCode = (typeof ErrorCodes)[keyof typeof ErrorCodes]
 
 /**
  * エラーレスポンスの body 形状。OpenAPI の ErrorSchema（required: error, code）と一致させる。
  * この形の手組みを各所に散らさないよう、errorResponse ヘルパーの戻り値として一元管理する。
  */
-export type ErrorResponseBody = { error: string; code: ErrorCode };
+export type ErrorResponseBody = { error: string; code: ErrorCode }

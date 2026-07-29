@@ -1,4 +1,4 @@
-import * as Sentry from "@sentry/nextjs";
+import * as Sentry from "@sentry/nextjs"
 
 /**
  * 想定内エラーのマーカー。
@@ -13,6 +13,6 @@ export class ExpectedError extends Error {}
  * 判断に迷うものは印を付けず、送信側に倒すこと。
  */
 export function reportError(error: unknown): void {
-  if (error instanceof ExpectedError) return;
-  Sentry.captureException(error);
+  if (error instanceof ExpectedError) return
+  Sentry.captureException(error)
 }

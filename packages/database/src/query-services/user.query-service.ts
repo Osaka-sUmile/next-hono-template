@@ -1,5 +1,9 @@
-import { PrismaClient } from "@prisma/client";
-import { IUserQueryService, UserQueryResult, parseUserRole } from "@workspace/domain";
+import { PrismaClient } from "@prisma/client"
+import {
+  IUserQueryService,
+  UserQueryResult,
+  parseUserRole,
+} from "@workspace/domain"
 
 export class UserQueryService implements IUserQueryService {
   constructor(private readonly prisma: PrismaClient) {}
@@ -17,14 +21,14 @@ export class UserQueryService implements IUserQueryService {
         emailVerified: true,
         createdAt: true,
       },
-    });
-    if (!raw) return null;
+    })
+    if (!raw) return null
     try {
-      return { ...raw, role: parseUserRole(raw.role) };
+      return { ...raw, role: parseUserRole(raw.role) }
     } catch (err) {
       throw new Error(
-        `Failed to map user query result (id=${raw.id}, role="${raw.role}"): ${String(err)}`,
-      );
+        `Failed to map user query result (id=${raw.id}, role="${raw.role}"): ${String(err)}`
+      )
     }
   }
 
@@ -43,15 +47,15 @@ export class UserQueryService implements IUserQueryService {
       },
       // createdAt が同一のレコード間でも順序を決定的にするため id を tie-breaker に加える。
       orderBy: [{ createdAt: "asc" }, { id: "asc" }],
-    });
+    })
     return rows.map((raw) => {
       try {
-        return { ...raw, role: parseUserRole(raw.role) };
+        return { ...raw, role: parseUserRole(raw.role) }
       } catch (err) {
         throw new Error(
-          `Failed to map user query result (id=${raw.id}, role="${raw.role}"): ${String(err)}`,
-        );
+          `Failed to map user query result (id=${raw.id}, role="${raw.role}"): ${String(err)}`
+        )
       }
-    });
+    })
   }
 }

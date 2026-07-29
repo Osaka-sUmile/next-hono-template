@@ -1,7 +1,7 @@
-import type { MiddlewareHandler } from "hono";
-import type { AuthVariables } from "./require-auth.middleware";
-import { ErrorCodes } from "../errors";
-import { errorResponse } from "../http";
+import type { MiddlewareHandler } from "hono"
+import type { AuthVariables } from "./require-auth.middleware"
+import { ErrorCodes } from "../errors"
+import { errorResponse } from "../http"
 
 /**
  * admin ロールを要求するミドルウェア。
@@ -13,10 +13,12 @@ import { errorResponse } from "../http";
  * requireAuth が先に実行されていれば auth は必ず存在するが、ミドルウェアの合成順序ミスに
  * 備えて防御的に扱い、admin でなければ 403 を返す。
  */
-export const requireAdmin: MiddlewareHandler<{ Variables: AuthVariables }> = async (c, next) => {
-  const role = c.get("auth")?.user?.role;
+export const requireAdmin: MiddlewareHandler<{
+  Variables: AuthVariables
+}> = async (c, next) => {
+  const role = c.get("auth")?.user?.role
   if (role !== "admin") {
-    return errorResponse(c, 403, ErrorCodes.FORBIDDEN, "Forbidden");
+    return errorResponse(c, 403, ErrorCodes.FORBIDDEN, "Forbidden")
   }
-  await next();
-};
+  await next()
+}

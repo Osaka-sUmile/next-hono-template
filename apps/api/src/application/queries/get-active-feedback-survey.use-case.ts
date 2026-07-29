@@ -1,7 +1,7 @@
-import type { IFeedbackQueryService } from "@workspace/domain";
-import type { FeedbackSurveyResponseDto } from "../dtos";
-import { ActiveFeedbackSurveyNotFoundError } from "../errors";
-import { BaseQueryUseCase } from "./base.query";
+import type { IFeedbackQueryService } from "@workspace/domain"
+import type { FeedbackSurveyResponseDto } from "../dtos"
+import { ActiveFeedbackSurveyNotFoundError } from "../errors"
+import { BaseQueryUseCase } from "./base.query"
 
 /**
  * 公開中のアンケートを設問・選択肢込みで取得する Query ユースケース。
@@ -15,13 +15,13 @@ export class GetActiveFeedbackSurveyUseCase extends BaseQueryUseCase<
   FeedbackSurveyResponseDto
 > {
   constructor(private readonly feedbackQueryService: IFeedbackQueryService) {
-    super();
+    super()
   }
 
   async execute(): Promise<FeedbackSurveyResponseDto> {
-    const survey = await this.feedbackQueryService.findActiveSurveyView();
+    const survey = await this.feedbackQueryService.findActiveSurveyView()
     if (!survey) {
-      throw new ActiveFeedbackSurveyNotFoundError();
+      throw new ActiveFeedbackSurveyNotFoundError()
     }
 
     return {
@@ -40,6 +40,6 @@ export class GetActiveFeedbackSurveyUseCase extends BaseQueryUseCase<
           sortOrder: choice.sortOrder,
         })),
       })),
-    };
+    }
   }
 }

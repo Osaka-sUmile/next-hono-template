@@ -1,17 +1,17 @@
-"use client";
+"use client"
 
-import { useEffect } from "react";
-import * as Sentry from "@sentry/nextjs";
+import { useEffect } from "react"
+import * as Sentry from "@sentry/nextjs"
 
 type Props = {
-  error: Error & { digest?: string };
-  reset: () => void;
-};
+  error: Error & { digest?: string }
+  reset: () => void
+}
 
 export default function Error({ error, reset }: Props) {
   useEffect(() => {
-    Sentry.captureException(error);
-  }, [error]);
+    Sentry.captureException(error)
+  }, [error])
 
   return (
     <div className="flex min-h-screen flex-col items-center justify-center gap-4">
@@ -24,5 +24,5 @@ export default function Error({ error, reset }: Props) {
         再試行
       </button>
     </div>
-  );
+  )
 }

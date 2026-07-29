@@ -12,6 +12,8 @@
     "test:watch": "vitest",
     "test:coverage": "vitest run --coverage",
     "lint": "eslint .",
+    "format": "prettier --write \"**/*.{ts,tsx}\"",
+    "format:check": "prettier --check \"**/*.{ts,tsx}\"",
     "openapi:dump": "tsx scripts/dump-openapi.mts"
   },
   "keywords": [],

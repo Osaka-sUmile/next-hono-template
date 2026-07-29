@@ -1,4 +1,4 @@
-import { ApplicationError } from "./application.error";
+import { ApplicationError } from "./application.error"
 
 /**
  * 公開中（isActive）のアンケートが 1 件も存在しない状態。
@@ -8,6 +8,6 @@ import { ApplicationError } from "./application.error";
  */
 export class ActiveFeedbackSurveyNotFoundError extends ApplicationError {
   constructor() {
-    super("No active feedback survey is available");
+    super("No active feedback survey is available")
   }
 }

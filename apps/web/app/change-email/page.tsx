@@ -1,47 +1,47 @@
-"use client";
+"use client"
 
-import { useState } from "react";
-import Link from "next/link";
-import { Button } from "@workspace/ui/components/button";
-import { authClient } from "@/lib/auth-client";
-import { reportError } from "@/lib/report-error";
+import { useState } from "react"
+import Link from "next/link"
+import { Button } from "@workspace/ui/components/button"
+import { authClient } from "@/lib/auth-client"
+import { reportError } from "@/lib/report-error"
 
-type Step = "request" | "verify" | "done";
+type Step = "request" | "verify" | "done"
 
 export default function ChangeEmailPage() {
-  const [step, setStep] = useState<Step>("request");
-  const [newEmail, setNewEmail] = useState("");
-  const [otp, setOtp] = useState("");
-  const [error, setError] = useState<string | null>(null);
-  const [loading, setLoading] = useState(false);
+  const [step, setStep] = useState<Step>("request")
+  const [newEmail, setNewEmail] = useState("")
+  const [otp, setOtp] = useState("")
+  const [error, setError] = useState<string | null>(null)
+  const [loading, setLoading] = useState(false)
 
   async function handleRequest(e: React.FormEvent) {
-    e.preventDefault();
-    setError(null);
-    setLoading(true);
+    e.preventDefault()
+    setError(null)
+    setLoading(true)
     try {
-      await authClient.emailOtp.requestEmailChange({ newEmail });
-      setStep("verify");
+      await authClient.emailOtp.requestEmailChange({ newEmail })
+      setStep("verify")
     } catch (error) {
-      reportError(error);
-      setError("送信に失敗しました。ログイン済みか確認してください。");
+      reportError(error)
+      setError("送信に失敗しました。ログイン済みか確認してください。")
     } finally {
-      setLoading(false);
+      setLoading(false)
     }
   }
 
   async function handleVerify(e: React.FormEvent) {
-    e.preventDefault();
-    setError(null);
-    setLoading(true);
+    e.preventDefault()
+    setError(null)
+    setLoading(true)
     try {
-      await authClient.emailOtp.changeEmail({ newEmail, otp });
-      setStep("done");
+      await authClient.emailOtp.changeEmail({ newEmail, otp })
+      setStep("done")
     } catch (error) {
-      reportError(error);
-      setError("変更に失敗しました。コードが正しいか確認してください。");
+      reportError(error)
+      setError("変更に失敗しました。コードが正しいか確認してください。")
     } finally {
-      setLoading(false);
+      setLoading(false)
     }
   }
 
@@ -49,14 +49,14 @@ export default function ChangeEmailPage() {
     return (
       <div className="flex min-h-screen flex-col items-center justify-center gap-4 p-6">
         <h1 className="text-2xl font-bold">メールアドレスを変更しました</h1>
-        <p className="text-muted-foreground text-center max-w-sm">
+        <p className="max-w-sm text-center text-muted-foreground">
           新しいメールアドレス（{newEmail}）に変更されました。
         </p>
         <Link href="/" className="text-primary underline underline-offset-4">
           トップへ戻る
         </Link>
       </div>
-    );
+    )
   }
 
   if (step === "verify") {
@@ -65,7 +65,7 @@ export default function ChangeEmailPage() {
         <div className="w-full max-w-sm space-y-4">
           <div className="space-y-1">
             <h1 className="text-2xl font-bold">認証コードを入力</h1>
-            <p className="text-muted-foreground text-sm">
+            <p className="text-sm text-muted-foreground">
               {newEmail} に送信したコードを入力してください。
             </p>
           </div>
@@ -81,10 +81,10 @@ export default function ChangeEmailPage() {
                 value={otp}
                 onChange={(e) => setOtp(e.target.value)}
                 placeholder="123456"
-                className="w-full rounded-md border border-input bg-background px-3 py-2 text-sm placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-ring"
+                className="w-full rounded-md border border-input bg-background px-3 py-2 text-sm placeholder:text-muted-foreground focus:ring-2 focus:ring-ring focus:outline-none"
               />
             </div>
-            {error && <p className="text-destructive text-sm">{error}</p>}
+            {error && <p className="text-sm text-destructive">{error}</p>}
             <Button type="submit" className="w-full" disabled={loading}>
               {loading ? "処理中..." : "メールアドレスを変更"}
             </Button>
@@ -92,7 +92,11 @@ export default function ChangeEmailPage() {
           <p className="text-center text-sm text-muted-foreground">
             <button
               type="button"
-              onClick={() => { setStep("request"); setOtp(""); setError(null); }}
+              onClick={() => {
+                setStep("request")
+                setOtp("")
+                setError(null)
+              }}
               className="text-primary underline underline-offset-4"
             >
               メールアドレスを再入力する
@@ -100,7 +104,7 @@ export default function ChangeEmailPage() {
           </p>
         </div>
       </div>
-    );
+    )
   }
 
   return (
@@ -108,7 +112,7 @@ export default function ChangeEmailPage() {
       <div className="w-full max-w-sm space-y-4">
         <div className="space-y-1">
           <h1 className="text-2xl font-bold">メールアドレスを変更</h1>
-          <p className="text-muted-foreground text-sm">
+          <p className="text-sm text-muted-foreground">
             新しいメールアドレスに確認コードを送信します。
           </p>
         </div>
@@ -124,10 +128,10 @@ export default function ChangeEmailPage() {
               value={newEmail}
               onChange={(e) => setNewEmail(e.target.value)}
               placeholder="new@example.com"
-              className="w-full rounded-md border border-input bg-background px-3 py-2 text-sm placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-ring"
+              className="w-full rounded-md border border-input bg-background px-3 py-2 text-sm placeholder:text-muted-foreground focus:ring-2 focus:ring-ring focus:outline-none"
             />
           </div>
-          {error && <p className="text-destructive text-sm">{error}</p>}
+          {error && <p className="text-sm text-destructive">{error}</p>}
           <Button type="submit" className="w-full" disabled={loading}>
             {loading ? "送信中..." : "確認コードを送信"}
           </Button>
@@ -139,5 +143,5 @@ export default function ChangeEmailPage() {
         </p>
       </div>
     </div>
-  );
+  )
 }

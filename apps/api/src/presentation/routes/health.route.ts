@@ -1,4 +1,4 @@
-import { createRoute, z } from "@hono/zod-openapi";
+import { createRoute, z } from "@hono/zod-openapi"
 
 export const healthRoute = createRoute({
   method: "get",
@@ -9,7 +9,11 @@ export const healthRoute = createRoute({
   responses: {
     200: {
       description: "API is healthy",
-      content: { "application/json": { schema: z.object({ status: z.string().openapi({ example: "ok" }) }) } },
+      content: {
+        "application/json": {
+          schema: z.object({ status: z.string().openapi({ example: "ok" }) }),
+        },
+      },
     },
   },
-});
+})

@@ -1,4 +1,4 @@
-import { configDefaults, defineConfig } from "vitest/config";
+import { configDefaults, defineConfig } from "vitest/config"
 
 // packages/database は「実 DB への結合テスト」が標準（詳細は CLAUDE.md / README の層別テスト戦略）。
 // テストは docker の Postgres + wsproxy に対して実行するため、
@@ -22,4 +22,4 @@ export default defineConfig({
     // DB の疎通確認（起動待ちリトライ）を全テスト前に一度だけ実行する。
     globalSetup: ["./src/test-utils/global-setup.ts"],
   },
-});
+})

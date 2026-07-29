@@ -1,5 +1,5 @@
-import { vi } from "vitest";
-import type { AuthInstance } from "@workspace/auth/server";
+import { vi } from "vitest"
+import type { AuthInstance } from "@workspace/auth/server"
 import type {
   GetActiveFeedbackSurveyUseCase,
   GetCurrentUserUseCase,
@@ -8,15 +8,15 @@ import type {
   SubmitFeedbackUseCase,
   SummarizeFeedbackUseCase,
   UpdateUserProfileUseCase,
-} from "../application";
-import { buildApp } from "../composition/create-app";
+} from "../application"
+import { buildApp } from "../composition/create-app"
 import {
   AdminController,
   FeedbackController,
   HealthController,
   UserController,
-} from "../presentation";
-import type { Env } from "../infrastructure";
+} from "../presentation"
+import type { Env } from "../infrastructure"
 
 /**
  * テスト用の env スタブ。parseEnv を経由せず、テストに必要な最小限のキーのみ Env 型として与える。
@@ -35,7 +35,7 @@ const testEnv: Env = {
   APPLE_CLIENT_ID: "test-apple-client-id",
   APPLE_CLIENT_SECRET: "test-apple-client-secret",
   TURNSTILE_SECRET_KEY: "test-turnstile-secret-key",
-};
+}
 
 /**
  * テスト用に Hono アプリを組み立てるヘルパ。
@@ -44,44 +44,48 @@ const testEnv: Env = {
  */
 export function createTestApp(
   overrides: {
-    getSession?: ReturnType<typeof vi.fn>;
-    execute?: ReturnType<typeof vi.fn>;
-    updateProfile?: ReturnType<typeof vi.fn>;
-    listUsers?: ReturnType<typeof vi.fn>;
-    getFeedbackSurvey?: ReturnType<typeof vi.fn>;
-    submitFeedback?: ReturnType<typeof vi.fn>;
-    listFeedbackSubmissions?: ReturnType<typeof vi.fn>;
-    summarizeFeedback?: ReturnType<typeof vi.fn>;
-    env?: Partial<Env>;
-  } = {},
+    getSession?: ReturnType<typeof vi.fn>
+    execute?: ReturnType<typeof vi.fn>
+    updateProfile?: ReturnType<typeof vi.fn>
+    listUsers?: ReturnType<typeof vi.fn>
+    getFeedbackSurvey?: ReturnType<typeof vi.fn>
+    submitFeedback?: ReturnType<typeof vi.fn>
+    listFeedbackSubmissions?: ReturnType<typeof vi.fn>
+    summarizeFeedback?: ReturnType<typeof vi.fn>
+    env?: Partial<Env>
+  } = {}
 ) {
-  const getSession = overrides.getSession ?? vi.fn();
-  const execute = overrides.execute ?? vi.fn();
-  const updateProfile = overrides.updateProfile ?? vi.fn();
-  const listUsers = overrides.listUsers ?? vi.fn();
-  const getFeedbackSurvey = overrides.getFeedbackSurvey ?? vi.fn();
-  const submitFeedback = overrides.submitFeedback ?? vi.fn();
-  const listFeedbackSubmissions = overrides.listFeedbackSubmissions ?? vi.fn();
-  const summarizeFeedback = overrides.summarizeFeedback ?? vi.fn();
+  const getSession = overrides.getSession ?? vi.fn()
+  const execute = overrides.execute ?? vi.fn()
+  const updateProfile = overrides.updateProfile ?? vi.fn()
+  const listUsers = overrides.listUsers ?? vi.fn()
+  const getFeedbackSurvey = overrides.getFeedbackSurvey ?? vi.fn()
+  const submitFeedback = overrides.submitFeedback ?? vi.fn()
+  const listFeedbackSubmissions = overrides.listFeedbackSubmissions ?? vi.fn()
+  const summarizeFeedback = overrides.summarizeFeedback ?? vi.fn()
 
   const auth = {
     api: { getSession },
     handler: vi.fn(),
-  } as unknown as AuthInstance;
+  } as unknown as AuthInstance
 
-  const useCase = { execute } as unknown as GetCurrentUserUseCase;
-  const updateUserProfileUseCase = { execute: updateProfile } as unknown as UpdateUserProfileUseCase;
-  const listUsersUseCase = { execute: listUsers } as unknown as ListUsersUseCase;
+  const useCase = { execute } as unknown as GetCurrentUserUseCase
+  const updateUserProfileUseCase = {
+    execute: updateProfile,
+  } as unknown as UpdateUserProfileUseCase
+  const listUsersUseCase = { execute: listUsers } as unknown as ListUsersUseCase
   const getActiveFeedbackSurveyUseCase = {
     execute: getFeedbackSurvey,
-  } as unknown as GetActiveFeedbackSurveyUseCase;
-  const submitFeedbackUseCase = { execute: submitFeedback } as unknown as SubmitFeedbackUseCase;
+  } as unknown as GetActiveFeedbackSurveyUseCase
+  const submitFeedbackUseCase = {
+    execute: submitFeedback,
+  } as unknown as SubmitFeedbackUseCase
   const listFeedbackSubmissionsUseCase = {
     execute: listFeedbackSubmissions,
-  } as unknown as ListFeedbackSubmissionsUseCase;
+  } as unknown as ListFeedbackSubmissionsUseCase
   const summarizeFeedbackUseCase = {
     execute: summarizeFeedback,
-  } as unknown as SummarizeFeedbackUseCase;
+  } as unknown as SummarizeFeedbackUseCase
 
   const app = buildApp({
     env: { ...testEnv, ...overrides.env },
@@ -93,9 +97,9 @@ export function createTestApp(
       getActiveFeedbackSurveyUseCase,
       submitFeedbackUseCase,
       listFeedbackSubmissionsUseCase,
-      summarizeFeedbackUseCase,
+      summarizeFeedbackUseCase
     ),
-  });
+  })
 
   return {
     app,
@@ -107,5 +111,5 @@ export function createTestApp(
     submitFeedback,
     listFeedbackSubmissions,
     summarizeFeedback,
-  };
+  }
 }

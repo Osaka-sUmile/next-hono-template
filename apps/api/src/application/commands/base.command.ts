@@ -9,5 +9,5 @@ export abstract class BaseCommandUseCase<TInput, TOutput> {
    * トランザクション制御等が必要な場合は、デコレータやAOP等で囲むか、
    * ここで一元管理できます。
    */
-  abstract execute(input: TInput): Promise<TOutput>;
+  abstract execute(input: TInput): Promise<TOutput>
 }

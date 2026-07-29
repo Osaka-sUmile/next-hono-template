@@ -1,11 +1,11 @@
-import { BaseCommandUseCase } from "./base.command";
-import type { IUserRepository } from "@workspace/domain";
-import type { UserProfileResponseDto } from "../dtos";
+import { BaseCommandUseCase } from "./base.command"
+import type { IUserRepository } from "@workspace/domain"
+import type { UserProfileResponseDto } from "../dtos"
 
 export type UpdateUserProfileInput = {
-  userId: string;
-  displayName: string | null;
-};
+  userId: string
+  displayName: string | null
+}
 
 /**
  * 自分のプロフィール（表示名）を更新する Command ユースケース（書き込み・副作用あり）。
@@ -20,19 +20,26 @@ export class UpdateUserProfileUseCase extends BaseCommandUseCase<
   UserProfileResponseDto
 > {
   constructor(private readonly userRepository: IUserRepository) {
-    super();
+    super()
   }
 
-  async execute({ userId, displayName }: UpdateUserProfileInput): Promise<UserProfileResponseDto> {
-    const user = await this.userRepository.findById(userId);
+  async execute({
+    userId,
+    displayName,
+  }: UpdateUserProfileInput): Promise<UserProfileResponseDto> {
+    const user = await this.userRepository.findById(userId)
     if (!user) {
       // /me 系は認証済みセッションから userId が来るため、ここで見つからないのは
       // データ不整合（想定外）。自前で 4xx を返さず中央エラーハンドラ（onError）へ委譲し、
       // GetCurrentUserUseCase 経由の GET /me と同じ扱い（500 + Sentry）に揃える。
-      throw new Error("user not found despite valid session — data inconsistency");
+      throw new Error(
+        "user not found despite valid session — data inconsistency"
+      )
     }
 
-    const updated = await this.userRepository.save(user.changeDisplayName(displayName));
+    const updated = await this.userRepository.save(
+      user.changeDisplayName(displayName)
+    )
 
     return {
       id: updated.id,
@@ -40,6 +47,6 @@ export class UpdateUserProfileUseCase extends BaseCommandUseCase<
       name: updated.name,
       role: updated.role,
       displayName: updated.displayName,
-    };
+    }
   }
 }
