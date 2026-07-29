@@ -234,6 +234,7 @@ export const submitFeedbackRoute = createRoute({
       400: "Request validation failed (VALIDATION_ERROR) or the answers violate the survey contract (FEEDBACK_INVALID_ANSWER)",
       401: "Unauthorized (missing or invalid session)",
       404: "No survey is currently active (FEEDBACK_SURVEY_NOT_FOUND)",
+      429: "Too many submissions (RATE_LIMIT_EXCEEDED)",
       500: "Internal Server Error",
     }),
   },
