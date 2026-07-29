@@ -314,184 +314,193 @@ export function AdminSurveyCreateForm({
                 placeholder="例: PMF アンケート 2026"
               />
             </div>
-          <div className="flex flex-col gap-2">
-            <Label htmlFor="survey-slug">slug</Label>
-            <Input
-              id="survey-slug"
-              value={slug}
-              maxLength={SLUG_MAX_LENGTH}
-              onChange={(e) => setSlug(e.target.value)}
-              placeholder="例: pmf-2026"
-            />
-            <p className="text-xs text-muted-foreground">
-              小文字英数字をハイフンで区切った形式。公開 URL のキーになります。
-            </p>
-          </div>
-          <div className="flex items-center gap-3">
-            <Switch
-              id="survey-active"
-              checked={isActive}
-              disabled={submitting}
-              onCheckedChange={setIsActive}
-            />
-            <Label htmlFor="survey-active">作成と同時に有効化する</Label>
-          </div>
-
-          <div className="flex flex-col gap-4">
-            <div className="flex items-center justify-between">
-              <h3 className="text-sm font-medium">設問</h3>
-              <Button
-                type="button"
-                variant="outline"
-                size="sm"
-                onClick={addQuestion}
-                disabled={questions.length >= QUESTIONS_MAX_COUNT}
-              >
-                <HugeiconsIcon icon={Add01Icon} />
-                設問を追加
-              </Button>
-            </div>
-            {questions.length === 0 && (
-              <p className="text-sm text-muted-foreground">
-                設問はまだありません。あとから追加することはできないため、有効化する前にここで追加してください。
+            <div className="flex flex-col gap-2">
+              <Label htmlFor="survey-slug">slug</Label>
+              <Input
+                id="survey-slug"
+                value={slug}
+                maxLength={SLUG_MAX_LENGTH}
+                onChange={(e) => setSlug(e.target.value)}
+                placeholder="例: pmf-2026"
+              />
+              <p className="text-xs text-muted-foreground">
+                小文字英数字をハイフンで区切った形式。公開 URL
+                のキーになります。
               </p>
-            )}
-            {questions.map((question, index) => (
-              <div
-                key={question.key}
-                className="flex flex-col gap-4 rounded-lg border p-4"
-              >
-                <div className="flex items-center justify-between">
-                  <p className="text-sm font-medium">設問 {index + 1}</p>
-                  <Button
-                    type="button"
-                    variant="ghost"
-                    size="sm"
-                    onClick={() => removeQuestion(question.key)}
-                    aria-label={`設問 ${index + 1} を削除`}
-                  >
-                    <HugeiconsIcon icon={Delete02Icon} />
-                  </Button>
-                </div>
-                <div className="flex flex-col gap-2">
-                  <Label htmlFor={`question-${question.key}-type`}>種別</Label>
-                  <Select
-                    value={question.type}
-                    onValueChange={(value) =>
-                      updateQuestion(question.key, {
-                        type: value as QuestionType,
-                      })
-                    }
-                  >
-                    <SelectTrigger
-                      id={`question-${question.key}-type`}
-                      className="w-48"
-                      disabled={submitting}
+            </div>
+            <div className="flex items-center gap-3">
+              <Switch
+                id="survey-active"
+                checked={isActive}
+                disabled={submitting}
+                onCheckedChange={setIsActive}
+              />
+              <Label htmlFor="survey-active">作成と同時に有効化する</Label>
+            </div>
+
+            <div className="flex flex-col gap-4">
+              <div className="flex items-center justify-between">
+                <h3 className="text-sm font-medium">設問</h3>
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="sm"
+                  onClick={addQuestion}
+                  disabled={questions.length >= QUESTIONS_MAX_COUNT}
+                >
+                  <HugeiconsIcon icon={Add01Icon} />
+                  設問を追加
+                </Button>
+              </div>
+              {questions.length === 0 && (
+                <p className="text-sm text-muted-foreground">
+                  設問はまだありません。あとから追加することはできないため、有効化する前にここで追加してください。
+                </p>
+              )}
+              {questions.map((question, index) => (
+                <div
+                  key={question.key}
+                  className="flex flex-col gap-4 rounded-lg border p-4"
+                >
+                  <div className="flex items-center justify-between">
+                    <p className="text-sm font-medium">設問 {index + 1}</p>
+                    <Button
+                      type="button"
+                      variant="ghost"
+                      size="sm"
+                      onClick={() => removeQuestion(question.key)}
+                      aria-label={`設問 ${index + 1} を削除`}
                     >
-                      <SelectValue />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="single_choice">単一選択</SelectItem>
-                      <SelectItem value="text">自由記述</SelectItem>
-                    </SelectContent>
-                  </Select>
-                </div>
-                <div className="flex flex-col gap-2">
-                  <Label htmlFor={`question-${question.key}-text`}>本文</Label>
-                  <Textarea
-                    id={`question-${question.key}-text`}
-                    value={question.text}
-                    maxLength={QUESTION_TEXT_MAX_LENGTH}
-                    onChange={(e) =>
-                      updateQuestion(question.key, { text: e.target.value })
-                    }
-                    placeholder="設問の本文を入力"
-                  />
-                </div>
-                <div className="flex items-center gap-3">
-                  <Switch
-                    id={`question-${question.key}-required`}
-                    checked={question.required}
-                    disabled={submitting}
-                    onCheckedChange={(checked) =>
-                      updateQuestion(question.key, { required: checked })
-                    }
-                  />
-                  <Label htmlFor={`question-${question.key}-required`}>
-                    回答を必須にする
-                  </Label>
-                </div>
-                {question.type === "single_choice" && (
-                  <div className="flex flex-col gap-3">
-                    <div className="flex items-center justify-between">
-                      <p className="text-sm font-medium">選択肢</p>
-                      <Button
-                        type="button"
-                        variant="outline"
-                        size="sm"
-                        onClick={() => addChoice(question.key)}
-                        disabled={question.choices.length >= CHOICES_MAX_COUNT}
+                      <HugeiconsIcon icon={Delete02Icon} />
+                    </Button>
+                  </div>
+                  <div className="flex flex-col gap-2">
+                    <Label htmlFor={`question-${question.key}-type`}>
+                      種別
+                    </Label>
+                    <Select
+                      value={question.type}
+                      onValueChange={(value) =>
+                        updateQuestion(question.key, {
+                          type: value as QuestionType,
+                        })
+                      }
+                    >
+                      <SelectTrigger
+                        id={`question-${question.key}-type`}
+                        className="w-48"
+                        disabled={submitting}
                       >
-                        <HugeiconsIcon icon={Add01Icon} />
-                        選択肢を追加
-                      </Button>
-                    </div>
-                    {question.choices.map((choice, choiceIndex) => (
-                      <div key={choice.key} className="flex items-end gap-2">
-                        <div className="flex flex-1 flex-col gap-1">
-                          <Label
-                            htmlFor={`choice-${choice.key}-value`}
-                            className="text-xs text-muted-foreground"
-                          >
-                            値
-                          </Label>
-                          <Input
-                            id={`choice-${choice.key}-value`}
-                            value={choice.value}
-                            maxLength={CHOICE_VALUE_MAX_LENGTH}
-                            onChange={(e) =>
-                              updateChoice(question.key, choice.key, {
-                                value: e.target.value,
-                              })
-                            }
-                            placeholder="例: very-disappointed"
-                          />
-                        </div>
-                        <div className="flex flex-1 flex-col gap-1">
-                          <Label
-                            htmlFor={`choice-${choice.key}-label`}
-                            className="text-xs text-muted-foreground"
-                          >
-                            ラベル
-                          </Label>
-                          <Input
-                            id={`choice-${choice.key}-label`}
-                            value={choice.label}
-                            maxLength={CHOICE_LABEL_MAX_LENGTH}
-                            onChange={(e) =>
-                              updateChoice(question.key, choice.key, {
-                                label: e.target.value,
-                              })
-                            }
-                            placeholder="例: とても残念"
-                          />
-                        </div>
+                        <SelectValue />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="single_choice">単一選択</SelectItem>
+                        <SelectItem value="text">自由記述</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
+                  <div className="flex flex-col gap-2">
+                    <Label htmlFor={`question-${question.key}-text`}>
+                      本文
+                    </Label>
+                    <Textarea
+                      id={`question-${question.key}-text`}
+                      value={question.text}
+                      maxLength={QUESTION_TEXT_MAX_LENGTH}
+                      onChange={(e) =>
+                        updateQuestion(question.key, { text: e.target.value })
+                      }
+                      placeholder="設問の本文を入力"
+                    />
+                  </div>
+                  <div className="flex items-center gap-3">
+                    <Switch
+                      id={`question-${question.key}-required`}
+                      checked={question.required}
+                      disabled={submitting}
+                      onCheckedChange={(checked) =>
+                        updateQuestion(question.key, { required: checked })
+                      }
+                    />
+                    <Label htmlFor={`question-${question.key}-required`}>
+                      回答を必須にする
+                    </Label>
+                  </div>
+                  {question.type === "single_choice" && (
+                    <div className="flex flex-col gap-3">
+                      <div className="flex items-center justify-between">
+                        <p className="text-sm font-medium">選択肢</p>
                         <Button
                           type="button"
-                          variant="ghost"
+                          variant="outline"
                           size="sm"
-                          onClick={() => removeChoice(question.key, choice.key)}
-                          aria-label={`設問 ${index + 1} の選択肢 ${choiceIndex + 1} を削除`}
+                          onClick={() => addChoice(question.key)}
+                          disabled={
+                            question.choices.length >= CHOICES_MAX_COUNT
+                          }
                         >
-                          <HugeiconsIcon icon={Delete02Icon} />
+                          <HugeiconsIcon icon={Add01Icon} />
+                          選択肢を追加
                         </Button>
                       </div>
-                    ))}
-                  </div>
-                )}
-              </div>
-            ))}
-          </div>
+                      {question.choices.map((choice, choiceIndex) => (
+                        <div key={choice.key} className="flex items-end gap-2">
+                          <div className="flex flex-1 flex-col gap-1">
+                            <Label
+                              htmlFor={`choice-${choice.key}-value`}
+                              className="text-xs text-muted-foreground"
+                            >
+                              値
+                            </Label>
+                            <Input
+                              id={`choice-${choice.key}-value`}
+                              value={choice.value}
+                              maxLength={CHOICE_VALUE_MAX_LENGTH}
+                              onChange={(e) =>
+                                updateChoice(question.key, choice.key, {
+                                  value: e.target.value,
+                                })
+                              }
+                              placeholder="例: very-disappointed"
+                            />
+                          </div>
+                          <div className="flex flex-1 flex-col gap-1">
+                            <Label
+                              htmlFor={`choice-${choice.key}-label`}
+                              className="text-xs text-muted-foreground"
+                            >
+                              ラベル
+                            </Label>
+                            <Input
+                              id={`choice-${choice.key}-label`}
+                              value={choice.label}
+                              maxLength={CHOICE_LABEL_MAX_LENGTH}
+                              onChange={(e) =>
+                                updateChoice(question.key, choice.key, {
+                                  label: e.target.value,
+                                })
+                              }
+                              placeholder="例: とても残念"
+                            />
+                          </div>
+                          <Button
+                            type="button"
+                            variant="ghost"
+                            size="sm"
+                            onClick={() =>
+                              removeChoice(question.key, choice.key)
+                            }
+                            aria-label={`設問 ${index + 1} の選択肢 ${choiceIndex + 1} を削除`}
+                          >
+                            <HugeiconsIcon icon={Delete02Icon} />
+                          </Button>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                </div>
+              ))}
+            </div>
           </fieldset>
 
           {error && (
