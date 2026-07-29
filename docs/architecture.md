@@ -6,6 +6,19 @@
 ## DI (Dependency Injection) 戦略
 - 複雑なDIコンテナは不使用。「Pure DI (手動コンストラクタ注入)」を徹底すること。
 
+## 最初の管理者のプロビジョニング
+
+管理者がまだ存在しない環境では、まず通常の認証フローでユーザーを作成し、database パッケージの単発スクリプトで昇格する。
+
+```bash
+pnpm --filter @workspace/database promote-admin -- user@example.com
+```
+
+スクリプトは `DATABASE_URL` を使用し、接続先が `localhost` または `127.0.0.1` なら Neon serverless driver 用のローカル wsproxy を自動選択する。
+別のローカルホスト名を使う場合は `--local` で明示できる。昇格後は再ログインするか、クライアント側で認証セッションを再取得する。
+管理者向け role 変更 API が利用可能になった後は、2 人目以降の昇格はその API を正規経路とする。
+環境依存のメールアドレスを seed や migration に埋め込まない。
+
 ## API の構成レイヤー
 - `apps/api/src/infrastructure/`: 環境変数、Swagger UI 設定、Prisma などの基盤処理。
 - `apps/api/src/composition/`: Application / Presentation / Infrastructure を束ねる起動配線。

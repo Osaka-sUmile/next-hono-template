@@ -21,6 +21,7 @@
     "db:migrate:deploy": "prisma migrate deploy",
     "db:migrate:status": "prisma migrate status",
     "db:studio": "prisma studio",
+    "promote-admin": "tsx scripts/promote-admin.mts",
     "test:integration": "vitest run",
     "test:integration:watch": "vitest"
   },
@@ -37,6 +38,7 @@
     "dotenv": "^17.4.2",
     "eslint": "^9.39.5",
     "prisma": "^7.8.0",
+    "tsx": "^4.23.0",
     "typescript": "5.9.3",
     "vite": "^8.0.16",
     "vitest": "^4.1.10"
