@@ -34,7 +34,7 @@ const UpdateUserMeBodySchema = z.object({
     }),
 })
 
-const UserProfileSchema = z
+export const UserProfileSchema = z
   .object({
     id: z.string(),
     email: z.email(),

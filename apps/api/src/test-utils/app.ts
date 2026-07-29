@@ -1,6 +1,8 @@
 import { vi } from "vitest"
 import type { AuthInstance } from "@workspace/auth/server"
 import type {
+  ChangeUserRoleUseCase,
+  CreateFeedbackSurveyUseCase,
   GetActiveFeedbackSurveyUseCase,
   GetAdminSummaryUseCase,
   GetCurrentUserUseCase,
@@ -10,6 +12,7 @@ import type {
   ListUsersUseCase,
   SubmitFeedbackUseCase,
   SummarizeFeedbackUseCase,
+  UpdateFeedbackSurveyUseCase,
   UpdateUserProfileUseCase,
 } from "../application"
 import { buildApp } from "../composition/create-app"
@@ -52,12 +55,15 @@ export function createTestApp(
     updateProfile?: ReturnType<typeof vi.fn>
     listUsers?: ReturnType<typeof vi.fn>
     getAdminSummary?: ReturnType<typeof vi.fn>
+    changeUserRole?: ReturnType<typeof vi.fn>
     getFeedbackSurvey?: ReturnType<typeof vi.fn>
     submitFeedback?: ReturnType<typeof vi.fn>
     listFeedbackSurveys?: ReturnType<typeof vi.fn>
     getFeedbackSurveyDetail?: ReturnType<typeof vi.fn>
     listFeedbackSubmissions?: ReturnType<typeof vi.fn>
     summarizeFeedback?: ReturnType<typeof vi.fn>
+    createFeedbackSurvey?: ReturnType<typeof vi.fn>
+    updateFeedbackSurvey?: ReturnType<typeof vi.fn>
     env?: Partial<Env>
   } = {}
 ) {
@@ -66,12 +72,15 @@ export function createTestApp(
   const updateProfile = overrides.updateProfile ?? vi.fn()
   const listUsers = overrides.listUsers ?? vi.fn()
   const getAdminSummary = overrides.getAdminSummary ?? vi.fn()
+  const changeUserRole = overrides.changeUserRole ?? vi.fn()
   const getFeedbackSurvey = overrides.getFeedbackSurvey ?? vi.fn()
   const submitFeedback = overrides.submitFeedback ?? vi.fn()
   const listFeedbackSurveys = overrides.listFeedbackSurveys ?? vi.fn()
   const getFeedbackSurveyDetail = overrides.getFeedbackSurveyDetail ?? vi.fn()
   const listFeedbackSubmissions = overrides.listFeedbackSubmissions ?? vi.fn()
   const summarizeFeedback = overrides.summarizeFeedback ?? vi.fn()
+  const createFeedbackSurvey = overrides.createFeedbackSurvey ?? vi.fn()
+  const updateFeedbackSurvey = overrides.updateFeedbackSurvey ?? vi.fn()
 
   const auth = {
     api: { getSession },
@@ -86,6 +95,9 @@ export function createTestApp(
   const getAdminSummaryUseCase = {
     execute: getAdminSummary,
   } as unknown as GetAdminSummaryUseCase
+  const changeUserRoleUseCase = {
+    execute: changeUserRole,
+  } as unknown as ChangeUserRoleUseCase
   const getActiveFeedbackSurveyUseCase = {
     execute: getFeedbackSurvey,
   } as unknown as GetActiveFeedbackSurveyUseCase
@@ -104,6 +116,12 @@ export function createTestApp(
   const summarizeFeedbackUseCase = {
     execute: summarizeFeedback,
   } as unknown as SummarizeFeedbackUseCase
+  const createFeedbackSurveyUseCase = {
+    execute: createFeedbackSurvey,
+  } as unknown as CreateFeedbackSurveyUseCase
+  const updateFeedbackSurveyUseCase = {
+    execute: updateFeedbackSurvey,
+  } as unknown as UpdateFeedbackSurveyUseCase
 
   const app = buildApp({
     env: { ...testEnv, ...overrides.env },
@@ -112,7 +130,8 @@ export function createTestApp(
     userController: new UserController(useCase, updateUserProfileUseCase),
     adminController: new AdminController(
       listUsersUseCase,
-      getAdminSummaryUseCase
+      getAdminSummaryUseCase,
+      changeUserRoleUseCase
     ),
     feedbackController: new FeedbackController(
       getActiveFeedbackSurveyUseCase,
@@ -120,7 +139,9 @@ export function createTestApp(
       listFeedbackSurveysUseCase,
       getFeedbackSurveyDetailUseCase,
       listFeedbackSubmissionsUseCase,
-      summarizeFeedbackUseCase
+      summarizeFeedbackUseCase,
+      createFeedbackSurveyUseCase,
+      updateFeedbackSurveyUseCase
     ),
   })
 
@@ -131,11 +152,14 @@ export function createTestApp(
     updateProfile,
     listUsers,
     getAdminSummary,
+    changeUserRole,
     getFeedbackSurvey,
     submitFeedback,
     listFeedbackSurveys,
     getFeedbackSurveyDetail,
     listFeedbackSubmissions,
     summarizeFeedback,
+    createFeedbackSurvey,
+    updateFeedbackSurvey,
   }
 }

@@ -3,11 +3,11 @@ import type { ErrorCode, ErrorResponseBody } from "../errors"
 
 /**
  * errorResponse が返しうる HTTP ステータス。ErrorCodes 各コードが ErrorSchema に
- * 対応づけられているステータス（400/401/403/404/429/500）の集合で、いずれも
+ * 対応づけられているステータス（400/401/403/404/409/429/500）の集合で、いずれも
  * Hono の ContentfulStatusCode の部分集合。hono の非公開サブパス
  * (`hono/utils/http-status`) への deep import を避けるため、ここで自己完結させる。
  */
-type ErrorStatusCode = 400 | 401 | 403 | 404 | 429 | 500
+type ErrorStatusCode = 400 | 401 | 403 | 404 | 409 | 429 | 500
 
 /**
  * エラーレスポンスを `{ error, code }` の形で組み立てて返す Presentation 層のヘルパ。

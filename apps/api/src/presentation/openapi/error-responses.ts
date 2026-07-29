@@ -1,6 +1,6 @@
 import { ErrorSchema } from "./error.schema"
 
-type ErrorStatus = 400 | 401 | 403 | 404 | 429 | 500
+type ErrorStatus = 400 | 401 | 403 | 404 | 409 | 429 | 500
 
 /** Generate typed OpenAPI response definitions for the shared error contract. */
 export function errorResponses<

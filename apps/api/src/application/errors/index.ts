@@ -2,3 +2,4 @@
 // 上位層からは個別ファイルではなくこの index.ts 経由で参照すること。
 export * from "./application.error"
 export * from "./feedback.error"
+export * from "./user.error"

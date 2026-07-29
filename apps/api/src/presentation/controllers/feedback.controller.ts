@@ -1,7 +1,9 @@
 import type { RouteHandler } from "@hono/zod-openapi"
 import {
   DuplicateFeedbackAnswerError,
+  EmptyActiveFeedbackSurveyError,
   FeedbackAnswerTypeMismatchError,
+  FeedbackSurveySlugConflictError,
   FeedbackTextTooLongError,
   InvalidFeedbackChoiceError,
   RequiredFeedbackAnswerMissingError,
@@ -12,23 +14,27 @@ import {
   FeedbackSurveyNotFoundError,
 } from "../../application"
 import type {
+  CreateFeedbackSurveyUseCase,
   GetActiveFeedbackSurveyUseCase,
   GetFeedbackSurveyDetailUseCase,
   ListFeedbackSubmissionsUseCase,
   ListFeedbackSurveysUseCase,
   SubmitFeedbackUseCase,
   SummarizeFeedbackUseCase,
+  UpdateFeedbackSurveyUseCase,
 } from "../../application"
 import type { AppEnv } from "../app-env"
 import { ErrorCodes } from "../errors"
 import { errorResponse } from "../http"
 import type {
+  createFeedbackSurveyRoute,
   getActiveFeedbackSurveyRoute,
   getFeedbackSurveyDetailRoute,
   listFeedbackSubmissionsRoute,
   listFeedbackSurveysRoute,
   submitFeedbackRoute,
   summarizeFeedbackRoute,
+  updateFeedbackSurveyRoute,
 } from "../routes"
 
 /**
@@ -61,7 +67,9 @@ export class FeedbackController {
     private readonly listFeedbackSurveysUseCase: ListFeedbackSurveysUseCase,
     private readonly getFeedbackSurveyDetailUseCase: GetFeedbackSurveyDetailUseCase,
     private readonly listFeedbackSubmissionsUseCase: ListFeedbackSubmissionsUseCase,
-    private readonly summarizeFeedbackUseCase: SummarizeFeedbackUseCase
+    private readonly summarizeFeedbackUseCase: SummarizeFeedbackUseCase,
+    private readonly createFeedbackSurveyUseCase: CreateFeedbackSurveyUseCase,
+    private readonly updateFeedbackSurveyUseCase: UpdateFeedbackSurveyUseCase
   ) {}
 
   // GET /feedback/survey: 回答フォームを描画するための設問一覧。
@@ -127,6 +135,38 @@ export class FeedbackController {
     return c.json(surveys, 200)
   }
 
+  // POST /admin/feedback/surveys: 設問・選択肢を含むアンケートを一括作成する。
+  createSurvey: RouteHandler<typeof createFeedbackSurveyRoute, AppEnv> = async (
+    c
+  ) => {
+    const body = c.req.valid("json")
+
+    try {
+      const survey = await this.createFeedbackSurveyUseCase.execute(body)
+      return c.json(survey, 201)
+    } catch (error) {
+      if (error instanceof FeedbackSurveySlugConflictError) {
+        return errorResponse(
+          c,
+          409,
+          ErrorCodes.FEEDBACK_SURVEY_SLUG_CONFLICT,
+          error.message
+        )
+      }
+      if (error instanceof EmptyActiveFeedbackSurveyError) {
+        return errorResponse(
+          c,
+          409,
+          ErrorCodes.FEEDBACK_SURVEY_NOT_PUBLISHABLE,
+          error.message
+        )
+      }
+      // InvalidArgumentError を含むその他の DomainError は Zod ミラーの取りこぼし。
+      // 400 に丸めず onError へ委譲し、500 + Sentry で検証境界のバグを観測する。
+      throw error
+    }
+  }
+
   // GET /admin/feedback/surveys/{surveyId}: 集計グラフのラベル解決に使う設問付き詳細。
   getSurveyDetail: RouteHandler<typeof getFeedbackSurveyDetailRoute, AppEnv> =
     async (c) => {
@@ -149,6 +189,49 @@ export class FeedbackController {
         throw error
       }
     }
+
+  // PATCH /admin/feedback/surveys/{surveyId}: スカラー項目のみを部分更新する。
+  updateSurvey: RouteHandler<typeof updateFeedbackSurveyRoute, AppEnv> = async (
+    c
+  ) => {
+    const { surveyId } = c.req.valid("param")
+    const body = c.req.valid("json")
+
+    try {
+      const survey = await this.updateFeedbackSurveyUseCase.execute({
+        surveyId,
+        ...body,
+      })
+      return c.json(survey, 200)
+    } catch (error) {
+      if (error instanceof FeedbackSurveyNotFoundError) {
+        return errorResponse(
+          c,
+          404,
+          ErrorCodes.FEEDBACK_SURVEY_NOT_FOUND,
+          error.message
+        )
+      }
+      if (error instanceof FeedbackSurveySlugConflictError) {
+        return errorResponse(
+          c,
+          409,
+          ErrorCodes.FEEDBACK_SURVEY_SLUG_CONFLICT,
+          error.message
+        )
+      }
+      if (error instanceof EmptyActiveFeedbackSurveyError) {
+        return errorResponse(
+          c,
+          409,
+          ErrorCodes.FEEDBACK_SURVEY_NOT_PUBLISHABLE,
+          error.message
+        )
+      }
+      // InvalidArgumentError は route 側の不変条件ミラー漏れなので 500 として観測する。
+      throw error
+    }
+  }
 
   // GET /admin/feedback/submissions: 回答者の氏名・メール・自由記述を含むため admin 限定。
   listSubmissions: RouteHandler<typeof listFeedbackSubmissionsRoute, AppEnv> =

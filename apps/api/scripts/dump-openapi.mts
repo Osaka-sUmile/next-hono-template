@@ -3,6 +3,8 @@ import path from "node:path";
 import { fileURLToPath } from "node:url";
 import type { AuthInstance } from "@workspace/auth/server";
 import type {
+  ChangeUserRoleUseCase,
+  CreateFeedbackSurveyUseCase,
   GetActiveFeedbackSurveyUseCase,
   GetAdminSummaryUseCase,
   GetCurrentUserUseCase,
@@ -12,6 +14,7 @@ import type {
   ListUsersUseCase,
   SubmitFeedbackUseCase,
   SummarizeFeedbackUseCase,
+  UpdateFeedbackSurveyUseCase,
   UpdateUserProfileUseCase,
 } from "../src/application";
 import { buildApp } from "../src/composition/create-app";
@@ -71,6 +74,7 @@ async function main(): Promise<void> {
     adminController: new AdminController(
       {} as ListUsersUseCase,
       {} as GetAdminSummaryUseCase,
+      {} as ChangeUserRoleUseCase,
     ),
     feedbackController: new FeedbackController(
       {} as GetActiveFeedbackSurveyUseCase,
@@ -79,6 +83,8 @@ async function main(): Promise<void> {
       {} as GetFeedbackSurveyDetailUseCase,
       {} as ListFeedbackSubmissionsUseCase,
       {} as SummarizeFeedbackUseCase,
+      {} as CreateFeedbackSurveyUseCase,
+      {} as UpdateFeedbackSurveyUseCase,
     ),
   });
 

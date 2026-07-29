@@ -1,5 +1,7 @@
 import { describe, expect, it, vi } from "vitest"
 import {
+  EmptyActiveFeedbackSurveyError,
+  FeedbackSurveySlugConflictError,
   InvalidArgumentError,
   UnknownFeedbackQuestionError,
 } from "@workspace/domain"
@@ -50,6 +52,42 @@ function postSubmission(body: unknown): Request {
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify(body),
   })
+}
+
+function postSurvey(body: unknown): Request {
+  return new Request("http://localhost/api/v1/admin/feedback/surveys", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(body),
+  })
+}
+
+function patchSurvey(surveyId: string, body: unknown): Request {
+  return new Request(
+    `http://localhost/api/v1/admin/feedback/surveys/${surveyId}`,
+    {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(body),
+    }
+  )
+}
+
+const mutationDto = {
+  id: "survey-1",
+  slug: "pmf-2026",
+  title: "PMF アンケート",
+  isActive: false,
+  questions: [
+    {
+      id: "question-1",
+      type: "text" as const,
+      text: "一番の価値は何ですか？",
+      required: false,
+      sortOrder: 0,
+      choices: [],
+    },
+  ],
 }
 
 describe("GET /api/v1/feedback/survey", () => {
@@ -255,6 +293,374 @@ describe("POST /api/v1/feedback/submissions", () => {
 
     const res = await app.request(
       postSubmission({ answers: [{ questionId: "q-1", textValue: "x" }] })
+    )
+
+    expect(res.status).toBe(500)
+    expect((await errorBody(res)).code).toBe(ErrorCodes.INTERNAL_ERROR)
+  })
+})
+
+describe("POST /api/v1/admin/feedback/surveys", () => {
+  const validBody = {
+    slug: "pmf-2026",
+    title: "PMF アンケート",
+    questions: [{ type: "text", text: "一番の価値は何ですか？" }],
+  }
+
+  it("returns 201 and passes route defaults to the use case", async () => {
+    const { app, createFeedbackSurvey } = createTestApp({
+      getSession: vi.fn().mockResolvedValue(adminSession),
+      createFeedbackSurvey: vi.fn().mockResolvedValue(mutationDto),
+    })
+
+    const res = await app.request(postSurvey(validBody))
+
+    expect(res.status).toBe(201)
+    expect(await res.json()).toEqual(mutationDto)
+    expect(createFeedbackSurvey).toHaveBeenCalledWith({
+      slug: "pmf-2026",
+      title: "PMF アンケート",
+      isActive: false,
+      questions: [
+        {
+          type: "text",
+          text: "一番の価値は何ですか？",
+          required: false,
+          choices: [],
+        },
+      ],
+    })
+  })
+
+  it("defaults an omitted questions array to an empty inactive draft", async () => {
+    const emptyDraft = { ...mutationDto, questions: [] }
+    const { app, createFeedbackSurvey } = createTestApp({
+      getSession: vi.fn().mockResolvedValue(adminSession),
+      createFeedbackSurvey: vi.fn().mockResolvedValue(emptyDraft),
+    })
+
+    const res = await app.request(
+      postSurvey({ slug: "draft", title: "Draft survey" })
+    )
+
+    expect(res.status).toBe(201)
+    expect(createFeedbackSurvey).toHaveBeenCalledWith({
+      slug: "draft",
+      title: "Draft survey",
+      isActive: false,
+      questions: [],
+    })
+  })
+
+  it.each([
+    ["an invalid slug", { ...validBody, slug: "PMF_invalid" }],
+    ["an overlong slug", { ...validBody, slug: "x".repeat(65) }],
+    [
+      "more than 50 questions",
+      {
+        ...validBody,
+        questions: Array.from({ length: 51 }, () => ({
+          type: "text",
+          text: "Question",
+        })),
+      },
+    ],
+    [
+      "more than 20 choices",
+      {
+        ...validBody,
+        questions: [
+          {
+            type: "single_choice",
+            text: "Choose",
+            choices: Array.from({ length: 21 }, (_, index) => ({
+              value: `choice-${index}`,
+              label: `Choice ${index}`,
+            })),
+          },
+        ],
+      },
+    ],
+    [
+      "choices on a text question",
+      {
+        ...validBody,
+        questions: [
+          {
+            type: "text",
+            text: "Question",
+            choices: [{ value: "x", label: "X" }],
+          },
+        ],
+      },
+    ],
+    [
+      "a single-choice question without choices",
+      {
+        ...validBody,
+        questions: [{ type: "single_choice", text: "Question" }],
+      },
+    ],
+    [
+      "duplicate choice values",
+      {
+        ...validBody,
+        questions: [
+          {
+            type: "single_choice",
+            text: "Question",
+            choices: [
+              { value: "same", label: "A" },
+              { value: "same", label: "B" },
+            ],
+          },
+        ],
+      },
+    ],
+    [
+      "an active survey without questions",
+      { slug: "empty", title: "Empty", isActive: true, questions: [] },
+    ],
+    ["an unknown top-level key", { ...validBody, ownerId: "user-1" }],
+    [
+      "an unknown question key",
+      {
+        ...validBody,
+        questions: [{ type: "text", text: "Question", serverOnly: true }],
+      },
+    ],
+    [
+      "an unknown choice key",
+      {
+        ...validBody,
+        questions: [
+          {
+            type: "single_choice",
+            text: "Question",
+            choices: [{ value: "x", label: "X", id: "client-id" }],
+          },
+        ],
+      },
+    ],
+  ])("returns 400 for %s", async (_label, body) => {
+    const { app, createFeedbackSurvey } = createTestApp({
+      getSession: vi.fn().mockResolvedValue(adminSession),
+    })
+
+    const res = await app.request(postSurvey(body))
+
+    expect(res.status).toBe(400)
+    expect((await errorBody(res)).code).toBe(ErrorCodes.VALIDATION_ERROR)
+    expect(createFeedbackSurvey).not.toHaveBeenCalled()
+  })
+
+  it("returns 401 without a session", async () => {
+    const { app, createFeedbackSurvey } = createTestApp({
+      getSession: vi.fn().mockResolvedValue(null),
+    })
+
+    const res = await app.request(postSurvey(validBody))
+
+    expect(res.status).toBe(401)
+    expect(createFeedbackSurvey).not.toHaveBeenCalled()
+  })
+
+  it("returns 403 for a non-admin user", async () => {
+    const { app, createFeedbackSurvey } = createTestApp({
+      getSession: vi.fn().mockResolvedValue(userSession),
+    })
+
+    const res = await app.request(postSurvey(validBody))
+
+    expect(res.status).toBe(403)
+    expect(createFeedbackSurvey).not.toHaveBeenCalled()
+  })
+
+  it("returns 409 for a slug conflict", async () => {
+    const { app } = createTestApp({
+      getSession: vi.fn().mockResolvedValue(adminSession),
+      createFeedbackSurvey: vi
+        .fn()
+        .mockRejectedValue(new FeedbackSurveySlugConflictError("pmf-2026")),
+    })
+
+    const res = await app.request(postSurvey(validBody))
+
+    expect(res.status).toBe(409)
+    expect(await res.json()).toEqual({
+      error: 'FeedbackSurvey slug is already used: "pmf-2026"',
+      code: ErrorCodes.FEEDBACK_SURVEY_SLUG_CONFLICT,
+    })
+  })
+
+  it("returns 409 when the domain rejects publication", async () => {
+    const { app } = createTestApp({
+      getSession: vi.fn().mockResolvedValue(adminSession),
+      createFeedbackSurvey: vi
+        .fn()
+        .mockRejectedValue(new EmptyActiveFeedbackSurveyError("survey-1")),
+    })
+
+    const res = await app.request(postSurvey(validBody))
+
+    expect(res.status).toBe(409)
+    expect((await errorBody(res)).code).toBe(
+      ErrorCodes.FEEDBACK_SURVEY_NOT_PUBLISHABLE
+    )
+  })
+
+  it("returns 500 for an InvalidArgumentError missed by route validation", async () => {
+    const { app } = createTestApp({
+      getSession: vi.fn().mockResolvedValue(adminSession),
+      createFeedbackSurvey: vi
+        .fn()
+        .mockRejectedValue(new InvalidArgumentError("validation gap")),
+    })
+
+    const res = await app.request(postSurvey(validBody))
+
+    expect(res.status).toBe(500)
+    expect((await errorBody(res)).code).toBe(ErrorCodes.INTERNAL_ERROR)
+  })
+})
+
+describe("PATCH /api/v1/admin/feedback/surveys/{surveyId}", () => {
+  it.each([
+    [
+      "all mutable fields",
+      { slug: "new-slug", title: "New title", isActive: true },
+    ],
+    ["isActive only", { isActive: false }],
+    ["title only", { title: "New title" }],
+  ])("returns 200 when updating %s", async (_label, body) => {
+    const result = {
+      ...mutationDto,
+      slug: "slug" in body ? body.slug : mutationDto.slug,
+      title: "title" in body ? body.title : mutationDto.title,
+      isActive: "isActive" in body ? body.isActive : mutationDto.isActive,
+    }
+    const { app, updateFeedbackSurvey } = createTestApp({
+      getSession: vi.fn().mockResolvedValue(adminSession),
+      updateFeedbackSurvey: vi.fn().mockResolvedValue(result),
+    })
+
+    const res = await app.request(patchSurvey("survey-1", body))
+
+    expect(res.status).toBe(200)
+    expect(await res.json()).toEqual(result)
+    expect(updateFeedbackSurvey).toHaveBeenCalledWith({
+      surveyId: "survey-1",
+      ...body,
+    })
+  })
+
+  it.each([
+    ["an empty body", {}],
+    ["an unknown key", { createdAt: "2026-01-01" }],
+    ["an invalid slug", { slug: "UPPER_CASE" }],
+  ])("returns 400 for %s", async (_label, body) => {
+    const { app, updateFeedbackSurvey } = createTestApp({
+      getSession: vi.fn().mockResolvedValue(adminSession),
+    })
+
+    const res = await app.request(patchSurvey("survey-1", body))
+
+    expect(res.status).toBe(400)
+    expect((await errorBody(res)).code).toBe(ErrorCodes.VALIDATION_ERROR)
+    expect(updateFeedbackSurvey).not.toHaveBeenCalled()
+  })
+
+  it("validates an empty body before looking up a missing survey", async () => {
+    const { app, updateFeedbackSurvey } = createTestApp({
+      getSession: vi.fn().mockResolvedValue(adminSession),
+      updateFeedbackSurvey: vi
+        .fn()
+        .mockRejectedValue(new FeedbackSurveyNotFoundError("missing")),
+    })
+
+    const res = await app.request(patchSurvey("missing", {}))
+
+    expect(res.status).toBe(400)
+    expect(updateFeedbackSurvey).not.toHaveBeenCalled()
+  })
+
+  it("returns 401 without a session", async () => {
+    const { app, updateFeedbackSurvey } = createTestApp({
+      getSession: vi.fn().mockResolvedValue(null),
+    })
+
+    const res = await app.request(
+      patchSurvey("survey-1", { title: "New title" })
+    )
+
+    expect(res.status).toBe(401)
+    expect(updateFeedbackSurvey).not.toHaveBeenCalled()
+  })
+
+  it("returns 403 for a non-admin user", async () => {
+    const { app, updateFeedbackSurvey } = createTestApp({
+      getSession: vi.fn().mockResolvedValue(userSession),
+    })
+
+    const res = await app.request(
+      patchSurvey("survey-1", { title: "New title" })
+    )
+
+    expect(res.status).toBe(403)
+    expect(updateFeedbackSurvey).not.toHaveBeenCalled()
+  })
+
+  it("returns 404 for an unknown survey", async () => {
+    const { app } = createTestApp({
+      getSession: vi.fn().mockResolvedValue(adminSession),
+      updateFeedbackSurvey: vi
+        .fn()
+        .mockRejectedValue(new FeedbackSurveyNotFoundError("missing")),
+    })
+
+    const res = await app.request(
+      patchSurvey("missing", { title: "New title" })
+    )
+
+    expect(res.status).toBe(404)
+    expect((await errorBody(res)).code).toBe(
+      ErrorCodes.FEEDBACK_SURVEY_NOT_FOUND
+    )
+  })
+
+  it.each([
+    [
+      "a slug conflict",
+      new FeedbackSurveySlugConflictError("duplicate"),
+      ErrorCodes.FEEDBACK_SURVEY_SLUG_CONFLICT,
+    ],
+    [
+      "an unpublishable survey",
+      new EmptyActiveFeedbackSurveyError("survey-1"),
+      ErrorCodes.FEEDBACK_SURVEY_NOT_PUBLISHABLE,
+    ],
+  ])("returns 409 for %s", async (_label, error, code) => {
+    const { app } = createTestApp({
+      getSession: vi.fn().mockResolvedValue(adminSession),
+      updateFeedbackSurvey: vi.fn().mockRejectedValue(error),
+    })
+
+    const res = await app.request(patchSurvey("survey-1", { isActive: true }))
+
+    expect(res.status).toBe(409)
+    expect((await errorBody(res)).code).toBe(code)
+  })
+
+  it("delegates unexpected errors to the central 500 handler", async () => {
+    const { app } = createTestApp({
+      getSession: vi.fn().mockResolvedValue(adminSession),
+      updateFeedbackSurvey: vi
+        .fn()
+        .mockRejectedValue(new InvalidArgumentError("validation gap")),
+    })
+
+    const res = await app.request(
+      patchSurvey("survey-1", { title: "New title" })
     )
 
     expect(res.status).toBe(500)

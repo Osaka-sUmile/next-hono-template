@@ -310,6 +310,100 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/admin/users/{userId}/role": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        /**
+         * Change a user's role (admin only)
+         * @description Promotes or demotes another user. Administrators cannot change their own role.
+         */
+        patch: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path: {
+                    /** @description User whose role will be changed */
+                    userId: string;
+                };
+                cookie?: never;
+            };
+            requestBody: {
+                content: {
+                    "application/json": {
+                        /** @enum {string} */
+                        role: "user" | "admin";
+                    };
+                };
+            };
+            responses: {
+                /** @description The updated user profile */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["UserProfile"];
+                    };
+                };
+                /** @description Request validation failed (VALIDATION_ERROR) */
+                400: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["Error"];
+                    };
+                };
+                /** @description Unauthorized (missing or invalid session) */
+                401: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["Error"];
+                    };
+                };
+                /** @description Forbidden or self role change (FORBIDDEN / CANNOT_CHANGE_OWN_ROLE) */
+                403: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["Error"];
+                    };
+                };
+                /** @description No user has that id (USER_NOT_FOUND) */
+                404: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["Error"];
+                    };
+                };
+                /** @description Internal Server Error */
+                500: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["Error"];
+                    };
+                };
+            };
+        };
+        trace?: never;
+    };
     "/api/v1/feedback/survey": {
         parameters: {
             query?: never;
@@ -532,7 +626,97 @@ export interface paths {
             };
         };
         put?: never;
-        post?: never;
+        /**
+         * Create a feedback survey (admin only)
+         * @description Creates a survey with its questions and choices. Activating it deactivates every other survey.
+         */
+        post: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path?: never;
+                cookie?: never;
+            };
+            requestBody: {
+                content: {
+                    "application/json": {
+                        slug: string;
+                        title: string;
+                        /** @default false */
+                        isActive?: boolean;
+                        /** @default [] */
+                        questions?: {
+                            /** @enum {string} */
+                            type: "single_choice" | "text";
+                            text: string;
+                            /** @default false */
+                            required?: boolean;
+                            /** @default [] */
+                            choices?: {
+                                value: string;
+                                label: string;
+                            }[];
+                        }[];
+                    };
+                };
+            };
+            responses: {
+                /** @description The survey was created */
+                201: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["FeedbackSurveyMutationResult"];
+                    };
+                };
+                /** @description Request validation failed (VALIDATION_ERROR) */
+                400: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["Error"];
+                    };
+                };
+                /** @description Unauthorized (missing or invalid session) */
+                401: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["Error"];
+                    };
+                };
+                /** @description Forbidden (authenticated but not an admin) */
+                403: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["Error"];
+                    };
+                };
+                /** @description Slug conflict or survey cannot be published (FEEDBACK_SURVEY_SLUG_CONFLICT / FEEDBACK_SURVEY_NOT_PUBLISHABLE) */
+                409: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["Error"];
+                    };
+                };
+                /** @description Internal Server Error */
+                500: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["Error"];
+                    };
+                };
+            };
+        };
         delete?: never;
         options?: never;
         head?: never;
@@ -623,7 +807,95 @@ export interface paths {
         delete?: never;
         options?: never;
         head?: never;
-        patch?: never;
+        /**
+         * Update a feedback survey (admin only)
+         * @description Updates slug, title, or active state. Activating it deactivates every other survey.
+         */
+        patch: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path: {
+                    /** @description Survey to update */
+                    surveyId: string;
+                };
+                cookie?: never;
+            };
+            requestBody: {
+                content: {
+                    "application/json": {
+                        slug?: string;
+                        title?: string;
+                        isActive?: boolean;
+                    };
+                };
+            };
+            responses: {
+                /** @description The updated survey */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["FeedbackSurveyMutationResult"];
+                    };
+                };
+                /** @description Request validation failed (VALIDATION_ERROR) */
+                400: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["Error"];
+                    };
+                };
+                /** @description Unauthorized (missing or invalid session) */
+                401: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["Error"];
+                    };
+                };
+                /** @description Forbidden (authenticated but not an admin) */
+                403: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["Error"];
+                    };
+                };
+                /** @description No survey has that id (FEEDBACK_SURVEY_NOT_FOUND) */
+                404: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["Error"];
+                    };
+                };
+                /** @description Slug conflict or survey cannot be published (FEEDBACK_SURVEY_SLUG_CONFLICT / FEEDBACK_SURVEY_NOT_PUBLISHABLE) */
+                409: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["Error"];
+                    };
+                };
+                /** @description Internal Server Error */
+                500: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["Error"];
+                    };
+                };
+            };
+        };
         trace?: never;
     };
     "/api/v1/admin/feedback/submissions": {
@@ -821,7 +1093,7 @@ export interface components {
              * @description Machine-readable error code for client-side handling.
              * @enum {string}
              */
-            code: "USER_NOT_FOUND" | "SESSION_INVALID" | "SESSION_EXPIRED" | "SESSION_FETCH_FAILED" | "FORBIDDEN" | "FEEDBACK_SURVEY_NOT_FOUND" | "FEEDBACK_INVALID_ANSWER" | "RATE_LIMIT_EXCEEDED" | "VALIDATION_ERROR" | "INTERNAL_ERROR";
+            code: "USER_NOT_FOUND" | "SESSION_INVALID" | "SESSION_EXPIRED" | "SESSION_FETCH_FAILED" | "FORBIDDEN" | "CANNOT_CHANGE_OWN_ROLE" | "FEEDBACK_SURVEY_NOT_FOUND" | "FEEDBACK_SURVEY_SLUG_CONFLICT" | "FEEDBACK_SURVEY_NOT_PUBLISHABLE" | "FEEDBACK_INVALID_ANSWER" | "RATE_LIMIT_EXCEEDED" | "VALIDATION_ERROR" | "INTERNAL_ERROR";
         };
         UserProfile: {
             id: string;
@@ -942,6 +1214,13 @@ export interface components {
                 choiceValue: string;
                 count: number;
             }[];
+        };
+        FeedbackSurveyMutationResult: {
+            id: string;
+            slug: string;
+            title: string;
+            isActive: boolean;
+            questions: components["schemas"]["FeedbackQuestion"][];
         };
     };
     responses: never;

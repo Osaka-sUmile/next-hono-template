@@ -13,6 +13,8 @@ import {
   UserQueryService,
 } from "@workspace/database"
 import {
+  ChangeUserRoleUseCase,
+  CreateFeedbackSurveyUseCase,
   GetActiveFeedbackSurveyUseCase,
   GetAdminSummaryUseCase,
   GetCurrentUserUseCase,
@@ -22,6 +24,7 @@ import {
   ListUsersUseCase,
   SubmitFeedbackUseCase,
   SummarizeFeedbackUseCase,
+  UpdateFeedbackSurveyUseCase,
   UpdateUserProfileUseCase,
 } from "../application"
 import {
@@ -34,6 +37,8 @@ import {
   createErrorHandler,
   createRequireAuth,
   requireAdmin,
+  changeUserRoleRoute,
+  createFeedbackSurveyRoute,
   healthRoute,
   getAdminSummaryRoute,
   getUserMeRoute,
@@ -45,6 +50,7 @@ import {
   getFeedbackSurveyDetailRoute,
   listFeedbackSubmissionsRoute,
   summarizeFeedbackRoute,
+  updateFeedbackSurveyRoute,
   validationErrorHook,
   type AppEnv,
 } from "../presentation"
@@ -106,6 +112,7 @@ export function buildApp(deps: AppDeps): OpenAPIHono<AppEnv> {
   v1.openapi(updateUserMeRoute, deps.userController.updateUserMe)
   v1.openapi(getAdminSummaryRoute, deps.adminController.getSummary)
   v1.openapi(listUsersRoute, deps.adminController.listUsers)
+  v1.openapi(changeUserRoleRoute, deps.adminController.changeUserRole)
   v1.openapi(
     getActiveFeedbackSurveyRoute,
     deps.feedbackController.getActiveSurvey
@@ -121,6 +128,8 @@ export function buildApp(deps: AppDeps): OpenAPIHono<AppEnv> {
     deps.feedbackController.listSubmissions
   )
   v1.openapi(summarizeFeedbackRoute, deps.feedbackController.getSummary)
+  v1.openapi(createFeedbackSurveyRoute, deps.feedbackController.createSurvey)
+  v1.openapi(updateFeedbackSurveyRoute, deps.feedbackController.updateSurvey)
 
   app.route("/api/v1", v1)
 
@@ -175,6 +184,7 @@ export async function createApp(env: Env): Promise<CreatedApp> {
     const updateUserProfileUseCase = new UpdateUserProfileUseCase(
       userRepository
     )
+    const changeUserRoleUseCase = new ChangeUserRoleUseCase(userRepository)
 
     const feedbackQueryService = new FeedbackQueryService(prisma)
     const feedbackSurveyRepository = new FeedbackSurveyPrismaRepository(prisma)
@@ -202,6 +212,13 @@ export async function createApp(env: Env): Promise<CreatedApp> {
     const summarizeFeedbackUseCase = new SummarizeFeedbackUseCase(
       feedbackQueryService
     )
+    const createFeedbackSurveyUseCase = new CreateFeedbackSurveyUseCase(
+      feedbackSurveyRepository,
+      idGenerator
+    )
+    const updateFeedbackSurveyUseCase = new UpdateFeedbackSurveyUseCase(
+      feedbackSurveyRepository
+    )
 
     const app = buildApp({
       env,
@@ -213,7 +230,8 @@ export async function createApp(env: Env): Promise<CreatedApp> {
       ),
       adminController: new AdminController(
         listUsersUseCase,
-        getAdminSummaryUseCase
+        getAdminSummaryUseCase,
+        changeUserRoleUseCase
       ),
       feedbackController: new FeedbackController(
         getActiveFeedbackSurveyUseCase,
@@ -221,7 +239,9 @@ export async function createApp(env: Env): Promise<CreatedApp> {
         listFeedbackSurveysUseCase,
         getFeedbackSurveyDetailUseCase,
         listFeedbackSubmissionsUseCase,
-        summarizeFeedbackUseCase
+        summarizeFeedbackUseCase,
+        createFeedbackSurveyUseCase,
+        updateFeedbackSurveyUseCase
       ),
     })
 

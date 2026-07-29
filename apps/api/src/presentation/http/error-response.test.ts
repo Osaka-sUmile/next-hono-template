@@ -33,4 +33,24 @@ describe("errorResponse", () => {
       400
     )
   })
+
+  it("supports 409 conflict responses", () => {
+    const json = vi.fn()
+    const c = contextWithJson(json)
+
+    errorResponse(
+      c,
+      409,
+      ErrorCodes.FEEDBACK_SURVEY_SLUG_CONFLICT,
+      "slug conflict"
+    )
+
+    expect(json).toHaveBeenCalledWith(
+      {
+        error: "slug conflict",
+        code: "FEEDBACK_SURVEY_SLUG_CONFLICT",
+      },
+      409
+    )
+  })
 })
