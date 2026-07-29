@@ -1,4 +1,5 @@
 import { fireEvent, render, screen, waitFor } from "@testing-library/react"
+import { useState } from "react"
 import { beforeEach, describe, expect, it, vi } from "vitest"
 
 import {
@@ -20,6 +21,27 @@ function getSidebar(container: HTMLElement) {
 
   expect(sidebar).not.toBeNull()
   return sidebar!
+}
+
+function ControlledSidebar({
+  onOpenChange,
+}: {
+  onOpenChange: (open: boolean) => void
+}) {
+  const [open, setOpen] = useState(false)
+
+  return (
+    <SidebarProvider
+      open={open}
+      onOpenChange={(nextOpen) => {
+        onOpenChange(nextOpen)
+        setOpen(nextOpen)
+      }}
+    >
+      <Sidebar>Controlled sidebar</Sidebar>
+      <SidebarTrigger />
+    </SidebarProvider>
+  )
 }
 
 describe("Sidebar", () => {
@@ -47,19 +69,23 @@ describe("Sidebar", () => {
     expect(getSidebar(container)).toHaveAttribute("data-collapsible", "")
   })
 
-  it("controlled では状態を内部更新せず onOpenChange へ次の状態を通知する", () => {
+  it("controlled では親の状態更新を反映して開閉する", () => {
     const onOpenChange = vi.fn()
     const { container } = render(
-      <SidebarProvider open={false} onOpenChange={onOpenChange}>
-        <Sidebar>Controlled sidebar</Sidebar>
-        <SidebarTrigger />
-      </SidebarProvider>
+      <ControlledSidebar onOpenChange={onOpenChange} />
     )
+    const trigger = screen.getByRole("button", { name: "Toggle Sidebar" })
 
-    fireEvent.click(screen.getByRole("button", { name: "Toggle Sidebar" }))
+    expect(getSidebar(container)).toHaveAttribute("data-state", "collapsed")
 
-    expect(onOpenChange).toHaveBeenCalledOnce()
-    expect(onOpenChange).toHaveBeenCalledWith(true)
+    fireEvent.click(trigger)
+
+    expect(getSidebar(container)).toHaveAttribute("data-state", "expanded")
+
+    fireEvent.click(trigger)
+
+    expect(onOpenChange).toHaveBeenNthCalledWith(1, true)
+    expect(onOpenChange).toHaveBeenNthCalledWith(2, false)
     expect(getSidebar(container)).toHaveAttribute("data-state", "collapsed")
   })
 

@@ -1,4 +1,4 @@
-import "@testing-library/jest-dom"
+import "@testing-library/jest-dom/vitest"
 
 // jsdom は Pointer Capture API と scrollIntoView を実装していないため、
 // これらに依存する Radix UI コンポーネント（Sheet 等）のテスト用に補う。
