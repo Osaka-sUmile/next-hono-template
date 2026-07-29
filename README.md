@@ -60,6 +60,21 @@
    - API: `wrangler dev` の起動ログに表示されるポートで `/api-docs` (Swagger UI) にアクセスできます
    - Web: `http://localhost:3000` (Next.js)
 
+6. **最初の管理者を作成**
+
+   先に Web から通常どおりサインアップし、そのメールアドレスを指定して昇格スクリプトを実行します。
+
+   ```bash
+   pnpm --filter @workspace/database promote-admin -- user@example.com
+   ```
+
+   `DATABASE_URL` のホストが `localhost` または `127.0.0.1` の場合は、ローカルの wsproxy 接続が自動的に有効になります。
+   別のホスト名でローカル wsproxy を使う場合は、末尾に `--local` を付けてください。
+   対象ユーザーが存在しない場合は昇格できないため、先にサインアップが必要です。
+
+   昇格後は再ログインするか、認証セッションを再取得して新しい role を反映してください。
+   管理者向け role 変更 API の導入後は、2 人目以降の昇格には管理画面からその API を使います。
+
 ## 開発ガイドライン
 - `CLAUDE.md`: 新機能追加のフローや命名・バリデーション規則
 - `docs/architecture.md`: 依存関係のルールやアーキテクチャ概要
@@ -165,4 +180,3 @@ pnpm --filter @workspace/database test:integration
 | **CD (デプロイ)** | `.github/workflows/deploy.yml` | develop → preview / main → production へ Cloudflare Workers に自動デプロイ（詳細は `docs/deployment.md`） |
 
 ※ **注意:** GitHub Actions の実行時間（制限・コスト）を節約するため、**CI 上での単体テスト自動実行は行わない方針** としています。コードの品質保証に関する単体テストは、コミット時の Git Hooks (`pre-commit`) で自己検証される前提です。
-
