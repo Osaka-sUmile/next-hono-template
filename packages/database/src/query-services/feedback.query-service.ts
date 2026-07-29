@@ -9,15 +9,19 @@ import {
   parseFeedbackQuestionType,
 } from "@workspace/domain"
 
-type RawFeedbackChoiceTally = {
-  questionId: string
-  choiceValue: string
-  count: number
-}
-
-type RawRespondentCount = {
-  count: number
-}
+type RawFeedbackSummaryRow =
+  | {
+      respondentCount: number
+      questionId: string
+      choiceValue: string
+      count: number
+    }
+  | {
+      respondentCount: number
+      questionId: null
+      choiceValue: null
+      count: null
+    }
 
 export class FeedbackQueryService implements IFeedbackQueryService {
   constructor(private readonly prisma: PrismaClient) {}
@@ -157,43 +161,46 @@ export class FeedbackQueryService implements IFeedbackQueryService {
   }
 
   async summarize(surveyId: string): Promise<FeedbackSummaryTallyResult> {
-    const [rawTallies, rawRespondentCounts] = await this.prisma.$transaction([
-      this.prisma.$queryRaw<RawFeedbackChoiceTally[]>`
-        WITH latest AS (
+    const rows = await this.prisma.$queryRaw<RawFeedbackSummaryRow[]>`
+        WITH latest AS MATERIALIZED (
           SELECT DISTINCT ON ("userId") "id"
           FROM "FeedbackSubmission"
           WHERE "surveyId" = ${surveyId}
           ORDER BY "userId", "createdAt" DESC, "id" DESC
+        ),
+        respondents AS (
+          SELECT COUNT(*)::int AS "respondentCount"
+          FROM latest
+        ),
+        tallies AS (
+          SELECT
+            a."questionId",
+            c."value" AS "choiceValue",
+            COUNT(*)::int AS "count"
+          FROM "FeedbackAnswer" a
+          JOIN latest l ON l."id" = a."submissionId"
+          JOIN "FeedbackChoice" c ON c."id" = a."choiceId"
+          GROUP BY a."questionId", c."value"
         )
         SELECT
-          a."questionId",
-          c."value" AS "choiceValue",
-          COUNT(*)::int AS "count"
-        FROM "FeedbackAnswer" a
-        JOIN latest l ON l."id" = a."submissionId"
-        JOIN "FeedbackChoice" c ON c."id" = a."choiceId"
-        GROUP BY a."questionId", c."value"
-        ORDER BY a."questionId", c."value"
-      `,
-      this.prisma.$queryRaw<RawRespondentCount[]>`
-        WITH latest AS (
-          SELECT DISTINCT ON ("userId") "id"
-          FROM "FeedbackSubmission"
-          WHERE "surveyId" = ${surveyId}
-          ORDER BY "userId", "createdAt" DESC, "id" DESC
-        )
-        SELECT COUNT(*)::int AS "count"
-        FROM latest
-      `,
-    ])
+          r."respondentCount",
+          t."questionId",
+          t."choiceValue",
+          t."count"
+        FROM respondents r
+        LEFT JOIN tallies t ON TRUE
+        ORDER BY t."questionId", t."choiceValue"
+      `
 
-    const tallies: FeedbackChoiceTally[] = rawTallies.map((tally) => ({
-      questionId: tally.questionId,
-      choiceValue: tally.choiceValue,
-      count: tally.count,
-    }))
+    const tallies: FeedbackChoiceTally[] = rows
+      .filter((row) => row.questionId !== null)
+      .map(({ questionId, choiceValue, count }) => ({
+        questionId,
+        choiceValue,
+        count,
+      }))
     return {
-      respondentCount: rawRespondentCounts[0]?.count ?? 0,
+      respondentCount: rows[0]?.respondentCount ?? 0,
       tallies,
     }
   }
