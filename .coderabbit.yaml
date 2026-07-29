@@ -85,6 +85,15 @@ reviews:
         ルートの CLAUDE.md「テスト配置」のルールに従っているか確認してください。
         テストファイルは実装ファイルと同じ階層に配置されているか（__tests__/ は不可）。
 
+    - path: "packages/ui/**/*.{ts,tsx}"
+      instructions: |
+        docs/frontend-guidelines.md「shadcn/ui 生成コンポーネントのテスト」の方針に従っているか確認してください。
+        リポジトリ固有の変更、または状態・操作・アクセシビリティに意味のある分岐を持つコンポーネントには、
+        packages/ui 内の co-located な Vitest + React Testing Library テストを要求してください。
+        変更していない単純な表示コンポーネントは、PR に省略理由があればテストを必須としません。
+        packages/ui では再利用可能なコンポーネント自身の契約を、apps/web ではアプリ固有の構成・
+        ルーティング・データ連携を検証する責務分担になっているか確認してください。
+
     - path: "apps/web/**/*.{ts,tsx}"
       instructions: |
         コンポーネント・hooks 内で fetch を直接呼んでいないか、apps/web/lib/api-client.ts を
