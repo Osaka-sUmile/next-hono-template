@@ -4,6 +4,8 @@ import {
   FeedbackSubmissionListParams,
   FeedbackSubmissionListResult,
   FeedbackSummaryTallyResult,
+  FeedbackSurveyDetailView,
+  FeedbackSurveyListItemView,
   FeedbackSurveyView,
   IFeedbackQueryService,
   parseFeedbackQuestionType,
@@ -82,6 +84,91 @@ export class FeedbackQueryService implements IFeedbackQueryService {
         {
           cause: error,
         }
+      )
+    }
+  }
+
+  async listSurveys(): Promise<FeedbackSurveyListItemView[]> {
+    const surveys = await this.prisma.feedbackSurvey.findMany({
+      select: {
+        id: true,
+        slug: true,
+        title: true,
+        isActive: true,
+        createdAt: true,
+        _count: { select: { questions: true, submissions: true } },
+      },
+      orderBy: [{ createdAt: "desc" }, { id: "desc" }],
+    })
+
+    return surveys.map((survey) => ({
+      id: survey.id,
+      slug: survey.slug,
+      title: survey.title,
+      isActive: survey.isActive,
+      questionCount: survey._count.questions,
+      submissionCount: survey._count.submissions,
+      createdAt: survey.createdAt,
+    }))
+  }
+
+  async findSurveyDetailById(
+    surveyId: string
+  ): Promise<FeedbackSurveyDetailView | null> {
+    const survey = await this.prisma.feedbackSurvey.findUnique({
+      where: { id: surveyId },
+      select: {
+        id: true,
+        slug: true,
+        title: true,
+        isActive: true,
+        createdAt: true,
+        questions: {
+          select: {
+            id: true,
+            type: true,
+            text: true,
+            required: true,
+            sortOrder: true,
+            choices: {
+              select: {
+                value: true,
+                label: true,
+                sortOrder: true,
+              },
+              orderBy: [{ sortOrder: "asc" }, { id: "asc" }],
+            },
+          },
+          orderBy: [{ sortOrder: "asc" }, { id: "asc" }],
+        },
+      },
+    })
+    if (!survey) return null
+
+    try {
+      return {
+        id: survey.id,
+        slug: survey.slug,
+        title: survey.title,
+        isActive: survey.isActive,
+        createdAt: survey.createdAt,
+        questions: survey.questions.map((question) => ({
+          id: question.id,
+          type: parseFeedbackQuestionType(question.type),
+          text: question.text,
+          required: question.required,
+          sortOrder: question.sortOrder,
+          choices: question.choices.map((choice) => ({
+            value: choice.value,
+            label: choice.label,
+            sortOrder: choice.sortOrder,
+          })),
+        })),
+      }
+    } catch (error) {
+      throw new Error(
+        `Failed to map feedback survey detail (id=${survey.id})`,
+        { cause: error }
       )
     }
   }

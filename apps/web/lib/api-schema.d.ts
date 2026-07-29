@@ -389,6 +389,159 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/admin/feedback/surveys": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * List feedback surveys (admin only)
+         * @description Returns every survey newest first, including inactive ones, with question and submission counts. Requires an admin session.
+         */
+        get: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path?: never;
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description Every survey */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["FeedbackSurveyList"];
+                    };
+                };
+                /** @description Unauthorized (missing or invalid session) */
+                401: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["Error"];
+                    };
+                };
+                /** @description Forbidden (authenticated but not an admin) */
+                403: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["Error"];
+                    };
+                };
+                /** @description Internal Server Error */
+                500: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["Error"];
+                    };
+                };
+            };
+        };
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/admin/feedback/surveys/{surveyId}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Get one feedback survey with its questions (admin only)
+         * @description Returns the survey with its questions and choices. The summary endpoint returns tallies keyed by questionId and choiceValue only, so this is what supplies the labels. Requires an admin session.
+         */
+        get: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path: {
+                    /** @description Survey to retrieve */
+                    surveyId: string;
+                };
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description The survey and its questions */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["FeedbackSurveyDetail"];
+                    };
+                };
+                /** @description Invalid surveyId (VALIDATION_ERROR) */
+                400: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["Error"];
+                    };
+                };
+                /** @description Unauthorized (missing or invalid session) */
+                401: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["Error"];
+                    };
+                };
+                /** @description Forbidden (authenticated but not an admin) */
+                403: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["Error"];
+                    };
+                };
+                /** @description No survey has that id (FEEDBACK_SURVEY_NOT_FOUND) */
+                404: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["Error"];
+                    };
+                };
+                /** @description Internal Server Error */
+                500: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["Error"];
+                    };
+                };
+            };
+        };
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/admin/feedback/submissions": {
         parameters: {
             query?: never;
@@ -627,6 +780,30 @@ export interface components {
             surveyId: string;
             /** Format: date-time */
             createdAt: string;
+        };
+        FeedbackSurveyList: {
+            items: components["schemas"]["FeedbackSurveyListItem"][];
+        };
+        FeedbackSurveyListItem: {
+            id: string;
+            slug: string;
+            title: string;
+            /** @description Whether respondents can currently answer it */
+            isActive: boolean;
+            questionCount: number;
+            /** @description Total submissions, including repeat submissions */
+            submissionCount: number;
+            /** Format: date-time */
+            createdAt: string;
+        };
+        FeedbackSurveyDetail: {
+            id: string;
+            slug: string;
+            title: string;
+            isActive: boolean;
+            /** Format: date-time */
+            createdAt: string;
+            questions: components["schemas"]["FeedbackQuestion"][];
         };
         FeedbackSubmissionList: {
             items: components["schemas"]["FeedbackSubmission"][];

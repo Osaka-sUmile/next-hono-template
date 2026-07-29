@@ -10,6 +10,8 @@ function createQueryService(
 ): IFeedbackQueryService {
   return {
     findActiveSurveyView: vi.fn(),
+    listSurveys: vi.fn(),
+    findSurveyDetailById: vi.fn(),
     listSubmissions: vi.fn(),
     summarize: vi.fn(),
     ...overrides,

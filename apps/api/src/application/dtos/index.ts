@@ -5,6 +5,9 @@ export type {
   FeedbackSubmissionListResponseDto,
   FeedbackSubmissionResponseDto,
   FeedbackSummaryResponseDto,
+  FeedbackSurveyDetailResponseDto,
+  FeedbackSurveyListItemResponseDto,
+  FeedbackSurveyListResponseDto,
   FeedbackSurveyResponseDto,
 } from "./feedback.response.dto"
 export type {

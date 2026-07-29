@@ -27,6 +27,31 @@ export type FeedbackSurveyResponseDto = {
   questions: FeedbackQuestionResponseDto[]
 }
 
+/** 管理者向けアンケート一覧の 1 行。設問本体は含めず件数のみ返す。 */
+export type FeedbackSurveyListItemResponseDto = {
+  id: string
+  slug: string
+  title: string
+  isActive: boolean
+  questionCount: number
+  submissionCount: number
+  createdAt: Date
+}
+
+export type FeedbackSurveyListResponseDto = {
+  items: FeedbackSurveyListItemResponseDto[]
+}
+
+/** 管理者向けアンケート詳細。回答者向けの DTO と違い公開状態と作成時刻を含む。 */
+export type FeedbackSurveyDetailResponseDto = {
+  id: string
+  slug: string
+  title: string
+  isActive: boolean
+  createdAt: Date
+  questions: FeedbackQuestionResponseDto[]
+}
+
 /** 回答投稿の受理結果。回答内容は投稿者に返し直さず、識別子と受理時刻のみ返す。 */
 export type FeedbackSubmissionAcceptedResponseDto = {
   id: string

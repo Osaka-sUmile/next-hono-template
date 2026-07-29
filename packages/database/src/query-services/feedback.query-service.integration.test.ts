@@ -159,6 +159,156 @@ describe("FeedbackQueryService (integration)", () => {
     })
   })
 
+  describe("listSurveys", () => {
+    it("公開・非公開を問わず新しい順で設問数と提出数を返す", async () => {
+      await prisma.feedbackSurvey.create({
+        data: {
+          id: "survey-old",
+          slug: "old",
+          title: "旧アンケート",
+          isActive: false,
+          createdAt: new Date("2026-07-01T00:00:00.000Z"),
+        },
+      })
+      await prisma.feedbackSurvey.create({
+        data: {
+          id: "survey-new",
+          slug: "new",
+          title: "新アンケート",
+          isActive: true,
+          createdAt: new Date("2026-07-20T00:00:00.000Z"),
+          questions: {
+            create: [
+              {
+                id: "q-1",
+                type: "text",
+                text: "設問1",
+                required: false,
+                sortOrder: 1,
+              },
+              {
+                id: "q-2",
+                type: "text",
+                text: "設問2",
+                required: false,
+                sortOrder: 2,
+              },
+            ],
+          },
+        },
+      })
+      await seedUser("user-1")
+      await prisma.feedbackSubmission.create({
+        data: {
+          id: "submission-1",
+          surveyId: "survey-new",
+          userId: "user-1",
+          createdAt: new Date("2026-07-21T00:00:00.000Z"),
+        },
+      })
+
+      const result = await queryService.listSurveys()
+
+      expect(result).toEqual([
+        {
+          id: "survey-new",
+          slug: "new",
+          title: "新アンケート",
+          isActive: true,
+          questionCount: 2,
+          submissionCount: 1,
+          createdAt: new Date("2026-07-20T00:00:00.000Z"),
+        },
+        {
+          id: "survey-old",
+          slug: "old",
+          title: "旧アンケート",
+          isActive: false,
+          questionCount: 0,
+          submissionCount: 0,
+          createdAt: new Date("2026-07-01T00:00:00.000Z"),
+        },
+      ])
+    })
+
+    it("createdAt が同じ場合は id の降順で並べる", async () => {
+      const sameTime = new Date("2026-07-20T00:00:00.000Z")
+      await prisma.feedbackSurvey.createMany({
+        data: [
+          { id: "survey-a", slug: "a", title: "A", createdAt: sameTime },
+          { id: "survey-c", slug: "c", title: "C", createdAt: sameTime },
+          { id: "survey-b", slug: "b", title: "B", createdAt: sameTime },
+        ],
+      })
+
+      const result = await queryService.listSurveys()
+
+      expect(result.map((survey) => survey.id)).toEqual([
+        "survey-c",
+        "survey-b",
+        "survey-a",
+      ])
+    })
+
+    it("アンケートが存在しない場合は空配列を返す", async () => {
+      await expect(queryService.listSurveys()).resolves.toEqual([])
+    })
+  })
+
+  describe("findSurveyDetailById", () => {
+    it("設問・選択肢を sortOrder 順に並べ、公開状態込みで返す", async () => {
+      await seedSurvey()
+
+      const result = await queryService.findSurveyDetailById("survey-1")
+
+      expect(result).toEqual({
+        id: "survey-1",
+        slug: "pmf-2026",
+        title: "PMFアンケート",
+        isActive: true,
+        createdAt: expect.any(Date),
+        questions: [
+          {
+            id: "question-choice",
+            type: "single_choice",
+            text: "選択式",
+            required: true,
+            sortOrder: 1,
+            choices: [
+              { value: "yes", label: "はい", sortOrder: 1 },
+              { value: "no", label: "いいえ", sortOrder: 2 },
+            ],
+          },
+          {
+            id: "question-text",
+            type: "text",
+            text: "自由記述",
+            required: false,
+            sortOrder: 2,
+            choices: [],
+          },
+        ],
+      })
+    })
+
+    // 一覧は非公開も含むので、詳細も isActive で絞らないことを固定する。
+    it("非公開アンケートも取得できる", async () => {
+      await seedOtherSurvey()
+
+      const result = await queryService.findSurveyDetailById("survey-2")
+
+      expect(result).toMatchObject({ id: "survey-2", isActive: false })
+    })
+
+    it("該当 id のアンケートが存在しない場合は null を返す", async () => {
+      await seedSurvey()
+
+      await expect(
+        queryService.findSurveyDetailById("missing-survey")
+      ).resolves.toBeNull()
+    })
+  })
+
   describe("listSubmissions", () => {
     it("提出を新しい順で user と回答を含む DTO にして返す", async () => {
       await seedSurvey()

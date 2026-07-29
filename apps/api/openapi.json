@@ -244,6 +244,93 @@
           "createdAt"
         ]
       },
+      "FeedbackSurveyList": {
+        "type": "object",
+        "properties": {
+          "items": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/FeedbackSurveyListItem"
+            }
+          }
+        },
+        "required": [
+          "items"
+        ]
+      },
+      "FeedbackSurveyListItem": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string"
+          },
+          "slug": {
+            "type": "string"
+          },
+          "title": {
+            "type": "string"
+          },
+          "isActive": {
+            "type": "boolean",
+            "description": "Whether respondents can currently answer it"
+          },
+          "questionCount": {
+            "type": "integer"
+          },
+          "submissionCount": {
+            "type": "integer",
+            "description": "Total submissions, including repeat submissions"
+          },
+          "createdAt": {
+            "type": "string",
+            "format": "date-time"
+          }
+        },
+        "required": [
+          "id",
+          "slug",
+          "title",
+          "isActive",
+          "questionCount",
+          "submissionCount",
+          "createdAt"
+        ]
+      },
+      "FeedbackSurveyDetail": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string"
+          },
+          "slug": {
+            "type": "string"
+          },
+          "title": {
+            "type": "string"
+          },
+          "isActive": {
+            "type": "boolean"
+          },
+          "createdAt": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "questions": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/FeedbackQuestion"
+            }
+          }
+        },
+        "required": [
+          "id",
+          "slug",
+          "title",
+          "isActive",
+          "createdAt",
+          "questions"
+        ]
+      },
       "FeedbackSubmissionList": {
         "type": "object",
         "properties": {
@@ -764,6 +851,152 @@
           },
           "429": {
             "description": "Too many submissions (RATE_LIMIT_EXCEEDED)",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Internal Server Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/admin/feedback/surveys": {
+      "get": {
+        "tags": [
+          "Admin"
+        ],
+        "summary": "List feedback surveys (admin only)",
+        "description": "Returns every survey newest first, including inactive ones, with question and submission counts. Requires an admin session.",
+        "security": [
+          {
+            "cookieAuth": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Every survey",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/FeedbackSurveyList"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Unauthorized (missing or invalid session)",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Forbidden (authenticated but not an admin)",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Internal Server Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/admin/feedback/surveys/{surveyId}": {
+      "get": {
+        "tags": [
+          "Admin"
+        ],
+        "summary": "Get one feedback survey with its questions (admin only)",
+        "description": "Returns the survey with its questions and choices. The summary endpoint returns tallies keyed by questionId and choiceValue only, so this is what supplies the labels. Requires an admin session.",
+        "security": [
+          {
+            "cookieAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "schema": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 64,
+              "description": "Survey to retrieve"
+            },
+            "required": true,
+            "description": "Survey to retrieve",
+            "name": "surveyId",
+            "in": "path"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "The survey and its questions",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/FeedbackSurveyDetail"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Invalid surveyId (VALIDATION_ERROR)",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Unauthorized (missing or invalid session)",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Forbidden (authenticated but not an admin)",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "No survey has that id (FEEDBACK_SURVEY_NOT_FOUND)",
             "content": {
               "application/json": {
                 "schema": {
