@@ -129,11 +129,66 @@ describe("Sidebar", () => {
     })
   })
 
+  it("モバイルでは DOM props とマージした className/style を SheetContent に渡す", async () => {
+    mocks.isMobile = true
+    render(
+      <SidebarProvider>
+        <Sidebar
+          id="mobile-sidebar"
+          aria-label="Mobile navigation"
+          className="custom-sidebar"
+          style={
+            {
+              "--sidebar-width": "22rem",
+              color: "rgb(1, 2, 3)",
+            } as React.CSSProperties
+          }
+        >
+          Mobile sidebar props
+        </Sidebar>
+        <SidebarTrigger />
+      </SidebarProvider>
+    )
+
+    fireEvent.click(screen.getByRole("button", { name: "Toggle Sidebar" }))
+
+    const content = await screen.findByText("Mobile sidebar props")
+    const sidebar = content.closest<HTMLElement>('[data-slot="sidebar"]')
+
+    expect(sidebar).not.toBeNull()
+    expect(sidebar).toHaveAttribute("id", "mobile-sidebar")
+    expect(sidebar).toHaveAttribute("aria-label", "Mobile navigation")
+    expect(sidebar).toHaveClass("custom-sidebar", "bg-sidebar")
+    expect(sidebar).toHaveStyle({
+      "--sidebar-width": "22rem",
+      color: "rgb(1, 2, 3)",
+    })
+  })
+
+  it("デスクトップでは caller の style を Sidebar container に渡す", () => {
+    const { container } = render(
+      <SidebarProvider>
+        <Sidebar style={{ color: "rgb(4, 5, 6)" }}>Desktop styles</Sidebar>
+      </SidebarProvider>
+    )
+
+    const sidebarContainer = container.querySelector<HTMLElement>(
+      '[data-slot="sidebar-container"]'
+    )
+
+    expect(sidebarContainer).not.toBeNull()
+    expect(sidebarContainer).toHaveStyle({ color: "rgb(4, 5, 6)" })
+  })
+
   it('collapsible="none" ではモバイルでも常設 Sidebar を描画する', () => {
     mocks.isMobile = true
     const { container } = render(
       <SidebarProvider>
-        <Sidebar collapsible="none" aria-label="Persistent navigation">
+        <Sidebar
+          collapsible="none"
+          aria-label="Persistent navigation"
+          style={{ color: "rgb(7, 8, 9)" }}
+        >
           Persistent sidebar
         </Sidebar>
       </SidebarProvider>
@@ -144,5 +199,6 @@ describe("Sidebar", () => {
     expect(sidebar).toHaveAttribute("aria-label", "Persistent navigation")
     expect(sidebar).not.toHaveAttribute("data-state")
     expect(sidebar).not.toHaveAttribute("data-mobile")
+    expect(sidebar).toHaveStyle({ color: "rgb(7, 8, 9)" })
   })
 })
