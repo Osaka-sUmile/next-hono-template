@@ -52,6 +52,46 @@ const FeedbackSurveySchema = z
   })
   .openapi("FeedbackSurvey")
 
+const FeedbackSurveyListItemSchema = z
+  .object({
+    id: z.string(),
+    slug: z.string(),
+    title: z.string(),
+    isActive: z
+      .boolean()
+      .openapi({ description: "Whether respondents can currently answer it" }),
+    questionCount: z.number().int(),
+    submissionCount: z.number().int().openapi({
+      description: "Total submissions, including repeat submissions",
+    }),
+    createdAt: z.string().datetime(),
+  })
+  .openapi("FeedbackSurveyListItem")
+
+const FeedbackSurveyListSchema = z
+  .object({
+    items: z.array(FeedbackSurveyListItemSchema),
+  })
+  .openapi("FeedbackSurveyList")
+
+const FeedbackSurveyDetailSchema = z
+  .object({
+    id: z.string(),
+    slug: z.string(),
+    title: z.string(),
+    isActive: z.boolean(),
+    createdAt: z.string().datetime(),
+    questions: z.array(FeedbackQuestionSchema),
+  })
+  .openapi("FeedbackSurveyDetail")
+
+const GetFeedbackSurveyDetailParamsSchema = z.object({
+  surveyId: feedbackIdSchema.openapi({
+    param: { name: "surveyId", in: "path", required: true },
+    description: "Survey to retrieve",
+  }),
+})
+
 /**
  * 回答投稿のリクエストボディ。
  * 投稿者は認証セッションから決めるため userId は受け取らない。混入した余剰キーは
@@ -235,6 +275,51 @@ export const submitFeedbackRoute = createRoute({
       401: "Unauthorized (missing or invalid session)",
       404: "No survey is currently active (FEEDBACK_SURVEY_NOT_FOUND)",
       429: "Too many submissions (RATE_LIMIT_EXCEEDED)",
+      500: "Internal Server Error",
+    }),
+  },
+})
+
+export const listFeedbackSurveysRoute = createRoute({
+  method: "get",
+  path: "/admin/feedback/surveys",
+  tags: ["Admin"],
+  summary: "List feedback surveys (admin only)",
+  description:
+    "Returns every survey newest first, including inactive ones, with question and submission counts. Requires an admin session.",
+  security: [{ cookieAuth: [] }],
+  responses: {
+    200: {
+      description: "Every survey",
+      content: { "application/json": { schema: FeedbackSurveyListSchema } },
+    },
+    ...errorResponses({
+      401: "Unauthorized (missing or invalid session)",
+      403: "Forbidden (authenticated but not an admin)",
+      500: "Internal Server Error",
+    }),
+  },
+})
+
+export const getFeedbackSurveyDetailRoute = createRoute({
+  method: "get",
+  path: "/admin/feedback/surveys/{surveyId}",
+  tags: ["Admin"],
+  summary: "Get one feedback survey with its questions (admin only)",
+  description:
+    "Returns the survey with its questions and choices. The summary endpoint returns tallies keyed by questionId and choiceValue only, so this is what supplies the labels. Requires an admin session.",
+  security: [{ cookieAuth: [] }],
+  request: { params: GetFeedbackSurveyDetailParamsSchema },
+  responses: {
+    200: {
+      description: "The survey and its questions",
+      content: { "application/json": { schema: FeedbackSurveyDetailSchema } },
+    },
+    ...errorResponses({
+      400: "Invalid surveyId (VALIDATION_ERROR)",
+      401: "Unauthorized (missing or invalid session)",
+      403: "Forbidden (authenticated but not an admin)",
+      404: "No survey has that id (FEEDBACK_SURVEY_NOT_FOUND)",
       500: "Internal Server Error",
     }),
   },

@@ -42,6 +42,8 @@ describe("GET /api-docs/openapi.json", () => {
       "/api/v1/admin/users": { get: expect.any(Object) },
       "/api/v1/feedback/survey": { get: expect.any(Object) },
       "/api/v1/feedback/submissions": { post: expect.any(Object) },
+      "/api/v1/admin/feedback/surveys": { get: expect.any(Object) },
+      "/api/v1/admin/feedback/surveys/{surveyId}": { get: expect.any(Object) },
       "/api/v1/admin/feedback/submissions": { get: expect.any(Object) },
       "/api/v1/admin/feedback/summary": { get: expect.any(Object) },
     })
@@ -67,6 +69,12 @@ describe("GET /api-docs/openapi.json", () => {
     ])
     expect(
       document.paths["/api/v1/feedback/submissions"]?.post?.security
+    ).toEqual([{ cookieAuth: [] }])
+    expect(
+      document.paths["/api/v1/admin/feedback/surveys"]?.get?.security
+    ).toEqual([{ cookieAuth: [] }])
+    expect(
+      document.paths["/api/v1/admin/feedback/surveys/{surveyId}"]?.get?.security
     ).toEqual([{ cookieAuth: [] }])
     expect(
       document.paths["/api/v1/admin/feedback/submissions"]?.get?.security
