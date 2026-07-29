@@ -52,6 +52,20 @@ export type FeedbackSurveyDetailResponseDto = {
   questions: FeedbackQuestionResponseDto[]
 }
 
+/**
+ * Command（作成・更新）が返すアンケート DTO。
+ * Query 系（FeedbackSurveyDetailResponseDto）と異なり createdAt を含まない。
+ * Command は Repository が復元する FeedbackSurveyEntity のフィールドのみを扱い、
+ * Entity は createdAt を保持しないため（UserProfileResponseDto と同じ理由）。
+ */
+export type FeedbackSurveyMutationResponseDto = {
+  id: string
+  slug: string
+  title: string
+  isActive: boolean
+  questions: FeedbackQuestionResponseDto[]
+}
+
 /** 回答投稿の受理結果。回答内容は投稿者に返し直さず、識別子と受理時刻のみ返す。 */
 export type FeedbackSubmissionAcceptedResponseDto = {
   id: string

@@ -18,4 +18,13 @@ describe("errorResponses", () => {
       content: { "application/json": { schema: ErrorSchema } },
     })
   })
+
+  it("supports 409 conflict response definitions", () => {
+    const responses = errorResponses({ 409: "Conflict" })
+
+    expect(responses[409]).toEqual({
+      description: "Conflict",
+      content: { "application/json": { schema: ErrorSchema } },
+    })
+  })
 })

@@ -1,4 +1,5 @@
 import { describe, expect, it, vi } from "vitest"
+import { CannotChangeOwnRoleError, UserNotFoundError } from "../../application"
 import { createTestApp } from "../../test-utils"
 import { ErrorCodes } from "../errors"
 
@@ -169,6 +170,139 @@ describe("GET /api/v1/admin/users", () => {
       code: ErrorCodes.FORBIDDEN,
     })
     expect(listUsers).not.toHaveBeenCalled()
+  })
+})
+
+describe("PATCH /api/v1/admin/users/{userId}/role", () => {
+  const updatedUser = {
+    id: "user-1",
+    email: "user@example.com",
+    name: "User",
+    role: "admin" as const,
+    displayName: null,
+  }
+
+  function patchRole(userId: string, body: unknown): Request {
+    return new Request(`http://localhost/api/v1/admin/users/${userId}/role`, {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(body),
+    })
+  }
+
+  it("returns 200 and changes another user's role using the session user as actor", async () => {
+    const { app, changeUserRole } = createTestApp({
+      getSession: vi.fn().mockResolvedValue(adminSession),
+      changeUserRole: vi.fn().mockResolvedValue(updatedUser),
+    })
+
+    const res = await app.request(patchRole("user-1", { role: "admin" }))
+
+    expect(res.status).toBe(200)
+    expect(await res.json()).toEqual(updatedUser)
+    expect(changeUserRole).toHaveBeenCalledWith({
+      actorUserId: "admin-1",
+      targetUserId: "user-1",
+      role: "admin",
+    })
+  })
+
+  it.each([
+    ["an unsupported role", { role: "owner" }],
+    ["an empty body", {}],
+    ["an unknown key", { role: "admin", userId: "victim-1" }],
+  ])("returns 400 for %s", async (_label, body) => {
+    const { app, changeUserRole } = createTestApp({
+      getSession: vi.fn().mockResolvedValue(adminSession),
+    })
+
+    const res = await app.request(patchRole("user-1", body))
+
+    expect(res.status).toBe(400)
+    expect(await res.json()).toMatchObject({
+      code: ErrorCodes.VALIDATION_ERROR,
+    })
+    expect(changeUserRole).not.toHaveBeenCalled()
+  })
+
+  it("returns 400 for a userId longer than 64 characters", async () => {
+    const { app, changeUserRole } = createTestApp({
+      getSession: vi.fn().mockResolvedValue(adminSession),
+    })
+
+    const res = await app.request(patchRole("x".repeat(65), { role: "admin" }))
+
+    expect(res.status).toBe(400)
+    expect(changeUserRole).not.toHaveBeenCalled()
+  })
+
+  it("returns 401 without a session", async () => {
+    const { app, changeUserRole } = createTestApp({
+      getSession: vi.fn().mockResolvedValue(null),
+    })
+
+    const res = await app.request(patchRole("user-1", { role: "admin" }))
+
+    expect(res.status).toBe(401)
+    expect(changeUserRole).not.toHaveBeenCalled()
+  })
+
+  it("returns 403 for a non-admin user", async () => {
+    const { app, changeUserRole } = createTestApp({
+      getSession: vi.fn().mockResolvedValue(userSession),
+    })
+
+    const res = await app.request(patchRole("user-1", { role: "admin" }))
+
+    expect(res.status).toBe(403)
+    expect(await res.json()).toMatchObject({ code: ErrorCodes.FORBIDDEN })
+    expect(changeUserRole).not.toHaveBeenCalled()
+  })
+
+  it("returns 403 CANNOT_CHANGE_OWN_ROLE for a self change", async () => {
+    const { app } = createTestApp({
+      getSession: vi.fn().mockResolvedValue(adminSession),
+      changeUserRole: vi
+        .fn()
+        .mockRejectedValue(new CannotChangeOwnRoleError("admin-1")),
+    })
+
+    const res = await app.request(patchRole("admin-1", { role: "user" }))
+
+    expect(res.status).toBe(403)
+    expect(await res.json()).toEqual({
+      error: 'A user cannot change their own role: userId="admin-1"',
+      code: ErrorCodes.CANNOT_CHANGE_OWN_ROLE,
+    })
+  })
+
+  it("returns 404 USER_NOT_FOUND for an unknown target", async () => {
+    const { app } = createTestApp({
+      getSession: vi.fn().mockResolvedValue(adminSession),
+      changeUserRole: vi
+        .fn()
+        .mockRejectedValue(new UserNotFoundError("missing-user")),
+    })
+
+    const res = await app.request(patchRole("missing-user", { role: "admin" }))
+
+    expect(res.status).toBe(404)
+    expect(await res.json()).toEqual({
+      error: 'User not found: userId="missing-user"',
+      code: ErrorCodes.USER_NOT_FOUND,
+    })
+  })
+
+  it("delegates unexpected errors to the central 500 handler", async () => {
+    const { app } = createTestApp({
+      getSession: vi.fn().mockResolvedValue(adminSession),
+      changeUserRole: vi.fn().mockRejectedValue(new Error("database down")),
+    })
+
+    const res = await app.request(patchRole("user-1", { role: "admin" }))
+
+    expect(res.status).toBe(500)
+    expect(await res.json()).toMatchObject({ code: ErrorCodes.INTERNAL_ERROR })
   })
 })
 

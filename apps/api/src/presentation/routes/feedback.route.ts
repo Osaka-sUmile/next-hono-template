@@ -1,4 +1,8 @@
 import { createRoute, z } from "@hono/zod-openapi"
+import {
+  FEEDBACK_SURVEY_SLUG_MAX_LENGTH,
+  FEEDBACK_SURVEY_TITLE_MAX_LENGTH,
+} from "@workspace/domain"
 import { errorResponses } from "../openapi"
 
 /**
@@ -10,6 +14,9 @@ const FEEDBACK_ID_MAX_LENGTH = 64
 const FEEDBACK_CHOICE_VALUE_MAX_LENGTH = 100
 const FEEDBACK_TEXT_MAX_LENGTH = 2000
 const FEEDBACK_ANSWERS_MAX_COUNT = 50
+const FEEDBACK_QUESTIONS_MAX_COUNT = FEEDBACK_ANSWERS_MAX_COUNT
+const FEEDBACK_CHOICES_MAX_COUNT = 20
+const FEEDBACK_CHOICE_LABEL_MAX_LENGTH = 200
 const SUBMISSION_LIST_MAX_LIMIT = 100
 const SUBMISSION_LIST_DEFAULT_LIMIT = 20
 
@@ -91,6 +98,108 @@ const GetFeedbackSurveyDetailParamsSchema = z.object({
     description: "Survey to retrieve",
   }),
 })
+
+// Domain の regex は非公開なので API 境界で同じ契約を明示的にミラーする。
+const FEEDBACK_SURVEY_SLUG_REGEX = /^[a-z0-9]+(?:-[a-z0-9]+)*$/
+
+const feedbackSurveySlugSchema = z
+  .string()
+  .trim()
+  .min(1)
+  .max(FEEDBACK_SURVEY_SLUG_MAX_LENGTH)
+  .regex(FEEDBACK_SURVEY_SLUG_REGEX)
+
+const feedbackSurveyTitleSchema = z
+  .string()
+  .trim()
+  .min(1)
+  .max(FEEDBACK_SURVEY_TITLE_MAX_LENGTH)
+
+const CreateFeedbackChoiceSchema = z.strictObject({
+  value: z.string().trim().min(1).max(FEEDBACK_CHOICE_VALUE_MAX_LENGTH),
+  label: z.string().trim().min(1).max(FEEDBACK_CHOICE_LABEL_MAX_LENGTH),
+})
+
+const CreateFeedbackQuestionSchema = z
+  .strictObject({
+    type: z.enum(["single_choice", "text"]),
+    text: z.string().trim().min(1).max(FEEDBACK_TEXT_MAX_LENGTH),
+    required: z.boolean().default(false),
+    choices: z
+      .array(CreateFeedbackChoiceSchema)
+      .max(FEEDBACK_CHOICES_MAX_COUNT)
+      .default([]),
+  })
+  .superRefine((question, ctx) => {
+    if (question.type === "text" && question.choices.length > 0) {
+      ctx.addIssue({
+        code: "custom",
+        path: ["choices"],
+        message: "text questions must not have choices",
+      })
+    }
+    if (question.type === "single_choice" && question.choices.length === 0) {
+      ctx.addIssue({
+        code: "custom",
+        path: ["choices"],
+        message: "single_choice questions must have at least one choice",
+      })
+    }
+
+    const seenValues = new Set<string>()
+    question.choices.forEach((choice, index) => {
+      if (seenValues.has(choice.value)) {
+        ctx.addIssue({
+          code: "custom",
+          path: ["choices", index, "value"],
+          message: "choice values must be unique within a question",
+        })
+      }
+      seenValues.add(choice.value)
+    })
+  })
+
+const CreateFeedbackSurveyBodySchema = z
+  .strictObject({
+    slug: feedbackSurveySlugSchema,
+    title: feedbackSurveyTitleSchema,
+    isActive: z.boolean().default(false),
+    // sortOrder は受け取らず、Entity が配列インデックスから導出する。
+    questions: z
+      .array(CreateFeedbackQuestionSchema)
+      .max(FEEDBACK_QUESTIONS_MAX_COUNT)
+      .default([]),
+  })
+  .superRefine((body, ctx) => {
+    // ボディ内で完結する矛盾なので 400。保存済み survey の PATCH 有効化は 409。
+    if (body.isActive && body.questions.length === 0) {
+      ctx.addIssue({
+        code: "custom",
+        path: ["isActive"],
+        message: "a survey without questions cannot be activated",
+      })
+    }
+  })
+
+const UpdateFeedbackSurveyBodySchema = z
+  .strictObject({
+    slug: feedbackSurveySlugSchema.optional(),
+    title: feedbackSurveyTitleSchema.optional(),
+    isActive: z.boolean().optional(),
+  })
+  .refine((body) => Object.keys(body).length > 0, {
+    message: "at least one of slug, title, or isActive must be provided",
+  })
+
+const FeedbackSurveyMutationResultSchema = z
+  .object({
+    id: z.string(),
+    slug: z.string(),
+    title: z.string(),
+    isActive: z.boolean(),
+    questions: z.array(FeedbackQuestionSchema),
+  })
+  .openapi("FeedbackSurveyMutationResult")
 
 /**
  * 回答投稿のリクエストボディ。
@@ -301,6 +410,39 @@ export const listFeedbackSurveysRoute = createRoute({
   },
 })
 
+export const createFeedbackSurveyRoute = createRoute({
+  method: "post",
+  path: "/admin/feedback/surveys",
+  tags: ["Admin"],
+  summary: "Create a feedback survey (admin only)",
+  description:
+    "Creates a survey with its questions and choices. Activating it deactivates every other survey.",
+  security: [{ cookieAuth: [] }],
+  request: {
+    body: {
+      required: true,
+      content: {
+        "application/json": { schema: CreateFeedbackSurveyBodySchema },
+      },
+    },
+  },
+  responses: {
+    201: {
+      description: "The survey was created",
+      content: {
+        "application/json": { schema: FeedbackSurveyMutationResultSchema },
+      },
+    },
+    ...errorResponses({
+      400: "Request validation failed (VALIDATION_ERROR)",
+      401: "Unauthorized (missing or invalid session)",
+      403: "Forbidden (authenticated but not an admin)",
+      409: "Slug conflict or survey cannot be published (FEEDBACK_SURVEY_SLUG_CONFLICT / FEEDBACK_SURVEY_NOT_PUBLISHABLE)",
+      500: "Internal Server Error",
+    }),
+  },
+})
+
 export const getFeedbackSurveyDetailRoute = createRoute({
   method: "get",
   path: "/admin/feedback/surveys/{surveyId}",
@@ -320,6 +462,41 @@ export const getFeedbackSurveyDetailRoute = createRoute({
       401: "Unauthorized (missing or invalid session)",
       403: "Forbidden (authenticated but not an admin)",
       404: "No survey has that id (FEEDBACK_SURVEY_NOT_FOUND)",
+      500: "Internal Server Error",
+    }),
+  },
+})
+
+export const updateFeedbackSurveyRoute = createRoute({
+  method: "patch",
+  path: "/admin/feedback/surveys/{surveyId}",
+  tags: ["Admin"],
+  summary: "Update a feedback survey (admin only)",
+  description:
+    "Updates slug, title, or active state. Activating it deactivates every other survey.",
+  security: [{ cookieAuth: [] }],
+  request: {
+    params: GetFeedbackSurveyDetailParamsSchema,
+    body: {
+      required: true,
+      content: {
+        "application/json": { schema: UpdateFeedbackSurveyBodySchema },
+      },
+    },
+  },
+  responses: {
+    200: {
+      description: "The updated survey",
+      content: {
+        "application/json": { schema: FeedbackSurveyMutationResultSchema },
+      },
+    },
+    ...errorResponses({
+      400: "Request validation failed (VALIDATION_ERROR)",
+      401: "Unauthorized (missing or invalid session)",
+      403: "Forbidden (authenticated but not an admin)",
+      404: "No survey has that id (FEEDBACK_SURVEY_NOT_FOUND)",
+      409: "Slug conflict or survey cannot be published (FEEDBACK_SURVEY_SLUG_CONFLICT / FEEDBACK_SURVEY_NOT_PUBLISHABLE)",
       500: "Internal Server Error",
     }),
   },

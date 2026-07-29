@@ -9,6 +9,7 @@ export type {
   FeedbackSurveyDetailResponseDto,
   FeedbackSurveyListItemResponseDto,
   FeedbackSurveyListResponseDto,
+  FeedbackSurveyMutationResponseDto,
   FeedbackSurveyResponseDto,
 } from "./feedback.response.dto"
 export type {

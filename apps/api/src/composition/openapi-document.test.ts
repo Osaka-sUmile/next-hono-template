@@ -12,6 +12,13 @@ type OpenApiOperation = {
   security?: unknown
   parameters?: OpenApiParameter[]
   responses?: Record<string, unknown>
+  requestBody?: {
+    content?: {
+      "application/json"?: {
+        schema?: Record<string, unknown>
+      }
+    }
+  }
 }
 
 type OpenApiDocument = {
@@ -42,10 +49,17 @@ describe("GET /api-docs/openapi.json", () => {
       "/api/v1/me": { get: expect.any(Object), patch: expect.any(Object) },
       "/api/v1/admin/summary": { get: expect.any(Object) },
       "/api/v1/admin/users": { get: expect.any(Object) },
+      "/api/v1/admin/users/{userId}/role": { patch: expect.any(Object) },
       "/api/v1/feedback/survey": { get: expect.any(Object) },
       "/api/v1/feedback/submissions": { post: expect.any(Object) },
-      "/api/v1/admin/feedback/surveys": { get: expect.any(Object) },
-      "/api/v1/admin/feedback/surveys/{surveyId}": { get: expect.any(Object) },
+      "/api/v1/admin/feedback/surveys": {
+        get: expect.any(Object),
+        post: expect.any(Object),
+      },
+      "/api/v1/admin/feedback/surveys/{surveyId}": {
+        get: expect.any(Object),
+        patch: expect.any(Object),
+      },
       "/api/v1/admin/feedback/submissions": { get: expect.any(Object) },
       "/api/v1/admin/feedback/summary": { get: expect.any(Object) },
     })
@@ -66,6 +80,9 @@ describe("GET /api-docs/openapi.json", () => {
     expect(document.paths["/api/v1/admin/users"]?.get?.security).toEqual([
       { cookieAuth: [] },
     ])
+    expect(
+      document.paths["/api/v1/admin/users/{userId}/role"]?.patch?.security
+    ).toEqual([{ cookieAuth: [] }])
     expect(document.paths["/api/v1/admin/summary"]?.get?.security).toEqual([
       { cookieAuth: [] },
     ])
@@ -79,7 +96,14 @@ describe("GET /api-docs/openapi.json", () => {
       document.paths["/api/v1/admin/feedback/surveys"]?.get?.security
     ).toEqual([{ cookieAuth: [] }])
     expect(
+      document.paths["/api/v1/admin/feedback/surveys"]?.post?.security
+    ).toEqual([{ cookieAuth: [] }])
+    expect(
       document.paths["/api/v1/admin/feedback/surveys/{surveyId}"]?.get?.security
+    ).toEqual([{ cookieAuth: [] }])
+    expect(
+      document.paths["/api/v1/admin/feedback/surveys/{surveyId}"]?.patch
+        ?.security
     ).toEqual([{ cookieAuth: [] }])
     expect(
       document.paths["/api/v1/admin/feedback/submissions"]?.get?.security
@@ -150,5 +174,33 @@ describe("GET /api-docs/openapi.json", () => {
         },
       },
     })
+  })
+
+  it("documents strict write bodies and shared 409 error responses", async () => {
+    const { app } = createTestApp()
+
+    const res = await app.request("/api-docs/openapi.json")
+    const document = (await res.json()) as OpenApiDocument
+
+    const operations = [
+      document.paths["/api/v1/admin/users/{userId}/role"]?.patch,
+      document.paths["/api/v1/admin/feedback/surveys"]?.post,
+      document.paths["/api/v1/admin/feedback/surveys/{surveyId}"]?.patch,
+    ]
+    for (const operation of operations) {
+      expect(
+        operation?.requestBody?.content?.["application/json"]?.schema
+      ).toMatchObject({ type: "object", additionalProperties: false })
+    }
+
+    for (const operation of operations.slice(1)) {
+      expect(operation?.responses?.["409"]).toMatchObject({
+        content: {
+          "application/json": {
+            schema: { $ref: "#/components/schemas/Error" },
+          },
+        },
+      })
+    }
   })
 })

@@ -1,9 +1,10 @@
 import { createRoute, z } from "@hono/zod-openapi"
 import { errorResponses } from "../openapi"
-import { UserSchema } from "./user.route"
+import { UserProfileSchema, UserSchema } from "./user.route"
 
 const USER_LIST_DEFAULT_LIMIT = 20
 const USER_LIST_MAX_LIMIT = 100
+const USER_ID_MAX_LENGTH = 64
 
 export const AdminSummarySchema = z
   .object({
@@ -112,6 +113,52 @@ export const listUsersRoute = createRoute({
       400: "Invalid paging or filter parameters (VALIDATION_ERROR)",
       401: "Unauthorized (missing or invalid session)",
       403: "Forbidden (authenticated but not an admin)",
+      500: "Internal Server Error",
+    }),
+  },
+})
+
+const ChangeUserRoleParamsSchema = z.object({
+  userId: z
+    .string()
+    .trim()
+    .min(1)
+    .max(USER_ID_MAX_LENGTH)
+    .openapi({
+      param: { name: "userId", in: "path", required: true },
+      description: "User whose role will be changed",
+    }),
+})
+
+const ChangeUserRoleBodySchema = z.strictObject({
+  role: z.enum(["user", "admin"]),
+})
+
+export const changeUserRoleRoute = createRoute({
+  method: "patch",
+  path: "/admin/users/{userId}/role",
+  tags: ["Admin"],
+  summary: "Change a user's role (admin only)",
+  description:
+    "Promotes or demotes another user. Administrators cannot change their own role.",
+  security: [{ cookieAuth: [] }],
+  request: {
+    params: ChangeUserRoleParamsSchema,
+    body: {
+      required: true,
+      content: { "application/json": { schema: ChangeUserRoleBodySchema } },
+    },
+  },
+  responses: {
+    200: {
+      description: "The updated user profile",
+      content: { "application/json": { schema: UserProfileSchema } },
+    },
+    ...errorResponses({
+      400: "Request validation failed (VALIDATION_ERROR)",
+      401: "Unauthorized (missing or invalid session)",
+      403: "Forbidden or self role change (FORBIDDEN / CANNOT_CHANGE_OWN_ROLE)",
+      404: "No user has that id (USER_NOT_FOUND)",
       500: "Internal Server Error",
     }),
   },
