@@ -26,6 +26,7 @@ import {
   HealthController,
   UserController,
   createAuthLimiter,
+  createFeedbackSubmitLimiter,
   createErrorHandler,
   createRequireAuth,
   requireAdmin,
@@ -88,6 +89,7 @@ export function buildApp(deps: AppDeps): OpenAPIHono<AppEnv> {
   // フィードバックは回答者を認証セッションから決めるため参照・投稿の双方で認証を要求し、
   // 回答者の氏名・メール・自由記述を含む管理系は admin に限定する。
   v1.use("/feedback/*", requireAuth)
+  v1.use("/feedback/submissions", createFeedbackSubmitLimiter())
   v1.use("/admin/feedback/*", requireAuth, requireAdmin)
   v1.openapi(healthRoute, deps.healthController.check)
   v1.openapi(getUserMeRoute, deps.userController.getUserMe)

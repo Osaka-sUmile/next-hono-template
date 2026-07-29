@@ -43,6 +43,7 @@ export type WorkerBindings = Record<string, unknown>
 /** Cloudflare Workers の Rate Limiting binding（wrangler.jsonc の ratelimits で定義）。 */
 export type WorkerRateLimitBindings = {
   AUTH_RATE_LIMITER?: RateLimit
+  FEEDBACK_SUBMIT_RATE_LIMITER?: RateLimit
 }
 
 /**

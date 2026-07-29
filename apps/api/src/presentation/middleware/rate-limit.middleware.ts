@@ -1,9 +1,7 @@
 import type { MiddlewareHandler } from "hono"
-import type { WorkerRateLimitBindings } from "../../infrastructure"
+import type { AppEnv } from "../app-env"
 import { ErrorCodes } from "../errors"
 import { errorResponse } from "../http"
-
-type AuthLimiterEnv = { Bindings: WorkerRateLimitBindings }
 
 /**
  * 認証系エンドポイント(email OTP 送信・サインイン・パスワードリセット)向けのレートリミッター。
@@ -14,7 +12,7 @@ type AuthLimiterEnv = { Bindings: WorkerRateLimitBindings }
  * 複数インスタンス間でも共有される(issue #41)。
  * ローカルテスト等で binding が未注入の場合はレート制限をスキップする。
  */
-export function createAuthLimiter(): MiddlewareHandler<AuthLimiterEnv> {
+export function createAuthLimiter(): MiddlewareHandler<AppEnv> {
   return async (c, next) => {
     const limiter = c.env?.AUTH_RATE_LIMITER
     if (!limiter) {
@@ -24,6 +22,33 @@ export function createAuthLimiter(): MiddlewareHandler<AuthLimiterEnv> {
 
     const key = c.req.header("cf-connecting-ip") ?? "unknown"
     const { success } = await limiter.limit({ key })
+    if (!success) {
+      return errorResponse(
+        c,
+        429,
+        ErrorCodes.RATE_LIMIT_EXCEEDED,
+        "Too many requests"
+      )
+    }
+
+    await next()
+  }
+}
+
+/**
+ * フィードバック投稿向けのユーザー単位レートリミッター。
+ * requireAuth の後に登録し、認証済み user.id をキーとして 60 秒間に 5 投稿まで許可する。
+ * ローカルテスト等で binding が未注入の場合はレート制限をスキップする。
+ */
+export function createFeedbackSubmitLimiter(): MiddlewareHandler<AppEnv> {
+  return async (c, next) => {
+    const limiter = c.env?.FEEDBACK_SUBMIT_RATE_LIMITER
+    if (!limiter) {
+      await next()
+      return
+    }
+
+    const { success } = await limiter.limit({ key: c.get("auth").user.id })
     if (!success) {
       return errorResponse(
         c,
