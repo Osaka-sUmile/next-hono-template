@@ -5,7 +5,9 @@ import type { AuthInstance } from "@workspace/auth/server";
 import type {
   GetActiveFeedbackSurveyUseCase,
   GetCurrentUserUseCase,
+  GetFeedbackSurveyDetailUseCase,
   ListFeedbackSubmissionsUseCase,
+  ListFeedbackSurveysUseCase,
   ListUsersUseCase,
   SubmitFeedbackUseCase,
   SummarizeFeedbackUseCase,
@@ -69,6 +71,8 @@ async function main(): Promise<void> {
     feedbackController: new FeedbackController(
       {} as GetActiveFeedbackSurveyUseCase,
       {} as SubmitFeedbackUseCase,
+      {} as ListFeedbackSurveysUseCase,
+      {} as GetFeedbackSurveyDetailUseCase,
       {} as ListFeedbackSubmissionsUseCase,
       {} as SummarizeFeedbackUseCase,
     ),

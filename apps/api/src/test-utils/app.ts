@@ -3,7 +3,9 @@ import type { AuthInstance } from "@workspace/auth/server"
 import type {
   GetActiveFeedbackSurveyUseCase,
   GetCurrentUserUseCase,
+  GetFeedbackSurveyDetailUseCase,
   ListFeedbackSubmissionsUseCase,
+  ListFeedbackSurveysUseCase,
   ListUsersUseCase,
   SubmitFeedbackUseCase,
   SummarizeFeedbackUseCase,
@@ -50,6 +52,8 @@ export function createTestApp(
     listUsers?: ReturnType<typeof vi.fn>
     getFeedbackSurvey?: ReturnType<typeof vi.fn>
     submitFeedback?: ReturnType<typeof vi.fn>
+    listFeedbackSurveys?: ReturnType<typeof vi.fn>
+    getFeedbackSurveyDetail?: ReturnType<typeof vi.fn>
     listFeedbackSubmissions?: ReturnType<typeof vi.fn>
     summarizeFeedback?: ReturnType<typeof vi.fn>
     env?: Partial<Env>
@@ -61,6 +65,8 @@ export function createTestApp(
   const listUsers = overrides.listUsers ?? vi.fn()
   const getFeedbackSurvey = overrides.getFeedbackSurvey ?? vi.fn()
   const submitFeedback = overrides.submitFeedback ?? vi.fn()
+  const listFeedbackSurveys = overrides.listFeedbackSurveys ?? vi.fn()
+  const getFeedbackSurveyDetail = overrides.getFeedbackSurveyDetail ?? vi.fn()
   const listFeedbackSubmissions = overrides.listFeedbackSubmissions ?? vi.fn()
   const summarizeFeedback = overrides.summarizeFeedback ?? vi.fn()
 
@@ -80,6 +86,12 @@ export function createTestApp(
   const submitFeedbackUseCase = {
     execute: submitFeedback,
   } as unknown as SubmitFeedbackUseCase
+  const listFeedbackSurveysUseCase = {
+    execute: listFeedbackSurveys,
+  } as unknown as ListFeedbackSurveysUseCase
+  const getFeedbackSurveyDetailUseCase = {
+    execute: getFeedbackSurveyDetail,
+  } as unknown as GetFeedbackSurveyDetailUseCase
   const listFeedbackSubmissionsUseCase = {
     execute: listFeedbackSubmissions,
   } as unknown as ListFeedbackSubmissionsUseCase
@@ -96,6 +108,8 @@ export function createTestApp(
     feedbackController: new FeedbackController(
       getActiveFeedbackSurveyUseCase,
       submitFeedbackUseCase,
+      listFeedbackSurveysUseCase,
+      getFeedbackSurveyDetailUseCase,
       listFeedbackSubmissionsUseCase,
       summarizeFeedbackUseCase
     ),
@@ -109,6 +123,8 @@ export function createTestApp(
     listUsers,
     getFeedbackSurvey,
     submitFeedback,
+    listFeedbackSurveys,
+    getFeedbackSurveyDetail,
     listFeedbackSubmissions,
     summarizeFeedback,
   }

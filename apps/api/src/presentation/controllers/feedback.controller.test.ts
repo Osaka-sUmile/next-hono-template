@@ -3,7 +3,10 @@ import {
   InvalidArgumentError,
   UnknownFeedbackQuestionError,
 } from "@workspace/domain"
-import { ActiveFeedbackSurveyNotFoundError } from "../../application"
+import {
+  ActiveFeedbackSurveyNotFoundError,
+  FeedbackSurveyNotFoundError,
+} from "../../application"
 import { createTestApp } from "../../test-utils"
 import { ErrorCodes } from "../errors"
 
@@ -256,6 +259,137 @@ describe("POST /api/v1/feedback/submissions", () => {
 
     expect(res.status).toBe(500)
     expect((await errorBody(res)).code).toBe(ErrorCodes.INTERNAL_ERROR)
+  })
+})
+
+describe("GET /api/v1/admin/feedback/surveys", () => {
+  const listResult = {
+    items: [
+      {
+        id: "survey-1",
+        slug: "pmf-2026",
+        title: "PMF アンケート",
+        isActive: true,
+        questionCount: 4,
+        submissionCount: 12,
+        createdAt: new Date("2026-07-26T00:00:00.000Z"),
+      },
+    ],
+  }
+
+  it("returns 200 with every survey for an admin", async () => {
+    const { app, listFeedbackSurveys } = createTestApp({
+      getSession: vi.fn().mockResolvedValue(adminSession),
+      listFeedbackSurveys: vi.fn().mockResolvedValue(listResult),
+    })
+
+    const res = await app.request("/api/v1/admin/feedback/surveys")
+
+    expect(res.status).toBe(200)
+    expect(await res.json()).toEqual(JSON.parse(JSON.stringify(listResult)))
+    expect(listFeedbackSurveys).toHaveBeenCalledOnce()
+  })
+
+  it("returns 401 without a session and does not query surveys", async () => {
+    const { app, listFeedbackSurveys } = createTestApp({
+      getSession: vi.fn().mockResolvedValue(null),
+    })
+
+    const res = await app.request("/api/v1/admin/feedback/surveys")
+
+    expect(res.status).toBe(401)
+    expect(listFeedbackSurveys).not.toHaveBeenCalled()
+  })
+
+  it("returns 403 for a non-admin user and does not query surveys", async () => {
+    const { app, listFeedbackSurveys } = createTestApp({
+      getSession: vi.fn().mockResolvedValue(userSession),
+    })
+
+    const res = await app.request("/api/v1/admin/feedback/surveys")
+
+    expect(res.status).toBe(403)
+    expect(await res.json()).toEqual({
+      error: "Forbidden",
+      code: ErrorCodes.FORBIDDEN,
+    })
+    expect(listFeedbackSurveys).not.toHaveBeenCalled()
+  })
+})
+
+describe("GET /api/v1/admin/feedback/surveys/{surveyId}", () => {
+  const detail = {
+    ...surveyDto,
+    isActive: false,
+    createdAt: new Date("2026-07-26T00:00:00.000Z"),
+  }
+
+  it("returns 200 with the survey questions for an admin", async () => {
+    const { app, getFeedbackSurveyDetail } = createTestApp({
+      getSession: vi.fn().mockResolvedValue(adminSession),
+      getFeedbackSurveyDetail: vi.fn().mockResolvedValue(detail),
+    })
+
+    const res = await app.request("/api/v1/admin/feedback/surveys/survey-1")
+
+    expect(res.status).toBe(200)
+    expect(await res.json()).toEqual(JSON.parse(JSON.stringify(detail)))
+    expect(getFeedbackSurveyDetail).toHaveBeenCalledWith({
+      surveyId: "survey-1",
+    })
+  })
+
+  it("returns 404 when no survey has that id", async () => {
+    const { app } = createTestApp({
+      getSession: vi.fn().mockResolvedValue(adminSession),
+      getFeedbackSurveyDetail: vi
+        .fn()
+        .mockRejectedValue(new FeedbackSurveyNotFoundError("survey-9")),
+    })
+
+    const res = await app.request("/api/v1/admin/feedback/surveys/survey-9")
+
+    expect(res.status).toBe(404)
+    expect(await res.json()).toEqual({
+      error: 'Feedback survey not found: surveyId="survey-9"',
+      code: ErrorCodes.FEEDBACK_SURVEY_NOT_FOUND,
+    })
+  })
+
+  it("returns 400 for a surveyId longer than 64 characters", async () => {
+    const { app, getFeedbackSurveyDetail } = createTestApp({
+      getSession: vi.fn().mockResolvedValue(adminSession),
+    })
+
+    const res = await app.request(
+      `/api/v1/admin/feedback/surveys/${"x".repeat(65)}`
+    )
+
+    expect(res.status).toBe(400)
+    expect((await errorBody(res)).code).toBe(ErrorCodes.VALIDATION_ERROR)
+    expect(getFeedbackSurveyDetail).not.toHaveBeenCalled()
+  })
+
+  it("returns 401 without a session and does not query the survey", async () => {
+    const { app, getFeedbackSurveyDetail } = createTestApp({
+      getSession: vi.fn().mockResolvedValue(null),
+    })
+
+    const res = await app.request("/api/v1/admin/feedback/surveys/survey-1")
+
+    expect(res.status).toBe(401)
+    expect(getFeedbackSurveyDetail).not.toHaveBeenCalled()
+  })
+
+  it("returns 403 for a non-admin user and does not query the survey", async () => {
+    const { app, getFeedbackSurveyDetail } = createTestApp({
+      getSession: vi.fn().mockResolvedValue(userSession),
+    })
+
+    const res = await app.request("/api/v1/admin/feedback/surveys/survey-1")
+
+    expect(res.status).toBe(403)
+    expect(getFeedbackSurveyDetail).not.toHaveBeenCalled()
   })
 })
 

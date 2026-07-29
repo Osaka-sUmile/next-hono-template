@@ -11,3 +11,16 @@ export class ActiveFeedbackSurveyNotFoundError extends ApplicationError {
     super("No active feedback survey is available")
   }
 }
+
+/**
+ * 指定された id のアンケートが存在しない状態。
+ *
+ * 管理者が削除済み・誤りの id を指定した場合に起こるため 404 として返す
+ * （Presentation 層で FEEDBACK_SURVEY_NOT_FOUND へ変換する）。
+ * id は管理者しか見ないうえ推測不能な識別子なので、メッセージに含めて調査可能にする。
+ */
+export class FeedbackSurveyNotFoundError extends ApplicationError {
+  constructor(surveyId: string) {
+    super(`Feedback survey not found: surveyId="${surveyId}"`)
+  }
+}

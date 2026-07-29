@@ -14,7 +14,9 @@ import {
 import {
   GetActiveFeedbackSurveyUseCase,
   GetCurrentUserUseCase,
+  GetFeedbackSurveyDetailUseCase,
   ListFeedbackSubmissionsUseCase,
+  ListFeedbackSurveysUseCase,
   ListUsersUseCase,
   SubmitFeedbackUseCase,
   SummarizeFeedbackUseCase,
@@ -36,6 +38,8 @@ import {
   listUsersRoute,
   getActiveFeedbackSurveyRoute,
   submitFeedbackRoute,
+  listFeedbackSurveysRoute,
+  getFeedbackSurveyDetailRoute,
   listFeedbackSubmissionsRoute,
   summarizeFeedbackRoute,
   validationErrorHook,
@@ -85,12 +89,15 @@ export function buildApp(deps: AppDeps): OpenAPIHono<AppEnv> {
   })
   // 認証・認可は composition に集約し、入出力契約は routes/ が担う。
   v1.use("/me", requireAuth)
-  v1.use("/admin/users", requireAuth, requireAdmin)
-  // フィードバックは回答者を認証セッションから決めるため参照・投稿の双方で認証を要求し、
-  // 回答者の氏名・メール・自由記述を含む管理系は admin に限定する。
+  // /admin 配下は 1 本のワイルドカードでまとめて守る。Hono のパスは完全一致なので
+  // "/admin/users" のような個別指定では "/admin/users/{userId}/role" のような
+  // ネストしたルートがガードから漏れる。新しい admin ルートを足すたびに
+  // ミドルウェア登録を追う必要をなくすため、ここは必ず "/admin/*" のままにすること。
+  v1.use("/admin/*", requireAuth, requireAdmin)
+  // フィードバックは回答者を認証セッションから決めるため参照・投稿の双方で認証を要求する。
+  // 回答者の氏名・メール・自由記述を含む管理系は上の /admin/* が admin に限定する。
   v1.use("/feedback/*", requireAuth)
   v1.use("/feedback/submissions", createFeedbackSubmitLimiter())
-  v1.use("/admin/feedback/*", requireAuth, requireAdmin)
   v1.openapi(healthRoute, deps.healthController.check)
   v1.openapi(getUserMeRoute, deps.userController.getUserMe)
   v1.openapi(updateUserMeRoute, deps.userController.updateUserMe)
@@ -100,6 +107,11 @@ export function buildApp(deps: AppDeps): OpenAPIHono<AppEnv> {
     deps.feedbackController.getActiveSurvey
   )
   v1.openapi(submitFeedbackRoute, deps.feedbackController.submitFeedback)
+  v1.openapi(listFeedbackSurveysRoute, deps.feedbackController.listSurveys)
+  v1.openapi(
+    getFeedbackSurveyDetailRoute,
+    deps.feedbackController.getSurveyDetail
+  )
   v1.openapi(
     listFeedbackSubmissionsRoute,
     deps.feedbackController.listSubmissions
@@ -172,6 +184,12 @@ export async function createApp(env: Env): Promise<CreatedApp> {
       feedbackSubmissionRepository,
       idGenerator
     )
+    const listFeedbackSurveysUseCase = new ListFeedbackSurveysUseCase(
+      feedbackQueryService
+    )
+    const getFeedbackSurveyDetailUseCase = new GetFeedbackSurveyDetailUseCase(
+      feedbackQueryService
+    )
     const listFeedbackSubmissionsUseCase = new ListFeedbackSubmissionsUseCase(
       feedbackQueryService
     )
@@ -191,6 +209,8 @@ export async function createApp(env: Env): Promise<CreatedApp> {
       feedbackController: new FeedbackController(
         getActiveFeedbackSurveyUseCase,
         submitFeedbackUseCase,
+        listFeedbackSurveysUseCase,
+        getFeedbackSurveyDetailUseCase,
         listFeedbackSubmissionsUseCase,
         summarizeFeedbackUseCase
       ),

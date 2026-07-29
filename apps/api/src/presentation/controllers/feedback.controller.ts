@@ -7,10 +7,15 @@ import {
   RequiredFeedbackAnswerMissingError,
   UnknownFeedbackQuestionError,
 } from "@workspace/domain"
-import { ActiveFeedbackSurveyNotFoundError } from "../../application"
+import {
+  ActiveFeedbackSurveyNotFoundError,
+  FeedbackSurveyNotFoundError,
+} from "../../application"
 import type {
   GetActiveFeedbackSurveyUseCase,
+  GetFeedbackSurveyDetailUseCase,
   ListFeedbackSubmissionsUseCase,
+  ListFeedbackSurveysUseCase,
   SubmitFeedbackUseCase,
   SummarizeFeedbackUseCase,
 } from "../../application"
@@ -19,7 +24,9 @@ import { ErrorCodes } from "../errors"
 import { errorResponse } from "../http"
 import type {
   getActiveFeedbackSurveyRoute,
+  getFeedbackSurveyDetailRoute,
   listFeedbackSubmissionsRoute,
+  listFeedbackSurveysRoute,
   submitFeedbackRoute,
   summarizeFeedbackRoute,
 } from "../routes"
@@ -51,6 +58,8 @@ export class FeedbackController {
   constructor(
     private readonly getActiveFeedbackSurveyUseCase: GetActiveFeedbackSurveyUseCase,
     private readonly submitFeedbackUseCase: SubmitFeedbackUseCase,
+    private readonly listFeedbackSurveysUseCase: ListFeedbackSurveysUseCase,
+    private readonly getFeedbackSurveyDetailUseCase: GetFeedbackSurveyDetailUseCase,
     private readonly listFeedbackSubmissionsUseCase: ListFeedbackSubmissionsUseCase,
     private readonly summarizeFeedbackUseCase: SummarizeFeedbackUseCase
   ) {}
@@ -109,6 +118,37 @@ export class FeedbackController {
       throw error
     }
   }
+
+  // GET /admin/feedback/surveys: 非公開アンケートも含む一覧。admin 限定。
+  listSurveys: RouteHandler<typeof listFeedbackSurveysRoute, AppEnv> = async (
+    c
+  ) => {
+    const surveys = await this.listFeedbackSurveysUseCase.execute()
+    return c.json(surveys, 200)
+  }
+
+  // GET /admin/feedback/surveys/{surveyId}: 集計グラフのラベル解決に使う設問付き詳細。
+  getSurveyDetail: RouteHandler<typeof getFeedbackSurveyDetailRoute, AppEnv> =
+    async (c) => {
+      const { surveyId } = c.req.valid("param")
+
+      try {
+        const survey = await this.getFeedbackSurveyDetailUseCase.execute({
+          surveyId,
+        })
+        return c.json(survey, 200)
+      } catch (error) {
+        if (error instanceof FeedbackSurveyNotFoundError) {
+          return errorResponse(
+            c,
+            404,
+            ErrorCodes.FEEDBACK_SURVEY_NOT_FOUND,
+            error.message
+          )
+        }
+        throw error
+      }
+    }
 
   // GET /admin/feedback/submissions: 回答者の氏名・メール・自由記述を含むため admin 限定。
   listSubmissions: RouteHandler<typeof listFeedbackSubmissionsRoute, AppEnv> =
