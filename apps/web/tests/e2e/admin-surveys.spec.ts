@@ -17,7 +17,7 @@ function corsHeaders(origin: string) {
     "access-control-allow-credentials": "true",
     "access-control-allow-headers":
       "content-type, x-signup-intent, x-captcha-response",
-    "access-control-allow-methods": "GET,POST,PATCH,OPTIONS",
+    "access-control-allow-methods": "GET,POST,PATCH,DELETE,OPTIONS",
   }
 }
 
@@ -83,6 +83,61 @@ function initialSurveys(): SurveyItem[] {
   ]
 }
 
+function draftSurveyDetail() {
+  return {
+    id: "srv_2",
+    slug: "draft-2026",
+    title: "下書きアンケート",
+    isActive: false,
+    createdAt: "2026-07-10T00:00:00.000Z",
+    questions: [
+      {
+        id: "q_draft_1",
+        type: "text" as const,
+        text: "改善点を教えてください",
+        required: false,
+        sortOrder: 0,
+        choices: [],
+      },
+    ],
+  }
+}
+
+function paginatedSubmissions(surveyId: string, offset: number, limit: number) {
+  const total = surveyId === "srv_2" ? 25 : 1
+  const items = Array.from(
+    { length: Math.min(limit, Math.max(0, total - offset)) },
+    (_, index) => {
+      const number = offset + index + 1
+      return {
+        id: `sub_${surveyId}_${number}`,
+        surveyId,
+        user: {
+          id: `user_${number}`,
+          email: `respondent${number}@example.com`,
+          name: `回答者 ${number}`,
+          displayName: `user${number}`,
+        },
+        createdAt: `2026-07-15T0${number % 10}:30:00.000Z`,
+        answers: [
+          {
+            questionId: surveyId === "srv_2" ? "q_draft_1" : "q_2",
+            questionText:
+              surveyId === "srv_2"
+                ? "改善点を教えてください"
+                : "理由を教えてください",
+            choiceValue: null,
+            choiceLabel: null,
+            textValue: `回答 ${number}`,
+          },
+        ],
+      }
+    }
+  )
+
+  return { items, total, limit, offset }
+}
+
 /**
  * `/api/auth/*` と `/api/v1/admin/**` をモックする。
  * surveys はテストごとの可変ステートとして持ち、POST/PATCH が反映された一覧を
@@ -131,6 +186,39 @@ async function mockSurveysFlow(page: Page, surveys: SurveyItem[]) {
       request.method() === "GET"
     ) {
       await json(200, { items: surveys })
+      return
+    }
+
+    const duplicateMatch = path.match(
+      /\/admin\/feedback\/surveys\/([^/]+)\/duplicate$/
+    )
+    if (duplicateMatch && request.method() === "POST") {
+      const source = surveys.find((survey) => survey.id === duplicateMatch[1])
+      if (!source) {
+        await json(404, {
+          error: "survey not found",
+          code: "FEEDBACK_SURVEY_NOT_FOUND",
+        })
+        return
+      }
+      const body = request.postDataJSON() as { slug: string; title: string }
+      const duplicated = {
+        id: `srv_${surveys.length + 1}`,
+        slug: body.slug,
+        title: body.title,
+        isActive: false,
+        questionCount: source.questionCount,
+        submissionCount: 0,
+        createdAt: NOW,
+      }
+      surveys.unshift(duplicated)
+      await json(201, {
+        id: duplicated.id,
+        slug: duplicated.slug,
+        title: duplicated.title,
+        isActive: false,
+        questions: [],
+      })
       return
     }
 
@@ -199,9 +287,35 @@ async function mockSurveysFlow(page: Page, surveys: SurveyItem[]) {
     }
 
     if (
+      path.endsWith("/admin/feedback/surveys/srv_2") &&
+      request.method() === "GET"
+    ) {
+      await json(200, draftSurveyDetail())
+      return
+    }
+
+    const questionsPatchMatch = path.match(
+      /\/admin\/feedback\/surveys\/([^/]+)\/questions$/
+    )
+    if (questionsPatchMatch && request.method() === "PATCH") {
+      await json(200, { questions: route.request().postDataJSON().questions })
+      return
+    }
+
+    if (
       path.endsWith("/admin/feedback/summary") &&
       request.method() === "GET"
     ) {
+      const surveyId = new URL(request.url()).searchParams.get("surveyId")
+      if (surveyId === "srv_2") {
+        await json(200, {
+          surveyId: "srv_2",
+          respondentCount: 25,
+          tallies: [],
+        })
+        return
+      }
+
       await json(200, {
         surveyId: "srv_1",
         respondentCount: 1,
@@ -214,6 +328,15 @@ async function mockSurveysFlow(page: Page, surveys: SurveyItem[]) {
       path.endsWith("/admin/feedback/submissions") &&
       request.method() === "GET"
     ) {
+      const url = new URL(request.url())
+      const surveyId = url.searchParams.get("surveyId") ?? "srv_1"
+      const offset = Number(url.searchParams.get("offset") ?? 0)
+      const limit = Number(url.searchParams.get("limit") ?? 20)
+      if (surveyId === "srv_2") {
+        await json(200, paginatedSubmissions(surveyId, offset, limit))
+        return
+      }
+
       await json(200, {
         items: [
           {
@@ -254,6 +377,20 @@ async function mockSurveysFlow(page: Page, surveys: SurveyItem[]) {
     const patchMatch = path.match(/\/admin\/feedback\/surveys\/([^/]+)$/)
     if (patchMatch && request.method() === "PATCH") {
       await handleSurveyPatch(route, json, surveys, patchMatch[1]!)
+      return
+    }
+
+    if (patchMatch && request.method() === "DELETE") {
+      const index = surveys.findIndex((survey) => survey.id === patchMatch[1])
+      if (index < 0) {
+        await json(404, {
+          error: "survey not found",
+          code: "FEEDBACK_SURVEY_NOT_FOUND",
+        })
+        return
+      }
+      surveys.splice(index, 1)
+      await route.fulfill({ status: 204, headers: cors })
       return
     }
 
@@ -396,6 +533,52 @@ test.describe("アンケート管理", () => {
     ).toBeVisible()
   })
 
+  test("下書きを複製すると、新しい非公開アンケートが一覧に追加される", async ({
+    page,
+  }) => {
+    await mockSurveysFlow(page, initialSurveys())
+
+    await page.goto("/admin/surveys")
+    const draftRow = page.getByRole("row", { name: /下書きアンケート/ })
+    await draftRow.getByRole("button", { name: "複製" }).click()
+    await page.getByLabel("新しいタイトル").fill("下書きアンケート 2027")
+    await page.getByLabel("新しい slug").fill("draft-2027")
+
+    const duplicatePromise = page.waitForRequest(
+      (request) =>
+        request.method() === "POST" &&
+        request.url().includes("/admin/feedback/surveys/srv_2/duplicate")
+    )
+    await page.getByRole("button", { name: "複製する" }).click()
+
+    expect((await duplicatePromise).postDataJSON()).toEqual({
+      title: "下書きアンケート 2027",
+      slug: "draft-2027",
+    })
+    await expect(
+      page.getByRole("row", { name: /下書きアンケート 2027/ })
+    ).toBeVisible()
+  })
+
+  test("未回答の下書きを確認後に削除すると一覧から消える", async ({ page }) => {
+    await mockSurveysFlow(page, initialSurveys())
+
+    await page.goto("/admin/surveys")
+    await page.getByRole("button", { name: "下書きアンケート を削除" }).click()
+
+    const deletePromise = page.waitForRequest(
+      (request) =>
+        request.method() === "DELETE" &&
+        request.url().includes("/admin/feedback/surveys/srv_2")
+    )
+    await page.getByRole("button", { name: "完全に削除" }).click()
+
+    await deletePromise
+    await expect(
+      page.getByRole("row", { name: /下書きアンケート/ })
+    ).not.toBeVisible()
+  })
+
   test("詳細で集計グラフと回答者・自由記述を表示する", async ({ page }) => {
     await mockSurveysFlow(page, initialSurveys())
 
@@ -418,5 +601,65 @@ test.describe("アンケート管理", () => {
     await expect(
       submissionRow.getByText("操作が分かりやすかったです。")
     ).toBeVisible()
+  })
+
+  test("設問保存後に集計と提出一覧を再取得し、提出一覧のページ位置を先頭へ戻す", async ({
+    page,
+  }) => {
+    await mockSurveysFlow(page, initialSurveys())
+    const summaryRequests: string[] = []
+    const submissionOffsets: number[] = []
+
+    page.on("request", (request) => {
+      const url = new URL(request.url())
+      if (
+        request.method() === "GET" &&
+        url.pathname.endsWith("/admin/feedback/summary") &&
+        url.searchParams.get("surveyId") === "srv_2"
+      ) {
+        summaryRequests.push(url.toString())
+      }
+      if (
+        request.method() === "GET" &&
+        url.pathname.endsWith("/admin/feedback/submissions") &&
+        url.searchParams.get("surveyId") === "srv_2"
+      ) {
+        submissionOffsets.push(Number(url.searchParams.get("offset") ?? 0))
+      }
+    })
+
+    await page.goto("/admin/surveys/srv_2")
+    await expect(page.getByText("1–20 / 25 件")).toBeVisible()
+    await expect(page.getByText("respondent1@example.com")).toBeVisible()
+
+    await page.getByRole("button", { name: "次へ" }).click()
+    await expect(page.getByText("21–25 / 25 件")).toBeVisible()
+    await expect(page.getByText("respondent21@example.com")).toBeVisible()
+
+    await page.getByRole("button", { name: "設問を編集" }).click()
+    const question = page.getByLabel("本文")
+    await question.fill("保存後に再取得される設問")
+    const patchPromise = page.waitForRequest(
+      (request) =>
+        request.method() === "PATCH" &&
+        request.url().includes("/admin/feedback/surveys/srv_2/questions")
+    )
+    await page.getByRole("button", { name: "設問を保存" }).click()
+    const patchRequest = await patchPromise
+    expect(patchRequest.postDataJSON()).toEqual({
+      questions: [
+        {
+          type: "text",
+          text: "保存後に再取得される設問",
+          required: false,
+          choices: [],
+        },
+      ],
+    })
+
+    await expect(page.getByText("1–20 / 25 件")).toBeVisible()
+    await expect(page.getByText("respondent1@example.com")).toBeVisible()
+    expect(summaryRequests.length).toBeGreaterThanOrEqual(2)
+    expect(submissionOffsets).toEqual(expect.arrayContaining([0, 20, 0]))
   })
 })
