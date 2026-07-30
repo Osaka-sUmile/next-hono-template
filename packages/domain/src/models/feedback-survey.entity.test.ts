@@ -6,6 +6,7 @@ import {
   FeedbackQuestionEntity,
   FeedbackSurveyDraft,
   FeedbackSurveyEntity,
+  FeedbackSurveyMustBeInactiveError,
   FeedbackSurveySlugConflictError,
   InvalidFeedbackQuestionTypeError,
   parseFeedbackQuestionType,
@@ -564,6 +565,38 @@ describe("FeedbackSurveyEntity のミューテーター", () => {
     expect(() => empty.activate()).toThrow(EmptyActiveFeedbackSurveyError)
     // 公開できないだけで、非公開のままにする操作は常に成功する。
     expect(empty.deactivate().isActive).toBe(false)
+  })
+
+  it("非公開アンケートの設問セットを置換し、配列順からsortOrderを導出する", () => {
+    const original = createSurvey(false)
+
+    const replaced = original.replaceQuestions([
+      {
+        id: "new-question",
+        type: "single_choice",
+        text: "新しい設問",
+        required: true,
+        choices: [{ id: "new-choice", value: "yes", label: "はい" }],
+      },
+    ])
+
+    expect(replaced).not.toBe(original)
+    expect(replaced.isActive).toBe(false)
+    expect(replaced.questions[0]).toMatchObject({
+      id: "new-question",
+      sortOrder: 0,
+    })
+    expect(replaced.questions[0]?.choices[0]).toMatchObject({
+      id: "new-choice",
+      sortOrder: 0,
+    })
+    expect(original.questions[0]?.id).toBe("question-1")
+  })
+
+  it("公開中アンケートの設問置換を拒否する", () => {
+    expect(() => createSurvey().replaceQuestions([])).toThrow(
+      FeedbackSurveyMustBeInactiveError
+    )
   })
 })
 

@@ -15,6 +15,8 @@ import {
 import {
   ChangeUserRoleUseCase,
   CreateFeedbackSurveyUseCase,
+  DeleteFeedbackSurveyUseCase,
+  DuplicateFeedbackSurveyUseCase,
   GetActiveFeedbackSurveyUseCase,
   GetAdminSummaryUseCase,
   GetCurrentUserUseCase,
@@ -22,6 +24,7 @@ import {
   ListFeedbackSubmissionsUseCase,
   ListFeedbackSurveysUseCase,
   ListUsersUseCase,
+  ReplaceFeedbackSurveyQuestionsUseCase,
   SubmitFeedbackUseCase,
   SummarizeFeedbackUseCase,
   UpdateFeedbackSurveyUseCase,
@@ -39,6 +42,8 @@ import {
   requireAdmin,
   changeUserRoleRoute,
   createFeedbackSurveyRoute,
+  deleteFeedbackSurveyRoute,
+  duplicateFeedbackSurveyRoute,
   healthRoute,
   getAdminSummaryRoute,
   getUserMeRoute,
@@ -47,6 +52,7 @@ import {
   getActiveFeedbackSurveyRoute,
   submitFeedbackRoute,
   listFeedbackSurveysRoute,
+  replaceFeedbackSurveyQuestionsRoute,
   getFeedbackSurveyDetailRoute,
   listFeedbackSubmissionsRoute,
   summarizeFeedbackRoute,
@@ -130,6 +136,15 @@ export function buildApp(deps: AppDeps): OpenAPIHono<AppEnv> {
   v1.openapi(summarizeFeedbackRoute, deps.feedbackController.getSummary)
   v1.openapi(createFeedbackSurveyRoute, deps.feedbackController.createSurvey)
   v1.openapi(updateFeedbackSurveyRoute, deps.feedbackController.updateSurvey)
+  v1.openapi(
+    replaceFeedbackSurveyQuestionsRoute,
+    deps.feedbackController.replaceSurveyQuestions
+  )
+  v1.openapi(
+    duplicateFeedbackSurveyRoute,
+    deps.feedbackController.duplicateSurvey
+  )
+  v1.openapi(deleteFeedbackSurveyRoute, deps.feedbackController.deleteSurvey)
 
   app.route("/api/v1", v1)
 
@@ -219,6 +234,18 @@ export async function createApp(env: Env): Promise<CreatedApp> {
     const updateFeedbackSurveyUseCase = new UpdateFeedbackSurveyUseCase(
       feedbackSurveyRepository
     )
+    const replaceFeedbackSurveyQuestionsUseCase =
+      new ReplaceFeedbackSurveyQuestionsUseCase(
+        feedbackSurveyRepository,
+        idGenerator
+      )
+    const duplicateFeedbackSurveyUseCase = new DuplicateFeedbackSurveyUseCase(
+      feedbackSurveyRepository,
+      idGenerator
+    )
+    const deleteFeedbackSurveyUseCase = new DeleteFeedbackSurveyUseCase(
+      feedbackSurveyRepository
+    )
 
     const app = buildApp({
       env,
@@ -241,7 +268,10 @@ export async function createApp(env: Env): Promise<CreatedApp> {
         listFeedbackSubmissionsUseCase,
         summarizeFeedbackUseCase,
         createFeedbackSurveyUseCase,
-        updateFeedbackSurveyUseCase
+        updateFeedbackSurveyUseCase,
+        replaceFeedbackSurveyQuestionsUseCase,
+        duplicateFeedbackSurveyUseCase,
+        deleteFeedbackSurveyUseCase
       ),
     })
 

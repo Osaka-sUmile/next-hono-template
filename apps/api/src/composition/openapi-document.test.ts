@@ -27,6 +27,7 @@ type OpenApiDocument = {
     string,
     {
       get?: OpenApiOperation
+      delete?: OpenApiOperation
       patch?: OpenApiOperation
       post?: OpenApiOperation
     }
@@ -58,8 +59,15 @@ describe("GET /api-docs/openapi.json", () => {
         post: expect.any(Object),
       },
       "/api/v1/admin/feedback/surveys/{surveyId}": {
+        delete: expect.any(Object),
         get: expect.any(Object),
         patch: expect.any(Object),
+      },
+      "/api/v1/admin/feedback/surveys/{surveyId}/questions": {
+        patch: expect.any(Object),
+      },
+      "/api/v1/admin/feedback/surveys/{surveyId}/duplicate": {
+        post: expect.any(Object),
       },
       "/api/v1/admin/feedback/submissions": { get: expect.any(Object) },
       "/api/v1/admin/feedback/summary": { get: expect.any(Object) },
@@ -104,6 +112,10 @@ describe("GET /api-docs/openapi.json", () => {
     ).toEqual([{ cookieAuth: [] }])
     expect(
       document.paths["/api/v1/admin/feedback/surveys/{surveyId}"]?.patch
+        ?.security
+    ).toEqual([{ cookieAuth: [] }])
+    expect(
+      document.paths["/api/v1/admin/feedback/surveys/{surveyId}"]?.delete
         ?.security
     ).toEqual([{ cookieAuth: [] }])
     expect(
@@ -186,6 +198,10 @@ describe("GET /api-docs/openapi.json", () => {
     const surveyWriteOperations = [
       document.paths["/api/v1/admin/feedback/surveys"]?.post,
       document.paths["/api/v1/admin/feedback/surveys/{surveyId}"]?.patch,
+      document.paths["/api/v1/admin/feedback/surveys/{surveyId}/questions"]
+        ?.patch,
+      document.paths["/api/v1/admin/feedback/surveys/{surveyId}/duplicate"]
+        ?.post,
     ]
     const writeOperations = [
       document.paths["/api/v1/admin/users/{userId}/role"]?.patch,
@@ -206,6 +222,11 @@ describe("GET /api-docs/openapi.json", () => {
         },
       })
     }
+
+    expect(
+      document.paths["/api/v1/admin/feedback/surveys/{surveyId}"]?.delete
+        ?.responses?.["204"]
+    ).toBeDefined()
 
     expect(
       document.paths[

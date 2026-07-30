@@ -3,7 +3,9 @@ import {
   EmptyActiveFeedbackSurveyError,
   FeedbackChoice,
   FeedbackQuestionEntity,
+  FeedbackSurveyHasSubmissionsError,
   FeedbackSurveyEntity,
+  FeedbackSurveyMustBeInactiveError,
   FeedbackSurveySlugConflictError,
   IFeedbackSurveyRepository,
   parseFeedbackQuestionType,
@@ -61,65 +63,113 @@ export class FeedbackSurveyPrismaRepository implements IFeedbackSurveyRepository
     return this.toDomain(survey)
   }
 
-  /**
-   * create 分岐と update 分岐で扱う範囲が意図的に非対称であることに注意。
-   *
-   * - create: 設問・選択肢をネストして一括作成する（回答が存在しないため安全）。
-   * - update: スカラー (slug / title / isActive) だけを更新し、設問・選択肢には一切触らない。
-   *
-   * `FeedbackAnswer.choiceId` が `onDelete: Restrict`、`FeedbackChoice.question` が
-   * `onDelete: Cascade` であるため、既存設問の入れ替えは回答済みデータに対して一般に失敗する。
-   * `UserPrismaRepository.save` が `emailVerified` を触らないのと同じ形で、更新対象から外している。
-   * したがって「既存アンケートに対して設問を変えて save しても設問は変わらない」。
-   * 設問の編集は別途専用の経路（提出 0 件ガード付きの置き換え等）を設計する必要がある。
-   */
-  async save(entity: FeedbackSurveyEntity): Promise<FeedbackSurveyEntity> {
+  async insert(entity: FeedbackSurveyEntity): Promise<FeedbackSurveyEntity> {
     try {
-      const survey = await this.prisma.feedbackSurvey.upsert({
-        where: { id: entity.id },
-        update: {
-          slug: entity.slug,
-          title: entity.title,
-          isActive: entity.isActive,
-        },
-        create: {
+      const survey = await this.prisma.feedbackSurvey.create({
+        data: {
           id: entity.id,
           slug: entity.slug,
           title: entity.title,
           isActive: entity.isActive,
           questions: {
-            create: entity.questions.map((question) => ({
-              id: question.id,
-              type: question.type,
-              text: question.text,
-              required: question.required,
-              sortOrder: question.sortOrder,
-              choices: {
-                create: question.choices.map((choice) => ({
-                  id: choice.id,
-                  value: choice.value,
-                  label: choice.label,
-                  sortOrder: choice.sortOrder,
-                })),
-              },
-            })),
+            create: entity.questions.map(questionCreateInput),
           },
         },
         include: SURVEY_INCLUDE,
       })
       return this.toDomain(survey)
     } catch (error) {
-      // slug の一意制約違反だけをドメインエラーへ翻訳する。use-case 側で findBySlug を
-      // 事前チェックする方式は TOCTOU で結果的に 500 になるため採らない。
-      if (isSlugUniqueViolation(error)) {
-        throw new FeedbackSurveySlugConflictError(entity.slug)
-      }
-      throw error
+      throw translateSlugConflict(error, entity.slug)
+    }
+  }
+
+  /**
+   * `FeedbackAnswer.choiceId` が `onDelete: Restrict`、`FeedbackChoice.question` が
+   * `onDelete: Cascade` であるため、スカラー (slug / title / isActive) だけを更新し、
+   * 設問・選択肢には一切触らない。設問の編集は `replaceQuestions` が担当する。
+   *
+   * insert と分離して update を使うことで、事前読込後に delete が先行した場合も
+   * 古い Entity からアンケートを再作成しない。
+   */
+  async update(
+    entity: FeedbackSurveyEntity
+  ): Promise<FeedbackSurveyEntity | null> {
+    try {
+      const survey = await this.prisma.$transaction(async (tx) => {
+        const state = await lockSurvey(tx, entity.id)
+        if (!state) return null
+        if (entity.isActive) {
+          // 設問置換との競合で、古いEntityスナップショットから active + 設問0件を
+          // 保存しない。行ロック後の永続状態を検証してから同じtransactionで更新する。
+          const questionCount = await tx.feedbackQuestion.count({
+            where: { surveyId: entity.id },
+          })
+          if (questionCount === 0) {
+            throw new EmptyActiveFeedbackSurveyError(entity.id)
+          }
+        }
+
+        return tx.feedbackSurvey.update({
+          where: { id: entity.id },
+          data: {
+            slug: entity.slug,
+            title: entity.title,
+            isActive: entity.isActive,
+          },
+          include: SURVEY_INCLUDE,
+        })
+      })
+      return survey ? this.toDomain(survey) : null
+    } catch (error) {
+      throw translateSlugConflict(error, entity.slug)
     }
   }
 
   async delete(entity: FeedbackSurveyEntity): Promise<void> {
-    await this.prisma.feedbackSurvey.delete({ where: { id: entity.id } })
+    await this.prisma.$transaction(async (tx) => {
+      const state = await lockSurvey(tx, entity.id)
+      if (!state) return
+      ensureDraftCanChange(entity.id, state.isActive)
+      const submissionCount = await tx.feedbackSubmission.count({
+        where: { surveyId: entity.id },
+      })
+      if (submissionCount > 0) {
+        throw new FeedbackSurveyHasSubmissionsError(entity.id)
+      }
+      await tx.feedbackSurvey.delete({ where: { id: entity.id } })
+    })
+  }
+
+  async replaceQuestions(
+    entity: FeedbackSurveyEntity
+  ): Promise<FeedbackSurveyEntity | null> {
+    return this.prisma.$transaction(async (tx) => {
+      const state = await lockSurvey(tx, entity.id)
+      if (!state) return null
+      ensureDraftCanChange(entity.id, state.isActive)
+      const submissionCount = await tx.feedbackSubmission.count({
+        where: { surveyId: entity.id },
+      })
+      if (submissionCount > 0) {
+        throw new FeedbackSurveyHasSubmissionsError(entity.id)
+      }
+
+      // 全削除後に配列順で再作成するため、sortOrder の複合 unique と衝突しない。
+      await tx.feedbackQuestion.deleteMany({ where: { surveyId: entity.id } })
+      await tx.feedbackSurvey.update({
+        where: { id: entity.id },
+        data: {
+          questions: {
+            create: entity.questions.map(questionCreateInput),
+          },
+        },
+      })
+      const survey = await tx.feedbackSurvey.findUnique({
+        where: { id: entity.id },
+        include: SURVEY_INCLUDE,
+      })
+      return survey ? this.toDomain(survey) : null
+    })
   }
 
   /**
@@ -137,11 +187,13 @@ export class FeedbackSurveyPrismaRepository implements IFeedbackSurveyRepository
     await this.prisma.$transaction(async (tx) => {
       // Entity 側の不変条件（設問 0 件は公開不可）を永続化状態に対しても検証する。
       // Entity は読み込み時点のスナップショットであり、その後に設問が消えている可能性がある。
-      const survey = await tx.feedbackSurvey.findUnique({
-        where: { id: entity.id },
-        select: { _count: { select: { questions: true } } },
+      // 設問置換も同じ survey 行をロックするため、件数確認から有効化までの間に
+      // 設問が全削除され、active + 設問 0 件になる競合を防ぐ。
+      const state = await lockSurvey(tx, entity.id)
+      const questionCount = await tx.feedbackQuestion.count({
+        where: { surveyId: entity.id },
       })
-      if (!survey || survey._count.questions === 0) {
+      if (!state || questionCount === 0) {
         throw new EmptyActiveFeedbackSurveyError(entity.id)
       }
       await tx.feedbackSurvey.updateMany({
@@ -192,10 +244,49 @@ export class FeedbackSurveyPrismaRepository implements IFeedbackSurveyRepository
   }
 }
 
+async function lockSurvey(
+  tx: Prisma.TransactionClient,
+  surveyId: string
+): Promise<{ isActive: boolean } | null> {
+  const rows = await tx.$queryRaw<{ isActive: boolean }[]>`
+    SELECT "isActive"
+    FROM "FeedbackSurvey"
+    WHERE "id" = ${surveyId}
+    FOR UPDATE
+  `
+  return rows[0] ?? null
+}
+
+function ensureDraftCanChange(surveyId: string, isActive: boolean): void {
+  if (isActive) {
+    throw new FeedbackSurveyMustBeInactiveError(surveyId)
+  }
+}
+
+function questionCreateInput(
+  question: FeedbackQuestionEntity
+): Prisma.FeedbackQuestionCreateWithoutSurveyInput {
+  return {
+    id: question.id,
+    type: question.type,
+    text: question.text,
+    required: question.required,
+    sortOrder: question.sortOrder,
+    choices: {
+      create: question.choices.map((choice) => ({
+        id: choice.id,
+        value: choice.value,
+        label: choice.label,
+        sortOrder: choice.sortOrder,
+      })),
+    },
+  }
+}
+
 /**
  * P2002 が「FeedbackSurvey.slug の衝突」かどうかを判定する。
  *
- * save() の create 分岐は FeedbackQuestion / FeedbackChoice をネスト作成するため、
+ * insert() は FeedbackQuestion / FeedbackChoice をネスト作成するため、
  * それらの主キーや `@@unique` 違反も同じ P2002 として到達しうる。しかも
  * ネストした設問の主キー衝突は `meta.modelName` が外側の "FeedbackSurvey" になるため、
  * モデル名では判別できない。違反した制約のフィールドで判定する必要がある。
@@ -212,6 +303,14 @@ function isSlugUniqueViolation(error: unknown): boolean {
   }
   const fields = extractUniqueConstraintFields(error.meta)
   return fields !== null && fields.length === 1 && fields[0] === "slug"
+}
+
+function translateSlugConflict(error: unknown, slug: string): unknown {
+  // slug の一意制約違反だけをドメインエラーへ翻訳する。use-case 側で findBySlug を
+  // 事前チェックする方式は TOCTOU で結果的に 500 になるため採らない。
+  return isSlugUniqueViolation(error)
+    ? new FeedbackSurveySlugConflictError(slug)
+    : error
 }
 
 /**

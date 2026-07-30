@@ -42,33 +42,33 @@ function createSurvey(
 function createDeps(
   overrides: {
     findById?: ReturnType<typeof vi.fn>
-    save?: ReturnType<typeof vi.fn>
+    update?: ReturnType<typeof vi.fn>
     activateExclusively?: ReturnType<typeof vi.fn>
   } = {}
 ) {
   const findById =
     overrides.findById ?? vi.fn().mockResolvedValue(createSurvey())
-  const save =
-    overrides.save ??
+  const update =
+    overrides.update ??
     vi.fn().mockImplementation(async (entity: FeedbackSurveyEntity) => entity)
   const activateExclusively = overrides.activateExclusively ?? vi.fn()
   const repository = {
     findById,
-    save,
+    update,
     activateExclusively,
   } as unknown as IFeedbackSurveyRepository
-  return { repository, findById, save, activateExclusively }
+  return { repository, findById, update, activateExclusively }
 }
 
 describe("UpdateFeedbackSurveyUseCase", () => {
-  it("throws FeedbackSurveyNotFoundError without saving for an unknown id", async () => {
+  it("throws FeedbackSurveyNotFoundError without updating for an unknown id", async () => {
     const deps = createDeps({ findById: vi.fn().mockResolvedValue(null) })
     const useCase = new UpdateFeedbackSurveyUseCase(deps.repository)
 
     await expect(
       useCase.execute({ surveyId: "missing", title: "更新" })
     ).rejects.toBeInstanceOf(FeedbackSurveyNotFoundError)
-    expect(deps.save).not.toHaveBeenCalled()
+    expect(deps.update).not.toHaveBeenCalled()
   })
 
   it("partially updates slug and title while preserving other fields and questions", async () => {
@@ -84,7 +84,7 @@ describe("UpdateFeedbackSurveyUseCase", () => {
       title: "更新後",
     })
 
-    const saved = deps.save.mock.calls[0]?.[0] as FeedbackSurveyEntity
+    const saved = deps.update.mock.calls[0]?.[0] as FeedbackSurveyEntity
     expect(saved.slug).toBe("updated-slug")
     expect(saved.title).toBe("更新後")
     expect(saved.isActive).toBe(false)
@@ -95,13 +95,13 @@ describe("UpdateFeedbackSurveyUseCase", () => {
     expect(result.title).toBe("更新後")
   })
 
-  it("saves an activated entity before exclusively activating the saved result", async () => {
+  it("updates an activated entity before exclusively activating the result", async () => {
     const calls: string[] = []
     let persisted: FeedbackSurveyEntity | undefined
-    const save = vi
+    const update = vi
       .fn()
       .mockImplementation(async (entity: FeedbackSurveyEntity) => {
-        calls.push("save")
+        calls.push("update")
         persisted = FeedbackSurveyEntity.reconstitute(
           "persisted-survey",
           entity.slug,
@@ -114,7 +114,7 @@ describe("UpdateFeedbackSurveyUseCase", () => {
     const activateExclusively = vi.fn().mockImplementation(async () => {
       calls.push("activateExclusively")
     })
-    const deps = createDeps({ save, activateExclusively })
+    const deps = createDeps({ update, activateExclusively })
     const useCase = new UpdateFeedbackSurveyUseCase(deps.repository)
 
     const result = await useCase.execute({
@@ -122,34 +122,34 @@ describe("UpdateFeedbackSurveyUseCase", () => {
       isActive: true,
     })
 
-    const inputToSave = save.mock.calls[0]?.[0] as FeedbackSurveyEntity
-    expect(inputToSave.isActive).toBe(true)
-    expect(calls).toEqual(["save", "activateExclusively"])
+    const inputToUpdate = update.mock.calls[0]?.[0] as FeedbackSurveyEntity
+    expect(inputToUpdate.isActive).toBe(true)
+    expect(calls).toEqual(["update", "activateExclusively"])
     expect(activateExclusively).toHaveBeenCalledWith(persisted)
     expect(result.id).toBe("persisted-survey")
     expect(result.isActive).toBe(true)
   })
 
-  it("propagates an exclusive activation failure after saving", async () => {
+  it("propagates an exclusive activation failure after updating", async () => {
     const calls: string[] = []
     const failure = new Error("activation failed")
-    const save = vi
+    const update = vi
       .fn()
       .mockImplementation(async (entity: FeedbackSurveyEntity) => {
-        calls.push("save")
+        calls.push("update")
         return entity
       })
     const activateExclusively = vi.fn().mockImplementation(async () => {
       calls.push("activateExclusively")
       throw failure
     })
-    const deps = createDeps({ save, activateExclusively })
+    const deps = createDeps({ update, activateExclusively })
     const useCase = new UpdateFeedbackSurveyUseCase(deps.repository)
 
     await expect(
       useCase.execute({ surveyId: "survey-1", isActive: true })
     ).rejects.toBe(failure)
-    expect(calls).toEqual(["save", "activateExclusively"])
+    expect(calls).toEqual(["update", "activateExclusively"])
   })
 
   it("does not exclusively activate when deactivating", async () => {
@@ -164,7 +164,7 @@ describe("UpdateFeedbackSurveyUseCase", () => {
     })
 
     expect(
-      (deps.save.mock.calls[0]?.[0] as FeedbackSurveyEntity).isActive
+      (deps.update.mock.calls[0]?.[0] as FeedbackSurveyEntity).isActive
     ).toBe(false)
     expect(result.isActive).toBe(false)
     expect(deps.activateExclusively).not.toHaveBeenCalled()
@@ -190,13 +190,13 @@ describe("UpdateFeedbackSurveyUseCase", () => {
     await expect(
       useCase.execute({ surveyId: "survey-1", isActive: true })
     ).rejects.toBeInstanceOf(EmptyActiveFeedbackSurveyError)
-    expect(deps.save).not.toHaveBeenCalled()
+    expect(deps.update).not.toHaveBeenCalled()
     expect(deps.activateExclusively).not.toHaveBeenCalled()
   })
 
-  it("does not stop other surveys when saving fails with a slug conflict", async () => {
+  it("does not stop other surveys when updating fails with a slug conflict", async () => {
     const conflict = new FeedbackSurveySlugConflictError("duplicate")
-    const deps = createDeps({ save: vi.fn().mockRejectedValue(conflict) })
+    const deps = createDeps({ update: vi.fn().mockRejectedValue(conflict) })
     const useCase = new UpdateFeedbackSurveyUseCase(deps.repository)
 
     await expect(
@@ -207,5 +207,14 @@ describe("UpdateFeedbackSurveyUseCase", () => {
       })
     ).rejects.toBe(conflict)
     expect(deps.activateExclusively).not.toHaveBeenCalled()
+  })
+
+  it("throws not found when a concurrent delete wins before update", async () => {
+    const deps = createDeps({ update: vi.fn().mockResolvedValue(null) })
+    const useCase = new UpdateFeedbackSurveyUseCase(deps.repository)
+
+    await expect(
+      useCase.execute({ surveyId: "survey-1", title: "更新後" })
+    ).rejects.toBeInstanceOf(FeedbackSurveyNotFoundError)
   })
 })

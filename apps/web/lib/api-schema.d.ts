@@ -804,7 +804,85 @@ export interface paths {
         };
         put?: never;
         post?: never;
-        delete?: never;
+        /**
+         * Delete an unsubmitted draft survey (admin only)
+         * @description Hard-deletes an inactive survey only when it has no submissions. Its slug becomes reusable.
+         */
+        delete: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path: {
+                    /** @description Draft survey to mutate */
+                    surveyId: string;
+                };
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description The survey was deleted */
+                204: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content?: never;
+                };
+                /** @description Invalid surveyId (VALIDATION_ERROR) */
+                400: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["Error"];
+                    };
+                };
+                /** @description Unauthorized (missing or invalid session) */
+                401: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["Error"];
+                    };
+                };
+                /** @description Forbidden (authenticated but not an admin) */
+                403: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["Error"];
+                    };
+                };
+                /** @description No survey has that id (FEEDBACK_SURVEY_NOT_FOUND) */
+                404: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["Error"];
+                    };
+                };
+                /** @description Survey is active or already has submissions (FEEDBACK_SURVEY_MUST_BE_INACTIVE / FEEDBACK_SURVEY_HAS_SUBMISSIONS) */
+                409: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["Error"];
+                    };
+                };
+                /** @description Internal Server Error */
+                500: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["Error"];
+                    };
+                };
+            };
+        };
         options?: never;
         head?: never;
         /**
@@ -1058,6 +1136,222 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/admin/feedback/surveys/{surveyId}/questions": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        /**
+         * Replace every question in a draft survey (admin only)
+         * @description Replaces the complete question set. The survey must be inactive and have no submissions. Question and choice ids are regenerated.
+         */
+        patch: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path: {
+                    /** @description Draft survey to mutate */
+                    surveyId: string;
+                };
+                cookie?: never;
+            };
+            requestBody: {
+                content: {
+                    "application/json": {
+                        questions: {
+                            /** @enum {string} */
+                            type: "single_choice" | "text";
+                            text: string;
+                            /** @default false */
+                            required?: boolean;
+                            /** @default [] */
+                            choices?: {
+                                value: string;
+                                label: string;
+                            }[];
+                        }[];
+                    };
+                };
+            };
+            responses: {
+                /** @description The survey with its replacement question set */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["FeedbackSurveyMutationResult"];
+                    };
+                };
+                /** @description Request validation failed (VALIDATION_ERROR) */
+                400: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["Error"];
+                    };
+                };
+                /** @description Unauthorized (missing or invalid session) */
+                401: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["Error"];
+                    };
+                };
+                /** @description Forbidden (authenticated but not an admin) */
+                403: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["Error"];
+                    };
+                };
+                /** @description No survey has that id (FEEDBACK_SURVEY_NOT_FOUND) */
+                404: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["Error"];
+                    };
+                };
+                /** @description Survey is active or already has submissions (FEEDBACK_SURVEY_MUST_BE_INACTIVE / FEEDBACK_SURVEY_HAS_SUBMISSIONS) */
+                409: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["Error"];
+                    };
+                };
+                /** @description Internal Server Error */
+                500: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["Error"];
+                    };
+                };
+            };
+        };
+        trace?: never;
+    };
+    "/api/v1/admin/feedback/surveys/{surveyId}/duplicate": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Duplicate a feedback survey (admin only)
+         * @description Copies questions and choices into a new inactive survey with new ids. Submissions and answers are not copied.
+         */
+        post: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path: {
+                    /** @description Survey to copy questions from */
+                    surveyId: string;
+                };
+                cookie?: never;
+            };
+            requestBody: {
+                content: {
+                    "application/json": {
+                        slug: string;
+                        title: string;
+                    };
+                };
+            };
+            responses: {
+                /** @description The new inactive survey */
+                201: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["FeedbackSurveyMutationResult"];
+                    };
+                };
+                /** @description Request validation failed (VALIDATION_ERROR) */
+                400: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["Error"];
+                    };
+                };
+                /** @description Unauthorized (missing or invalid session) */
+                401: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["Error"];
+                    };
+                };
+                /** @description Forbidden (authenticated but not an admin) */
+                403: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["Error"];
+                    };
+                };
+                /** @description No survey has that id (FEEDBACK_SURVEY_NOT_FOUND) */
+                404: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["Error"];
+                    };
+                };
+                /** @description Slug conflict (FEEDBACK_SURVEY_SLUG_CONFLICT) */
+                409: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["Error"];
+                    };
+                };
+                /** @description Internal Server Error */
+                500: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["Error"];
+                    };
+                };
+            };
+        };
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
 }
 export type webhooks = Record<string, never>;
 export interface components {
@@ -1093,7 +1387,7 @@ export interface components {
              * @description Machine-readable error code for client-side handling.
              * @enum {string}
              */
-            code: "USER_NOT_FOUND" | "SESSION_INVALID" | "SESSION_EXPIRED" | "SESSION_FETCH_FAILED" | "FORBIDDEN" | "CANNOT_CHANGE_OWN_ROLE" | "FEEDBACK_SURVEY_NOT_FOUND" | "FEEDBACK_SURVEY_SLUG_CONFLICT" | "FEEDBACK_SURVEY_NOT_PUBLISHABLE" | "FEEDBACK_INVALID_ANSWER" | "RATE_LIMIT_EXCEEDED" | "VALIDATION_ERROR" | "INTERNAL_ERROR";
+            code: "USER_NOT_FOUND" | "SESSION_INVALID" | "SESSION_EXPIRED" | "SESSION_FETCH_FAILED" | "FORBIDDEN" | "CANNOT_CHANGE_OWN_ROLE" | "FEEDBACK_SURVEY_NOT_FOUND" | "FEEDBACK_SURVEY_SLUG_CONFLICT" | "FEEDBACK_SURVEY_NOT_PUBLISHABLE" | "FEEDBACK_SURVEY_MUST_BE_INACTIVE" | "FEEDBACK_SURVEY_HAS_SUBMISSIONS" | "FEEDBACK_INVALID_ANSWER" | "RATE_LIMIT_EXCEEDED" | "VALIDATION_ERROR" | "INTERNAL_ERROR";
         };
         UserProfile: {
             id: string;

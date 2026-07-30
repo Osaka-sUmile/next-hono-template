@@ -1,6 +1,8 @@
 import { describe, expect, it, vi } from "vitest"
 import {
   EmptyActiveFeedbackSurveyError,
+  FeedbackSurveyHasSubmissionsError,
+  FeedbackSurveyMustBeInactiveError,
   FeedbackSurveySlugConflictError,
   InvalidArgumentError,
   UnknownFeedbackQuestionError,
@@ -67,6 +69,28 @@ function patchSurvey(surveyId: string, body: unknown): Request {
     `http://localhost/api/v1/admin/feedback/surveys/${surveyId}`,
     {
       method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(body),
+    }
+  )
+}
+
+function patchSurveyQuestions(surveyId: string, body: unknown): Request {
+  return new Request(
+    `http://localhost/api/v1/admin/feedback/surveys/${surveyId}/questions`,
+    {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(body),
+    }
+  )
+}
+
+function duplicateSurvey(surveyId: string, body: unknown): Request {
+  return new Request(
+    `http://localhost/api/v1/admin/feedback/surveys/${surveyId}/duplicate`,
+    {
+      method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify(body),
     }
@@ -665,6 +689,193 @@ describe("PATCH /api/v1/admin/feedback/surveys/{surveyId}", () => {
 
     expect(res.status).toBe(500)
     expect((await errorBody(res)).code).toBe(ErrorCodes.INTERNAL_ERROR)
+  })
+})
+
+describe("PATCH /api/v1/admin/feedback/surveys/{surveyId}/questions", () => {
+  const body = {
+    questions: [{ type: "text", text: "新しい設問" }],
+  }
+
+  it("returns 200 and passes the complete normalized question set", async () => {
+    const { app, replaceFeedbackSurveyQuestions } = createTestApp({
+      getSession: vi.fn().mockResolvedValue(adminSession),
+      replaceFeedbackSurveyQuestions: vi.fn().mockResolvedValue(mutationDto),
+    })
+
+    const res = await app.request(patchSurveyQuestions("survey-1", body))
+
+    expect(res.status).toBe(200)
+    expect(await res.json()).toEqual(mutationDto)
+    expect(replaceFeedbackSurveyQuestions).toHaveBeenCalledWith({
+      surveyId: "survey-1",
+      questions: [
+        {
+          type: "text",
+          text: "新しい設問",
+          required: false,
+          choices: [],
+        },
+      ],
+    })
+  })
+
+  it.each([
+    [
+      new FeedbackSurveyMustBeInactiveError("survey-1"),
+      ErrorCodes.FEEDBACK_SURVEY_MUST_BE_INACTIVE,
+    ],
+    [
+      new FeedbackSurveyHasSubmissionsError("survey-1"),
+      ErrorCodes.FEEDBACK_SURVEY_HAS_SUBMISSIONS,
+    ],
+  ])("returns 409 for a protected survey", async (error, code) => {
+    const { app } = createTestApp({
+      getSession: vi.fn().mockResolvedValue(adminSession),
+      replaceFeedbackSurveyQuestions: vi.fn().mockRejectedValue(error),
+    })
+
+    const res = await app.request(patchSurveyQuestions("survey-1", body))
+
+    expect(res.status).toBe(409)
+    expect((await errorBody(res)).code).toBe(code)
+  })
+
+  it("returns 404 when the survey does not exist", async () => {
+    const { app } = createTestApp({
+      getSession: vi.fn().mockResolvedValue(adminSession),
+      replaceFeedbackSurveyQuestions: vi
+        .fn()
+        .mockRejectedValue(new FeedbackSurveyNotFoundError("missing")),
+    })
+
+    const res = await app.request(patchSurveyQuestions("missing", body))
+
+    expect(res.status).toBe(404)
+    expect((await errorBody(res)).code).toBe(
+      ErrorCodes.FEEDBACK_SURVEY_NOT_FOUND
+    )
+  })
+
+  it("rejects a partial or unknown-key body before the use case", async () => {
+    const { app, replaceFeedbackSurveyQuestions } = createTestApp({
+      getSession: vi.fn().mockResolvedValue(adminSession),
+    })
+
+    const res = await app.request(
+      patchSurveyQuestions("survey-1", { title: "部分更新" })
+    )
+
+    expect(res.status).toBe(400)
+    expect(replaceFeedbackSurveyQuestions).not.toHaveBeenCalled()
+  })
+})
+
+describe("POST /api/v1/admin/feedback/surveys/{surveyId}/duplicate", () => {
+  const body = { slug: "pmf-copy", title: "PMF コピー" }
+
+  it("returns 201 with the new inactive survey", async () => {
+    const duplicate = { ...mutationDto, id: "copy", slug: "pmf-copy" }
+    const { app, duplicateFeedbackSurvey } = createTestApp({
+      getSession: vi.fn().mockResolvedValue(adminSession),
+      duplicateFeedbackSurvey: vi.fn().mockResolvedValue(duplicate),
+    })
+
+    const res = await app.request(duplicateSurvey("survey-1", body))
+
+    expect(res.status).toBe(201)
+    expect(await res.json()).toEqual(duplicate)
+    expect(duplicateFeedbackSurvey).toHaveBeenCalledWith({
+      surveyId: "survey-1",
+      ...body,
+    })
+  })
+
+  it("returns 409 for a duplicate slug", async () => {
+    const { app } = createTestApp({
+      getSession: vi.fn().mockResolvedValue(adminSession),
+      duplicateFeedbackSurvey: vi
+        .fn()
+        .mockRejectedValue(new FeedbackSurveySlugConflictError("pmf-copy")),
+    })
+
+    const res = await app.request(duplicateSurvey("survey-1", body))
+
+    expect(res.status).toBe(409)
+    expect((await errorBody(res)).code).toBe(
+      ErrorCodes.FEEDBACK_SURVEY_SLUG_CONFLICT
+    )
+  })
+
+  it("returns 404 when the source survey does not exist", async () => {
+    const { app } = createTestApp({
+      getSession: vi.fn().mockResolvedValue(adminSession),
+      duplicateFeedbackSurvey: vi
+        .fn()
+        .mockRejectedValue(new FeedbackSurveyNotFoundError("missing")),
+    })
+
+    const res = await app.request(duplicateSurvey("missing", body))
+
+    expect(res.status).toBe(404)
+    expect((await errorBody(res)).code).toBe(
+      ErrorCodes.FEEDBACK_SURVEY_NOT_FOUND
+    )
+  })
+})
+
+describe("DELETE /api/v1/admin/feedback/surveys/{surveyId}", () => {
+  it("returns 204 when an unsubmitted draft is deleted", async () => {
+    const { app, deleteFeedbackSurvey } = createTestApp({
+      getSession: vi.fn().mockResolvedValue(adminSession),
+      deleteFeedbackSurvey: vi.fn().mockResolvedValue(undefined),
+    })
+
+    const res = await app.request("/api/v1/admin/feedback/surveys/survey-1", {
+      method: "DELETE",
+    })
+
+    expect(res.status).toBe(204)
+    expect(await res.text()).toBe("")
+    expect(deleteFeedbackSurvey).toHaveBeenCalledWith({
+      surveyId: "survey-1",
+    })
+  })
+
+  it("returns 409 without deleting a survey that has submissions", async () => {
+    const { app } = createTestApp({
+      getSession: vi.fn().mockResolvedValue(adminSession),
+      deleteFeedbackSurvey: vi
+        .fn()
+        .mockRejectedValue(new FeedbackSurveyHasSubmissionsError("survey-1")),
+    })
+
+    const res = await app.request("/api/v1/admin/feedback/surveys/survey-1", {
+      method: "DELETE",
+    })
+
+    expect(res.status).toBe(409)
+    expect((await errorBody(res)).code).toBe(
+      ErrorCodes.FEEDBACK_SURVEY_HAS_SUBMISSIONS
+    )
+  })
+
+  it("returns 404 when the survey does not exist", async () => {
+    const { app } = createTestApp({
+      getSession: vi.fn().mockResolvedValue(adminSession),
+      deleteFeedbackSurvey: vi
+        .fn()
+        .mockRejectedValue(new FeedbackSurveyNotFoundError("missing")),
+    })
+
+    const res = await app.request("/api/v1/admin/feedback/surveys/missing", {
+      method: "DELETE",
+    })
+
+    expect(res.status).toBe(404)
+    expect((await errorBody(res)).code).toBe(
+      ErrorCodes.FEEDBACK_SURVEY_NOT_FOUND
+    )
   })
 })
 

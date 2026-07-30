@@ -14,7 +14,7 @@ export type UpdateFeedbackSurveyInput = {
 /**
  * 管理者がアンケートのスカラー項目を部分更新する Command ユースケース。
  *
- * save() 成功後に activateExclusively() が失敗すると複数アクティブが残りうるが、
+ * update() 成功後に activateExclusively() が失敗すると複数アクティブが残りうるが、
  * findActive() は createdAt / id で決定的に解決するため既知リスクとして受容する。
  * 原子的な保存・有効化と並行実行時の排他制御は issue #157 で扱う。
  */
@@ -42,12 +42,15 @@ export class UpdateFeedbackSurveyUseCase extends BaseCommandUseCase<
     let next = survey
     if (slug !== undefined) next = next.changeSlug(slug)
     if (title !== undefined) next = next.changeTitle(title)
-    // activate() を save より先に通し、設問 0 件なら一切書き込まず失敗させる。
+    // activate() を update より先に通し、設問 0 件なら一切書き込まず失敗させる。
     if (isActive === true) next = next.activate()
     if (isActive === false) next = next.deactivate()
 
-    // slug 衝突時に他アンケートを停止しないよう、排他化は save 成功後に行う。
-    const saved = await this.feedbackSurveyRepository.save(next)
+    // slug 衝突時に他アンケートを停止しないよう、排他化は update 成功後に行う。
+    const saved = await this.feedbackSurveyRepository.update(next)
+    if (!saved) {
+      throw new FeedbackSurveyNotFoundError(surveyId)
+    }
     if (isActive === true) {
       await this.feedbackSurveyRepository.activateExclusively(saved)
     }

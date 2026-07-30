@@ -106,6 +106,20 @@ const UpdateFeedbackSurveyParamsSchema = z.object({
   }),
 })
 
+const DraftFeedbackSurveyParamsSchema = z.object({
+  surveyId: feedbackIdSchema.openapi({
+    param: { name: "surveyId", in: "path", required: true },
+    description: "Draft survey to mutate",
+  }),
+})
+
+const DuplicateFeedbackSurveyParamsSchema = z.object({
+  surveyId: feedbackIdSchema.openapi({
+    param: { name: "surveyId", in: "path", required: true },
+    description: "Survey to copy questions from",
+  }),
+})
+
 // Domain の regex は非公開なので API 境界で同じ契約を明示的にミラーする。
 const FEEDBACK_SURVEY_SLUG_REGEX = /^[a-z0-9]+(?:-[a-z0-9]+)*$/
 
@@ -198,6 +212,17 @@ const UpdateFeedbackSurveyBodySchema = z
     message: "at least one of slug, title, or isActive must be provided",
   })
   .openapi({ minProperties: 1 })
+
+const ReplaceFeedbackSurveyQuestionsBodySchema = z.strictObject({
+  questions: z
+    .array(CreateFeedbackQuestionSchema)
+    .max(FEEDBACK_QUESTIONS_MAX_COUNT),
+})
+
+const DuplicateFeedbackSurveyBodySchema = z.strictObject({
+  slug: feedbackSurveySlugSchema,
+  title: feedbackSurveyTitleSchema,
+})
 
 const FeedbackSurveyMutationResultSchema = z
   .object({
@@ -505,6 +530,100 @@ export const updateFeedbackSurveyRoute = createRoute({
       403: "Forbidden (authenticated but not an admin)",
       404: "No survey has that id (FEEDBACK_SURVEY_NOT_FOUND)",
       409: "Slug conflict or survey cannot be published (FEEDBACK_SURVEY_SLUG_CONFLICT / FEEDBACK_SURVEY_NOT_PUBLISHABLE)",
+      500: "Internal Server Error",
+    }),
+  },
+})
+
+export const replaceFeedbackSurveyQuestionsRoute = createRoute({
+  method: "patch",
+  path: "/admin/feedback/surveys/{surveyId}/questions",
+  tags: ["Admin"],
+  summary: "Replace every question in a draft survey (admin only)",
+  description:
+    "Replaces the complete question set. The survey must be inactive and have no submissions. Question and choice ids are regenerated.",
+  security: [{ cookieAuth: [] }],
+  request: {
+    params: DraftFeedbackSurveyParamsSchema,
+    body: {
+      required: true,
+      content: {
+        "application/json": {
+          schema: ReplaceFeedbackSurveyQuestionsBodySchema,
+        },
+      },
+    },
+  },
+  responses: {
+    200: {
+      description: "The survey with its replacement question set",
+      content: {
+        "application/json": { schema: FeedbackSurveyMutationResultSchema },
+      },
+    },
+    ...errorResponses({
+      400: "Request validation failed (VALIDATION_ERROR)",
+      401: "Unauthorized (missing or invalid session)",
+      403: "Forbidden (authenticated but not an admin)",
+      404: "No survey has that id (FEEDBACK_SURVEY_NOT_FOUND)",
+      409: "Survey is active or already has submissions (FEEDBACK_SURVEY_MUST_BE_INACTIVE / FEEDBACK_SURVEY_HAS_SUBMISSIONS)",
+      500: "Internal Server Error",
+    }),
+  },
+})
+
+export const duplicateFeedbackSurveyRoute = createRoute({
+  method: "post",
+  path: "/admin/feedback/surveys/{surveyId}/duplicate",
+  tags: ["Admin"],
+  summary: "Duplicate a feedback survey (admin only)",
+  description:
+    "Copies questions and choices into a new inactive survey with new ids. Submissions and answers are not copied.",
+  security: [{ cookieAuth: [] }],
+  request: {
+    params: DuplicateFeedbackSurveyParamsSchema,
+    body: {
+      required: true,
+      content: {
+        "application/json": { schema: DuplicateFeedbackSurveyBodySchema },
+      },
+    },
+  },
+  responses: {
+    201: {
+      description: "The new inactive survey",
+      content: {
+        "application/json": { schema: FeedbackSurveyMutationResultSchema },
+      },
+    },
+    ...errorResponses({
+      400: "Request validation failed (VALIDATION_ERROR)",
+      401: "Unauthorized (missing or invalid session)",
+      403: "Forbidden (authenticated but not an admin)",
+      404: "No survey has that id (FEEDBACK_SURVEY_NOT_FOUND)",
+      409: "Slug conflict (FEEDBACK_SURVEY_SLUG_CONFLICT)",
+      500: "Internal Server Error",
+    }),
+  },
+})
+
+export const deleteFeedbackSurveyRoute = createRoute({
+  method: "delete",
+  path: "/admin/feedback/surveys/{surveyId}",
+  tags: ["Admin"],
+  summary: "Delete an unsubmitted draft survey (admin only)",
+  description:
+    "Hard-deletes an inactive survey only when it has no submissions. Its slug becomes reusable.",
+  security: [{ cookieAuth: [] }],
+  request: { params: DraftFeedbackSurveyParamsSchema },
+  responses: {
+    204: { description: "The survey was deleted" },
+    ...errorResponses({
+      400: "Invalid surveyId (VALIDATION_ERROR)",
+      401: "Unauthorized (missing or invalid session)",
+      403: "Forbidden (authenticated but not an admin)",
+      404: "No survey has that id (FEEDBACK_SURVEY_NOT_FOUND)",
+      409: "Survey is active or already has submissions (FEEDBACK_SURVEY_MUST_BE_INACTIVE / FEEDBACK_SURVEY_HAS_SUBMISSIONS)",
       500: "Internal Server Error",
     }),
   },
