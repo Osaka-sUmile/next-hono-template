@@ -83,6 +83,61 @@ function initialSurveys(): SurveyItem[] {
   ]
 }
 
+function draftSurveyDetail() {
+  return {
+    id: "srv_2",
+    slug: "draft-2026",
+    title: "下書きアンケート",
+    isActive: false,
+    createdAt: "2026-07-10T00:00:00.000Z",
+    questions: [
+      {
+        id: "q_draft_1",
+        type: "text" as const,
+        text: "改善点を教えてください",
+        required: false,
+        sortOrder: 0,
+        choices: [],
+      },
+    ],
+  }
+}
+
+function paginatedSubmissions(surveyId: string, offset: number, limit: number) {
+  const total = surveyId === "srv_2" ? 25 : 1
+  const items = Array.from(
+    { length: Math.min(limit, Math.max(0, total - offset)) },
+    (_, index) => {
+      const number = offset + index + 1
+      return {
+        id: `sub_${surveyId}_${number}`,
+        surveyId,
+        user: {
+          id: `user_${number}`,
+          email: `respondent${number}@example.com`,
+          name: `回答者 ${number}`,
+          displayName: `user${number}`,
+        },
+        createdAt: `2026-07-15T0${number % 10}:30:00.000Z`,
+        answers: [
+          {
+            questionId: surveyId === "srv_2" ? "q_draft_1" : "q_2",
+            questionText:
+              surveyId === "srv_2"
+                ? "改善点を教えてください"
+                : "理由を教えてください",
+            choiceValue: null,
+            choiceLabel: null,
+            textValue: `回答 ${number}`,
+          },
+        ],
+      }
+    }
+  )
+
+  return { items, total, limit, offset }
+}
+
 /**
  * `/api/auth/*` と `/api/v1/admin/**` をモックする。
  * surveys はテストごとの可変ステートとして持ち、POST/PATCH が反映された一覧を
@@ -232,9 +287,35 @@ async function mockSurveysFlow(page: Page, surveys: SurveyItem[]) {
     }
 
     if (
+      path.endsWith("/admin/feedback/surveys/srv_2") &&
+      request.method() === "GET"
+    ) {
+      await json(200, draftSurveyDetail())
+      return
+    }
+
+    const questionsPatchMatch = path.match(
+      /\/admin\/feedback\/surveys\/([^/]+)\/questions$/
+    )
+    if (questionsPatchMatch && request.method() === "PATCH") {
+      await json(200, { questions: route.request().postDataJSON().questions })
+      return
+    }
+
+    if (
       path.endsWith("/admin/feedback/summary") &&
       request.method() === "GET"
     ) {
+      const surveyId = new URL(request.url()).searchParams.get("surveyId")
+      if (surveyId === "srv_2") {
+        await json(200, {
+          surveyId: "srv_2",
+          respondentCount: 25,
+          tallies: [],
+        })
+        return
+      }
+
       await json(200, {
         surveyId: "srv_1",
         respondentCount: 1,
@@ -247,6 +328,15 @@ async function mockSurveysFlow(page: Page, surveys: SurveyItem[]) {
       path.endsWith("/admin/feedback/submissions") &&
       request.method() === "GET"
     ) {
+      const url = new URL(request.url())
+      const surveyId = url.searchParams.get("surveyId") ?? "srv_1"
+      const offset = Number(url.searchParams.get("offset") ?? 0)
+      const limit = Number(url.searchParams.get("limit") ?? 20)
+      if (surveyId === "srv_2") {
+        await json(200, paginatedSubmissions(surveyId, offset, limit))
+        return
+      }
+
       await json(200, {
         items: [
           {
@@ -511,5 +601,65 @@ test.describe("アンケート管理", () => {
     await expect(
       submissionRow.getByText("操作が分かりやすかったです。")
     ).toBeVisible()
+  })
+
+  test("設問保存後に集計と提出一覧を再取得し、提出一覧のページ位置を先頭へ戻す", async ({
+    page,
+  }) => {
+    await mockSurveysFlow(page, initialSurveys())
+    const summaryRequests: string[] = []
+    const submissionOffsets: number[] = []
+
+    page.on("request", (request) => {
+      const url = new URL(request.url())
+      if (
+        request.method() === "GET" &&
+        url.pathname.endsWith("/admin/feedback/summary") &&
+        url.searchParams.get("surveyId") === "srv_2"
+      ) {
+        summaryRequests.push(url.toString())
+      }
+      if (
+        request.method() === "GET" &&
+        url.pathname.endsWith("/admin/feedback/submissions") &&
+        url.searchParams.get("surveyId") === "srv_2"
+      ) {
+        submissionOffsets.push(Number(url.searchParams.get("offset") ?? 0))
+      }
+    })
+
+    await page.goto("/admin/surveys/srv_2")
+    await expect(page.getByText("1–20 / 25 件")).toBeVisible()
+    await expect(page.getByText("respondent1@example.com")).toBeVisible()
+
+    await page.getByRole("button", { name: "次へ" }).click()
+    await expect(page.getByText("21–25 / 25 件")).toBeVisible()
+    await expect(page.getByText("respondent21@example.com")).toBeVisible()
+
+    await page.getByRole("button", { name: "設問を編集" }).click()
+    const question = page.getByLabel("本文")
+    await question.fill("保存後に再取得される設問")
+    const patchPromise = page.waitForRequest(
+      (request) =>
+        request.method() === "PATCH" &&
+        request.url().includes("/admin/feedback/surveys/srv_2/questions")
+    )
+    await page.getByRole("button", { name: "設問を保存" }).click()
+    const patchRequest = await patchPromise
+    expect(patchRequest.postDataJSON()).toEqual({
+      questions: [
+        {
+          type: "text",
+          text: "保存後に再取得される設問",
+          required: false,
+          choices: [],
+        },
+      ],
+    })
+
+    await expect(page.getByText("1–20 / 25 件")).toBeVisible()
+    await expect(page.getByText("respondent1@example.com")).toBeVisible()
+    expect(summaryRequests.length).toBeGreaterThanOrEqual(2)
+    expect(submissionOffsets).toEqual(expect.arrayContaining([0, 20, 0]))
   })
 })

@@ -2,6 +2,8 @@ import { beforeEach, describe, expect, it, vi } from "vitest"
 import { render, screen, waitFor } from "@testing-library/react"
 import userEvent from "@testing-library/user-event"
 import { AdminSurveyQuestionEditor } from "./admin-survey-question-editor"
+import { ApiError } from "@/lib/api-client"
+import { ExpectedError } from "@/lib/report-error"
 
 const mocks = vi.hoisted(() => ({
   get: vi.fn(),
@@ -96,5 +98,88 @@ describe("AdminSurveyQuestionEditor", () => {
         "公開中のため編集できません。編集するには一覧画面で無効化してください。"
       )
     ).toBeInTheDocument()
+  })
+
+  it("本文が空のまま保存すると PATCH を呼ばず検証エラーを表示する", async () => {
+    const user = userEvent.setup()
+    render(<AdminSurveyQuestionEditor surveyId="srv_draft" onSaved={vi.fn()} />)
+
+    await user.click(await screen.findByRole("button", { name: "設問を編集" }))
+    await user.clear(screen.getByLabelText("本文"))
+    await user.click(screen.getByRole("button", { name: "設問を保存" }))
+
+    expect(await screen.findByRole("alert")).toHaveTextContent(
+      "設問 1 の本文を入力してください。"
+    )
+    expect(mocks.patch).not.toHaveBeenCalled()
+  })
+
+  it("PATCH が FEEDBACK_SURVEY_MUST_BE_INACTIVE を返したら専用メッセージを表示する", async () => {
+    const user = userEvent.setup()
+    mocks.patch.mockRejectedValue(
+      new ApiError(409, {
+        error: "must be inactive",
+        code: "FEEDBACK_SURVEY_MUST_BE_INACTIVE",
+      })
+    )
+    render(<AdminSurveyQuestionEditor surveyId="srv_draft" onSaved={vi.fn()} />)
+
+    await user.click(await screen.findByRole("button", { name: "設問を編集" }))
+    await user.click(screen.getByRole("button", { name: "設問を保存" }))
+
+    expect(await screen.findByRole("alert")).toHaveTextContent(
+      "公開中のアンケートは編集できません。先に一覧画面で無効化してください。"
+    )
+    expect(mocks.reportError).toHaveBeenCalledWith(expect.any(ExpectedError))
+  })
+
+  it("PATCH が FEEDBACK_SURVEY_HAS_SUBMISSIONS を返したら専用メッセージを表示する", async () => {
+    const user = userEvent.setup()
+    mocks.patch.mockRejectedValue(
+      new ApiError(409, {
+        error: "has submissions",
+        code: "FEEDBACK_SURVEY_HAS_SUBMISSIONS",
+      })
+    )
+    render(<AdminSurveyQuestionEditor surveyId="srv_draft" onSaved={vi.fn()} />)
+
+    await user.click(await screen.findByRole("button", { name: "設問を編集" }))
+    await user.click(screen.getByRole("button", { name: "設問を保存" }))
+
+    expect(await screen.findByRole("alert")).toHaveTextContent(
+      "回答済みのアンケートは編集できません。複製して新しい下書きを作成してください。"
+    )
+    expect(mocks.reportError).toHaveBeenCalledWith(expect.any(ExpectedError))
+  })
+
+  it("PATCH の 400 は専用メッセージを表示する", async () => {
+    const user = userEvent.setup()
+    mocks.patch.mockRejectedValue(new ApiError(400, { error: "bad request" }))
+    render(<AdminSurveyQuestionEditor surveyId="srv_draft" onSaved={vi.fn()} />)
+
+    await user.click(await screen.findByRole("button", { name: "設問を編集" }))
+    await user.click(screen.getByRole("button", { name: "設問を保存" }))
+
+    expect(await screen.findByRole("alert")).toHaveTextContent(
+      "入力内容に誤りがあります。各設問を確認してください。"
+    )
+  })
+
+  it("PATCH の 404 は専用メッセージを表示する", async () => {
+    const user = userEvent.setup()
+    mocks.patch.mockRejectedValue(
+      new ApiError(404, {
+        error: "not found",
+        code: "FEEDBACK_SURVEY_NOT_FOUND",
+      })
+    )
+    render(<AdminSurveyQuestionEditor surveyId="srv_draft" onSaved={vi.fn()} />)
+
+    await user.click(await screen.findByRole("button", { name: "設問を編集" }))
+    await user.click(screen.getByRole("button", { name: "設問を保存" }))
+
+    expect(await screen.findByRole("alert")).toHaveTextContent(
+      "アンケートが見つかりません。"
+    )
   })
 })

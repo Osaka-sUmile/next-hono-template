@@ -39,6 +39,10 @@ function duplicateSlug(slug: string): string {
   return `${slug.slice(0, SLUG_MAX_LENGTH - 5).replace(/-+$/, "")}-copy`
 }
 
+function buildDuplicateTitle(title: string): string {
+  return `${title} のコピー`.slice(0, TITLE_MAX_LENGTH)
+}
+
 /**
  * 一覧の各アンケートに対する複製・削除操作。
  */
@@ -70,7 +74,7 @@ export function AdminSurveyActions({
     if (!nextOpen && duplicating) return
     setDuplicateOpen(nextOpen)
     if (nextOpen) {
-      setDuplicateTitle(`${survey.title} のコピー`)
+      setDuplicateTitle(buildDuplicateTitle(survey.title))
       setDuplicateSlugValue(duplicateSlug(survey.slug))
       setDuplicateError(null)
     }
