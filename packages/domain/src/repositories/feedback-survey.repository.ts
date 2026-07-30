@@ -5,7 +5,10 @@ export interface IFeedbackSurveyRepository extends IRepository<
   FeedbackSurveyEntity,
   string
 > {
-  /** 非公開かつ提出 0 件の下書きだけを削除する。 */
+  /**
+   * 非公開かつ提出 0 件の下書きだけを削除する。
+   * 競合する削除が先に完了して対象が無い場合は、成功扱いの no-op とする。
+   */
   delete(entity: FeedbackSurveyEntity): Promise<void>
   findActive(): Promise<FeedbackSurveyEntity | null>
   findBySlug(slug: string): Promise<FeedbackSurveyEntity | null>

@@ -99,4 +99,17 @@ describe("ReplaceFeedbackSurveyQuestionsUseCase", () => {
       useCase.execute({ surveyId: "missing", questions: [] })
     ).rejects.toBeInstanceOf(FeedbackSurveyNotFoundError)
   })
+
+  it("throws not found when a concurrent delete wins before replacement", async () => {
+    const d = deps()
+    d.replaceQuestions.mockResolvedValueOnce(null)
+    const useCase = new ReplaceFeedbackSurveyQuestionsUseCase(
+      d.repository,
+      d.idGenerator
+    )
+
+    await expect(
+      useCase.execute({ surveyId: "survey-1", questions: [] })
+    ).rejects.toBeInstanceOf(FeedbackSurveyNotFoundError)
+  })
 })

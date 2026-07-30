@@ -1267,7 +1267,7 @@ export interface paths {
                 query?: never;
                 header?: never;
                 path: {
-                    /** @description Draft survey to mutate */
+                    /** @description Survey to copy questions from */
                     surveyId: string;
                 };
                 cookie?: never;

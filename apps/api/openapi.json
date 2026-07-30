@@ -2096,10 +2096,10 @@
               "type": "string",
               "minLength": 1,
               "maxLength": 64,
-              "description": "Draft survey to mutate"
+              "description": "Survey to copy questions from"
             },
             "required": true,
-            "description": "Draft survey to mutate",
+            "description": "Survey to copy questions from",
             "name": "surveyId",
             "in": "path"
           }

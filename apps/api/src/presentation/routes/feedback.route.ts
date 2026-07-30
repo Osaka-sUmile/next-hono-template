@@ -113,6 +113,13 @@ const DraftFeedbackSurveyParamsSchema = z.object({
   }),
 })
 
+const DuplicateFeedbackSurveyParamsSchema = z.object({
+  surveyId: feedbackIdSchema.openapi({
+    param: { name: "surveyId", in: "path", required: true },
+    description: "Survey to copy questions from",
+  }),
+})
+
 // Domain の regex は非公開なので API 境界で同じ契約を明示的にミラーする。
 const FEEDBACK_SURVEY_SLUG_REGEX = /^[a-z0-9]+(?:-[a-z0-9]+)*$/
 
@@ -574,7 +581,7 @@ export const duplicateFeedbackSurveyRoute = createRoute({
     "Copies questions and choices into a new inactive survey with new ids. Submissions and answers are not copied.",
   security: [{ cookieAuth: [] }],
   request: {
-    params: DraftFeedbackSurveyParamsSchema,
+    params: DuplicateFeedbackSurveyParamsSchema,
     body: {
       required: true,
       content: {

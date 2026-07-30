@@ -741,6 +741,22 @@ describe("PATCH /api/v1/admin/feedback/surveys/{surveyId}/questions", () => {
     expect((await errorBody(res)).code).toBe(code)
   })
 
+  it("returns 404 when the survey does not exist", async () => {
+    const { app } = createTestApp({
+      getSession: vi.fn().mockResolvedValue(adminSession),
+      replaceFeedbackSurveyQuestions: vi
+        .fn()
+        .mockRejectedValue(new FeedbackSurveyNotFoundError("missing")),
+    })
+
+    const res = await app.request(patchSurveyQuestions("missing", body))
+
+    expect(res.status).toBe(404)
+    expect((await errorBody(res)).code).toBe(
+      ErrorCodes.FEEDBACK_SURVEY_NOT_FOUND
+    )
+  })
+
   it("rejects a partial or unknown-key body before the use case", async () => {
     const { app, replaceFeedbackSurveyQuestions } = createTestApp({
       getSession: vi.fn().mockResolvedValue(adminSession),
@@ -790,6 +806,22 @@ describe("POST /api/v1/admin/feedback/surveys/{surveyId}/duplicate", () => {
       ErrorCodes.FEEDBACK_SURVEY_SLUG_CONFLICT
     )
   })
+
+  it("returns 404 when the source survey does not exist", async () => {
+    const { app } = createTestApp({
+      getSession: vi.fn().mockResolvedValue(adminSession),
+      duplicateFeedbackSurvey: vi
+        .fn()
+        .mockRejectedValue(new FeedbackSurveyNotFoundError("missing")),
+    })
+
+    const res = await app.request(duplicateSurvey("missing", body))
+
+    expect(res.status).toBe(404)
+    expect((await errorBody(res)).code).toBe(
+      ErrorCodes.FEEDBACK_SURVEY_NOT_FOUND
+    )
+  })
 })
 
 describe("DELETE /api/v1/admin/feedback/surveys/{surveyId}", () => {
@@ -825,6 +857,24 @@ describe("DELETE /api/v1/admin/feedback/surveys/{surveyId}", () => {
     expect(res.status).toBe(409)
     expect((await errorBody(res)).code).toBe(
       ErrorCodes.FEEDBACK_SURVEY_HAS_SUBMISSIONS
+    )
+  })
+
+  it("returns 404 when the survey does not exist", async () => {
+    const { app } = createTestApp({
+      getSession: vi.fn().mockResolvedValue(adminSession),
+      deleteFeedbackSurvey: vi
+        .fn()
+        .mockRejectedValue(new FeedbackSurveyNotFoundError("missing")),
+    })
+
+    const res = await app.request("/api/v1/admin/feedback/surveys/missing", {
+      method: "DELETE",
+    })
+
+    expect(res.status).toBe(404)
+    expect((await errorBody(res)).code).toBe(
+      ErrorCodes.FEEDBACK_SURVEY_NOT_FOUND
     )
   })
 })

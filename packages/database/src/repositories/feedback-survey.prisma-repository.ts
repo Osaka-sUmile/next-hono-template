@@ -182,11 +182,13 @@ export class FeedbackSurveyPrismaRepository implements IFeedbackSurveyRepository
     await this.prisma.$transaction(async (tx) => {
       // Entity 側の不変条件（設問 0 件は公開不可）を永続化状態に対しても検証する。
       // Entity は読み込み時点のスナップショットであり、その後に設問が消えている可能性がある。
-      const survey = await tx.feedbackSurvey.findUnique({
-        where: { id: entity.id },
-        select: { _count: { select: { questions: true } } },
+      // 設問置換も同じ survey 行をロックするため、件数確認から有効化までの間に
+      // 設問が全削除され、active + 設問 0 件になる競合を防ぐ。
+      const state = await lockSurvey(tx, entity.id)
+      const questionCount = await tx.feedbackQuestion.count({
+        where: { surveyId: entity.id },
       })
-      if (!survey || survey._count.questions === 0) {
+      if (!state || questionCount === 0) {
         throw new EmptyActiveFeedbackSurveyError(entity.id)
       }
       await tx.feedbackSurvey.updateMany({
@@ -256,7 +258,9 @@ function ensureDraftCanChange(surveyId: string, isActive: boolean): void {
   }
 }
 
-function questionCreateInput(question: FeedbackQuestionEntity) {
+function questionCreateInput(
+  question: FeedbackQuestionEntity
+): Prisma.FeedbackQuestionCreateWithoutSurveyInput {
   return {
     id: question.id,
     type: question.type,

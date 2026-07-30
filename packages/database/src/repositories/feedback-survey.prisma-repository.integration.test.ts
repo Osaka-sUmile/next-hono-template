@@ -571,6 +571,45 @@ describe("FeedbackSurveyPrismaRepository (integration)", () => {
     }
   })
 
+  it("空設問への置換と activateExclusively が競合しても不正なactiveを作らない", async () => {
+    const original = FeedbackSurveyEntity.create(
+      surveyDraft({ isActive: false })
+    )
+    await repository.save(original)
+    const activation = original.activate()
+    const emptyReplacement = original.replaceQuestions([])
+
+    const results = await Promise.allSettled([
+      repository.replaceQuestions(emptyReplacement),
+      repository.activateExclusively(activation),
+    ])
+
+    expect(results.filter(({ status }) => status === "fulfilled")).toHaveLength(
+      1
+    )
+    const persisted = await prisma.feedbackSurvey.findUniqueOrThrow({
+      where: { id: "survey-1" },
+      select: {
+        isActive: true,
+        _count: { select: { questions: true } },
+      },
+    })
+    expect(persisted.isActive && persisted._count.questions === 0).toBe(false)
+    if (persisted.isActive) {
+      expect(results[0]?.status).toBe("rejected")
+      if (results[0]?.status === "rejected") {
+        expect(results[0].reason).toBeInstanceOf(
+          FeedbackSurveyMustBeInactiveError
+        )
+      }
+    } else {
+      expect(results[1]?.status).toBe("rejected")
+      if (results[1]?.status === "rejected") {
+        expect(results[1].reason).toBeInstanceOf(EmptyActiveFeedbackSurveyError)
+      }
+    }
+  })
+
   // DB の Cascade / Restrict の実測は残しつつ、Repository の公開契約では
   // 回答データを破壊する survey delete / question-set replace を拒否する。
   // FeedbackAnswer.choiceId は onDelete: Restrict、FeedbackChoice.question と
