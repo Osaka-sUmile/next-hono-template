@@ -40,8 +40,8 @@ export class CreateFeedbackSurveyUseCase extends BaseCommandUseCase<
       questions: toQuestionDrafts(questions, this.idGenerator),
     })
 
-    // slug 衝突など入力起因で失敗しうる save を、集約を跨ぐ排他化より先に行う。
-    const saved = await this.feedbackSurveyRepository.save(survey)
+    // slug 衝突など入力起因で失敗しうる insert を、集約を跨ぐ排他化より先に行う。
+    const saved = await this.feedbackSurveyRepository.insert(survey)
     if (isActive) {
       await this.feedbackSurveyRepository.activateExclusively(saved)
     }

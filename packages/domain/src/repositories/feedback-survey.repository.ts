@@ -1,15 +1,19 @@
 import { FeedbackSurveyEntity } from "../models"
-import { IRepository } from "./base.repository"
 
-export interface IFeedbackSurveyRepository extends IRepository<
-  FeedbackSurveyEntity,
-  string
-> {
+export interface IFeedbackSurveyRepository {
+  /** 新しいアンケートを設問・選択肢とともに作成する。 */
+  insert(entity: FeedbackSurveyEntity): Promise<FeedbackSurveyEntity>
+  /**
+   * 既存アンケートのスカラー項目だけを更新する。
+   * 競合する削除が先に完了して対象が無い場合は null。
+   */
+  update(entity: FeedbackSurveyEntity): Promise<FeedbackSurveyEntity | null>
   /**
    * 非公開かつ提出 0 件の下書きだけを削除する。
    * 競合する削除が先に完了して対象が無い場合は、成功扱いの no-op とする。
    */
   delete(entity: FeedbackSurveyEntity): Promise<void>
+  findById(id: string): Promise<FeedbackSurveyEntity | null>
   findActive(): Promise<FeedbackSurveyEntity | null>
   findBySlug(slug: string): Promise<FeedbackSurveyEntity | null>
   /**
@@ -22,7 +26,7 @@ export interface IFeedbackSurveyRepository extends IRepository<
   ): Promise<FeedbackSurveyEntity | null>
   /**
    * 「同時にアクティブなのは 1 件」を保つため、対象を有効化し他をすべて無効化する。
-   * 複数の集約ルートを跨ぐ操作なので `save(entity)` には収まらず、
+   * 複数の集約ルートを跨ぐ操作なので `update(entity)` には収まらず、
    * Application 層は PrismaClient を受け取らないため Repository のメソッドとして公開する。
    *
    * id ではなく Entity を受け取るのは、`activate()` の公開可能性チェックを迂回して

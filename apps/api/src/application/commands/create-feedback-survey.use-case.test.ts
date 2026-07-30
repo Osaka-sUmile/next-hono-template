@@ -9,13 +9,13 @@ import { CreateFeedbackSurveyUseCase } from "./create-feedback-survey.use-case"
 
 function createDeps(
   overrides: {
-    save?: ReturnType<typeof vi.fn>
+    insert?: ReturnType<typeof vi.fn>
     activateExclusively?: ReturnType<typeof vi.fn>
     generate?: ReturnType<typeof vi.fn>
   } = {}
 ) {
-  const save =
-    overrides.save ??
+  const insert =
+    overrides.insert ??
     vi.fn().mockImplementation(async (entity: FeedbackSurveyEntity) => entity)
   const activateExclusively = overrides.activateExclusively ?? vi.fn()
   const generate =
@@ -29,12 +29,12 @@ function createDeps(
       .mockReturnValueOnce("question-2")
 
   const repository = {
-    save,
+    insert,
     activateExclusively,
   } as unknown as IFeedbackSurveyRepository
   const idGenerator = { generate } as unknown as IIdGenerator
 
-  return { repository, idGenerator, save, activateExclusively, generate }
+  return { repository, idGenerator, insert, activateExclusively, generate }
 }
 
 const surveyInput = {
@@ -61,7 +61,7 @@ const surveyInput = {
 }
 
 describe("CreateFeedbackSurveyUseCase", () => {
-  it("generates ids for every level, derives sort orders, saves, and returns the mutation DTO", async () => {
+  it("generates ids for every level, derives sort orders, inserts, and returns the mutation DTO", async () => {
     const deps = createDeps()
     const useCase = new CreateFeedbackSurveyUseCase(
       deps.repository,
@@ -71,8 +71,8 @@ describe("CreateFeedbackSurveyUseCase", () => {
     const result = await useCase.execute(surveyInput)
 
     expect(deps.generate).toHaveBeenCalledTimes(5)
-    expect(deps.save).toHaveBeenCalledOnce()
-    const saved = deps.save.mock.calls[0]?.[0] as FeedbackSurveyEntity
+    expect(deps.insert).toHaveBeenCalledOnce()
+    const saved = deps.insert.mock.calls[0]?.[0] as FeedbackSurveyEntity
     expect(saved.questions.map((question) => question.sortOrder)).toEqual([
       0, 1,
     ])
@@ -134,17 +134,17 @@ describe("CreateFeedbackSurveyUseCase", () => {
     })
 
     expect(result.questions).toEqual([])
-    expect(deps.save).toHaveBeenCalledOnce()
+    expect(deps.insert).toHaveBeenCalledOnce()
     expect(deps.activateExclusively).not.toHaveBeenCalled()
   })
 
-  it("saves before exclusively activating the saved entity", async () => {
+  it("inserts before exclusively activating the inserted entity", async () => {
     const calls: string[] = []
     let persisted: FeedbackSurveyEntity | undefined
-    const save = vi
+    const insert = vi
       .fn()
       .mockImplementation(async (entity: FeedbackSurveyEntity) => {
-        calls.push("save")
+        calls.push("insert")
         persisted = FeedbackSurveyEntity.reconstitute(
           "persisted-survey",
           entity.slug,
@@ -157,7 +157,7 @@ describe("CreateFeedbackSurveyUseCase", () => {
     const activateExclusively = vi.fn().mockImplementation(async () => {
       calls.push("activateExclusively")
     })
-    const deps = createDeps({ save, activateExclusively })
+    const deps = createDeps({ insert, activateExclusively })
     const useCase = new CreateFeedbackSurveyUseCase(
       deps.repository,
       deps.idGenerator
@@ -167,13 +167,13 @@ describe("CreateFeedbackSurveyUseCase", () => {
 
     expect(result.isActive).toBe(true)
     expect(result.id).toBe("persisted-survey")
-    expect(calls).toEqual(["save", "activateExclusively"])
+    expect(calls).toEqual(["insert", "activateExclusively"])
     expect(activateExclusively).toHaveBeenCalledWith(persisted)
   })
 
   it("propagates a slug conflict without exclusively activating anything", async () => {
     const conflict = new FeedbackSurveySlugConflictError("pmf-2026")
-    const deps = createDeps({ save: vi.fn().mockRejectedValue(conflict) })
+    const deps = createDeps({ insert: vi.fn().mockRejectedValue(conflict) })
     const useCase = new CreateFeedbackSurveyUseCase(
       deps.repository,
       deps.idGenerator
@@ -185,7 +185,7 @@ describe("CreateFeedbackSurveyUseCase", () => {
     expect(deps.activateExclusively).not.toHaveBeenCalled()
   })
 
-  it("rejects an active survey without questions before saving", async () => {
+  it("rejects an active survey without questions before inserting", async () => {
     const deps = createDeps({
       generate: vi.fn().mockReturnValue("survey-empty"),
     })
@@ -202,7 +202,7 @@ describe("CreateFeedbackSurveyUseCase", () => {
         questions: [],
       })
     ).rejects.toBeInstanceOf(EmptyActiveFeedbackSurveyError)
-    expect(deps.save).not.toHaveBeenCalled()
+    expect(deps.insert).not.toHaveBeenCalled()
     expect(deps.activateExclusively).not.toHaveBeenCalled()
   })
 })

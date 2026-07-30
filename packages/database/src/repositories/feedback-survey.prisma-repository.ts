@@ -63,23 +63,42 @@ export class FeedbackSurveyPrismaRepository implements IFeedbackSurveyRepository
     return this.toDomain(survey)
   }
 
+  async insert(entity: FeedbackSurveyEntity): Promise<FeedbackSurveyEntity> {
+    try {
+      const survey = await this.prisma.feedbackSurvey.create({
+        data: {
+          id: entity.id,
+          slug: entity.slug,
+          title: entity.title,
+          isActive: entity.isActive,
+          questions: {
+            create: entity.questions.map(questionCreateInput),
+          },
+        },
+        include: SURVEY_INCLUDE,
+      })
+      return this.toDomain(survey)
+    } catch (error) {
+      throw translateSlugConflict(error, entity.slug)
+    }
+  }
+
   /**
-   * create 分岐と update 分岐で扱う範囲が意図的に非対称であることに注意。
-   *
-   * - create: 設問・選択肢をネストして一括作成する（回答が存在しないため安全）。
-   * - update: スカラー (slug / title / isActive) だけを更新し、設問・選択肢には一切触らない。
-   *
    * `FeedbackAnswer.choiceId` が `onDelete: Restrict`、`FeedbackChoice.question` が
-   * `onDelete: Cascade` であるため、既存設問の入れ替えは回答済みデータに対して一般に失敗する。
-   * `UserPrismaRepository.save` が `emailVerified` を触らないのと同じ形で、更新対象から外している。
-   * したがって「既存アンケートに対して設問を変えて save しても設問は変わらない」。
-   * 設問の編集は別途専用の経路（提出 0 件ガード付きの置き換え等）を設計する必要がある。
+   * `onDelete: Cascade` であるため、スカラー (slug / title / isActive) だけを更新し、
+   * 設問・選択肢には一切触らない。設問の編集は `replaceQuestions` が担当する。
+   *
+   * insert と分離して update を使うことで、事前読込後に delete が先行した場合も
+   * 古い Entity からアンケートを再作成しない。
    */
-  async save(entity: FeedbackSurveyEntity): Promise<FeedbackSurveyEntity> {
+  async update(
+    entity: FeedbackSurveyEntity
+  ): Promise<FeedbackSurveyEntity | null> {
     try {
       const survey = await this.prisma.$transaction(async (tx) => {
         const state = await lockSurvey(tx, entity.id)
-        if (state && entity.isActive) {
+        if (!state) return null
+        if (entity.isActive) {
           // 設問置換との競合で、古いEntityスナップショットから active + 設問0件を
           // 保存しない。行ロック後の永続状態を検証してから同じtransactionで更新する。
           const questionCount = await tx.feedbackQuestion.count({
@@ -90,33 +109,19 @@ export class FeedbackSurveyPrismaRepository implements IFeedbackSurveyRepository
           }
         }
 
-        return tx.feedbackSurvey.upsert({
+        return tx.feedbackSurvey.update({
           where: { id: entity.id },
-          update: {
+          data: {
             slug: entity.slug,
             title: entity.title,
             isActive: entity.isActive,
-          },
-          create: {
-            id: entity.id,
-            slug: entity.slug,
-            title: entity.title,
-            isActive: entity.isActive,
-            questions: {
-              create: entity.questions.map(questionCreateInput),
-            },
           },
           include: SURVEY_INCLUDE,
         })
       })
-      return this.toDomain(survey)
+      return survey ? this.toDomain(survey) : null
     } catch (error) {
-      // slug の一意制約違反だけをドメインエラーへ翻訳する。use-case 側で findBySlug を
-      // 事前チェックする方式は TOCTOU で結果的に 500 になるため採らない。
-      if (isSlugUniqueViolation(error)) {
-        throw new FeedbackSurveySlugConflictError(entity.slug)
-      }
-      throw error
+      throw translateSlugConflict(error, entity.slug)
     }
   }
 
@@ -281,7 +286,7 @@ function questionCreateInput(
 /**
  * P2002 が「FeedbackSurvey.slug の衝突」かどうかを判定する。
  *
- * save() の create 分岐は FeedbackQuestion / FeedbackChoice をネスト作成するため、
+ * insert() は FeedbackQuestion / FeedbackChoice をネスト作成するため、
  * それらの主キーや `@@unique` 違反も同じ P2002 として到達しうる。しかも
  * ネストした設問の主キー衝突は `meta.modelName` が外側の "FeedbackSurvey" になるため、
  * モデル名では判別できない。違反した制約のフィールドで判定する必要がある。
@@ -298,6 +303,14 @@ function isSlugUniqueViolation(error: unknown): boolean {
   }
   const fields = extractUniqueConstraintFields(error.meta)
   return fields !== null && fields.length === 1 && fields[0] === "slug"
+}
+
+function translateSlugConflict(error: unknown, slug: string): unknown {
+  // slug の一意制約違反だけをドメインエラーへ翻訳する。use-case 側で findBySlug を
+  // 事前チェックする方式は TOCTOU で結果的に 500 になるため採らない。
+  return isSlugUniqueViolation(error)
+    ? new FeedbackSurveySlugConflictError(slug)
+    : error
 }
 
 /**

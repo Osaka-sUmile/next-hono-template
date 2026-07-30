@@ -29,12 +29,12 @@ function sourceSurvey() {
 
 describe("DuplicateFeedbackSurveyUseCase", () => {
   it("copies questions with new ids into an inactive survey", async () => {
-    const save = vi
+    const insert = vi
       .fn()
       .mockImplementation(async (entity: FeedbackSurveyEntity) => entity)
     const repository = {
       findById: vi.fn().mockResolvedValue(sourceSurvey()),
-      save,
+      insert,
     } as unknown as IFeedbackSurveyRepository
     const idGenerator = {
       generate: vi
@@ -64,11 +64,11 @@ describe("DuplicateFeedbackSurveyUseCase", () => {
     })
   })
 
-  it("throws not found without saving for an unknown source", async () => {
-    const save = vi.fn()
+  it("throws not found without inserting for an unknown source", async () => {
+    const insert = vi.fn()
     const repository = {
       findById: vi.fn().mockResolvedValue(null),
-      save,
+      insert,
     } as unknown as IFeedbackSurveyRepository
     const useCase = new DuplicateFeedbackSurveyUseCase(repository, {
       generate: vi.fn(),
@@ -81,6 +81,6 @@ describe("DuplicateFeedbackSurveyUseCase", () => {
         title: "複製",
       })
     ).rejects.toBeInstanceOf(FeedbackSurveyNotFoundError)
-    expect(save).not.toHaveBeenCalled()
+    expect(insert).not.toHaveBeenCalled()
   })
 })

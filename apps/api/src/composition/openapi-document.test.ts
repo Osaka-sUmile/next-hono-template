@@ -115,6 +115,10 @@ describe("GET /api-docs/openapi.json", () => {
         ?.security
     ).toEqual([{ cookieAuth: [] }])
     expect(
+      document.paths["/api/v1/admin/feedback/surveys/{surveyId}"]?.delete
+        ?.security
+    ).toEqual([{ cookieAuth: [] }])
+    expect(
       document.paths["/api/v1/admin/feedback/submissions"]?.get?.security
     ).toEqual([{ cookieAuth: [] }])
     expect(

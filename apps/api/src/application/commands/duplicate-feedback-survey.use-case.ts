@@ -55,7 +55,7 @@ export class DuplicateFeedbackSurveyUseCase extends BaseCommandUseCase<
         this.idGenerator
       ),
     })
-    const saved = await this.feedbackSurveyRepository.save(duplicate)
+    const saved = await this.feedbackSurveyRepository.insert(duplicate)
     return toFeedbackSurveyMutationResponseDto(saved)
   }
 }
