@@ -14,6 +14,7 @@ import {
 } from "@workspace/ui/components/table"
 import { apiClient } from "@/lib/api-client"
 import { useApiResource } from "@/hooks/use-api-resource"
+import { AdminSurveyActions } from "@/components/admin-survey-actions"
 import { AdminSurveyActiveSwitch } from "@/components/admin-survey-active-switch"
 import { AdminSurveyCreateForm } from "@/components/admin-survey-create-form"
 
@@ -69,6 +70,7 @@ export function AdminSurveysTable() {
                 <TableHead className="text-right">回答数</TableHead>
                 <TableHead>作成日</TableHead>
                 <TableHead>有効</TableHead>
+                <TableHead>操作</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
@@ -108,6 +110,9 @@ export function AdminSurveysTable() {
                         {survey.isActive ? "有効" : "無効"}
                       </Badge>
                     </div>
+                  </TableCell>
+                  <TableCell>
+                    <AdminSurveyActions survey={survey} onChanged={reload} />
                   </TableCell>
                 </TableRow>
               ))}

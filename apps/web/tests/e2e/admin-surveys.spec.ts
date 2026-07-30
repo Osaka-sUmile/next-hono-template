@@ -17,7 +17,7 @@ function corsHeaders(origin: string) {
     "access-control-allow-credentials": "true",
     "access-control-allow-headers":
       "content-type, x-signup-intent, x-captcha-response",
-    "access-control-allow-methods": "GET,POST,PATCH,OPTIONS",
+    "access-control-allow-methods": "GET,POST,PATCH,DELETE,OPTIONS",
   }
 }
 
@@ -131,6 +131,39 @@ async function mockSurveysFlow(page: Page, surveys: SurveyItem[]) {
       request.method() === "GET"
     ) {
       await json(200, { items: surveys })
+      return
+    }
+
+    const duplicateMatch = path.match(
+      /\/admin\/feedback\/surveys\/([^/]+)\/duplicate$/
+    )
+    if (duplicateMatch && request.method() === "POST") {
+      const source = surveys.find((survey) => survey.id === duplicateMatch[1])
+      if (!source) {
+        await json(404, {
+          error: "survey not found",
+          code: "FEEDBACK_SURVEY_NOT_FOUND",
+        })
+        return
+      }
+      const body = request.postDataJSON() as { slug: string; title: string }
+      const duplicated = {
+        id: `srv_${surveys.length + 1}`,
+        slug: body.slug,
+        title: body.title,
+        isActive: false,
+        questionCount: source.questionCount,
+        submissionCount: 0,
+        createdAt: NOW,
+      }
+      surveys.unshift(duplicated)
+      await json(201, {
+        id: duplicated.id,
+        slug: duplicated.slug,
+        title: duplicated.title,
+        isActive: false,
+        questions: [],
+      })
       return
     }
 
@@ -254,6 +287,20 @@ async function mockSurveysFlow(page: Page, surveys: SurveyItem[]) {
     const patchMatch = path.match(/\/admin\/feedback\/surveys\/([^/]+)$/)
     if (patchMatch && request.method() === "PATCH") {
       await handleSurveyPatch(route, json, surveys, patchMatch[1]!)
+      return
+    }
+
+    if (patchMatch && request.method() === "DELETE") {
+      const index = surveys.findIndex((survey) => survey.id === patchMatch[1])
+      if (index < 0) {
+        await json(404, {
+          error: "survey not found",
+          code: "FEEDBACK_SURVEY_NOT_FOUND",
+        })
+        return
+      }
+      surveys.splice(index, 1)
+      await route.fulfill({ status: 204, headers: cors })
       return
     }
 
@@ -394,6 +441,52 @@ test.describe("アンケート管理", () => {
         exact: true,
       })
     ).toBeVisible()
+  })
+
+  test("下書きを複製すると、新しい非公開アンケートが一覧に追加される", async ({
+    page,
+  }) => {
+    await mockSurveysFlow(page, initialSurveys())
+
+    await page.goto("/admin/surveys")
+    const draftRow = page.getByRole("row", { name: /下書きアンケート/ })
+    await draftRow.getByRole("button", { name: "複製" }).click()
+    await page.getByLabel("新しいタイトル").fill("下書きアンケート 2027")
+    await page.getByLabel("新しい slug").fill("draft-2027")
+
+    const duplicatePromise = page.waitForRequest(
+      (request) =>
+        request.method() === "POST" &&
+        request.url().includes("/admin/feedback/surveys/srv_2/duplicate")
+    )
+    await page.getByRole("button", { name: "複製する" }).click()
+
+    expect((await duplicatePromise).postDataJSON()).toEqual({
+      title: "下書きアンケート 2027",
+      slug: "draft-2027",
+    })
+    await expect(
+      page.getByRole("row", { name: /下書きアンケート 2027/ })
+    ).toBeVisible()
+  })
+
+  test("未回答の下書きを確認後に削除すると一覧から消える", async ({ page }) => {
+    await mockSurveysFlow(page, initialSurveys())
+
+    await page.goto("/admin/surveys")
+    await page.getByRole("button", { name: "下書きアンケート を削除" }).click()
+
+    const deletePromise = page.waitForRequest(
+      (request) =>
+        request.method() === "DELETE" &&
+        request.url().includes("/admin/feedback/surveys/srv_2")
+    )
+    await page.getByRole("button", { name: "完全に削除" }).click()
+
+    await deletePromise
+    await expect(
+      page.getByRole("row", { name: /下書きアンケート/ })
+    ).not.toBeVisible()
   })
 
   test("詳細で集計グラフと回答者・自由記述を表示する", async ({ page }) => {
