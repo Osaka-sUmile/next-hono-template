@@ -3,7 +3,9 @@ import {
   EmptyActiveFeedbackSurveyError,
   FeedbackChoice,
   FeedbackQuestionEntity,
+  FeedbackSurveyHasSubmissionsError,
   FeedbackSurveyEntity,
+  FeedbackSurveyMustBeInactiveError,
   FeedbackSurveySlugConflictError,
   IFeedbackSurveyRepository,
   parseFeedbackQuestionType,
@@ -75,37 +77,37 @@ export class FeedbackSurveyPrismaRepository implements IFeedbackSurveyRepository
    */
   async save(entity: FeedbackSurveyEntity): Promise<FeedbackSurveyEntity> {
     try {
-      const survey = await this.prisma.feedbackSurvey.upsert({
-        where: { id: entity.id },
-        update: {
-          slug: entity.slug,
-          title: entity.title,
-          isActive: entity.isActive,
-        },
-        create: {
-          id: entity.id,
-          slug: entity.slug,
-          title: entity.title,
-          isActive: entity.isActive,
-          questions: {
-            create: entity.questions.map((question) => ({
-              id: question.id,
-              type: question.type,
-              text: question.text,
-              required: question.required,
-              sortOrder: question.sortOrder,
-              choices: {
-                create: question.choices.map((choice) => ({
-                  id: choice.id,
-                  value: choice.value,
-                  label: choice.label,
-                  sortOrder: choice.sortOrder,
-                })),
-              },
-            })),
+      const survey = await this.prisma.$transaction(async (tx) => {
+        const state = await lockSurvey(tx, entity.id)
+        if (state && entity.isActive) {
+          // 設問置換との競合で、古いEntityスナップショットから active + 設問0件を
+          // 保存しない。行ロック後の永続状態を検証してから同じtransactionで更新する。
+          const questionCount = await tx.feedbackQuestion.count({
+            where: { surveyId: entity.id },
+          })
+          if (questionCount === 0) {
+            throw new EmptyActiveFeedbackSurveyError(entity.id)
+          }
+        }
+
+        return tx.feedbackSurvey.upsert({
+          where: { id: entity.id },
+          update: {
+            slug: entity.slug,
+            title: entity.title,
+            isActive: entity.isActive,
           },
-        },
-        include: SURVEY_INCLUDE,
+          create: {
+            id: entity.id,
+            slug: entity.slug,
+            title: entity.title,
+            isActive: entity.isActive,
+            questions: {
+              create: entity.questions.map(questionCreateInput),
+            },
+          },
+          include: SURVEY_INCLUDE,
+        })
       })
       return this.toDomain(survey)
     } catch (error) {
@@ -119,7 +121,50 @@ export class FeedbackSurveyPrismaRepository implements IFeedbackSurveyRepository
   }
 
   async delete(entity: FeedbackSurveyEntity): Promise<void> {
-    await this.prisma.feedbackSurvey.delete({ where: { id: entity.id } })
+    await this.prisma.$transaction(async (tx) => {
+      const state = await lockSurvey(tx, entity.id)
+      if (!state) return
+      ensureDraftCanChange(entity.id, state.isActive)
+      const submissionCount = await tx.feedbackSubmission.count({
+        where: { surveyId: entity.id },
+      })
+      if (submissionCount > 0) {
+        throw new FeedbackSurveyHasSubmissionsError(entity.id)
+      }
+      await tx.feedbackSurvey.delete({ where: { id: entity.id } })
+    })
+  }
+
+  async replaceQuestions(
+    entity: FeedbackSurveyEntity
+  ): Promise<FeedbackSurveyEntity | null> {
+    return this.prisma.$transaction(async (tx) => {
+      const state = await lockSurvey(tx, entity.id)
+      if (!state) return null
+      ensureDraftCanChange(entity.id, state.isActive)
+      const submissionCount = await tx.feedbackSubmission.count({
+        where: { surveyId: entity.id },
+      })
+      if (submissionCount > 0) {
+        throw new FeedbackSurveyHasSubmissionsError(entity.id)
+      }
+
+      // 全削除後に配列順で再作成するため、sortOrder の複合 unique と衝突しない。
+      await tx.feedbackQuestion.deleteMany({ where: { surveyId: entity.id } })
+      await tx.feedbackSurvey.update({
+        where: { id: entity.id },
+        data: {
+          questions: {
+            create: entity.questions.map(questionCreateInput),
+          },
+        },
+      })
+      const survey = await tx.feedbackSurvey.findUnique({
+        where: { id: entity.id },
+        include: SURVEY_INCLUDE,
+      })
+      return survey ? this.toDomain(survey) : null
+    })
   }
 
   /**
@@ -189,6 +234,43 @@ export class FeedbackSurveyPrismaRepository implements IFeedbackSurveyRepository
         }
       )
     }
+  }
+}
+
+async function lockSurvey(
+  tx: Prisma.TransactionClient,
+  surveyId: string
+): Promise<{ isActive: boolean } | null> {
+  const rows = await tx.$queryRaw<{ isActive: boolean }[]>`
+    SELECT "isActive"
+    FROM "FeedbackSurvey"
+    WHERE "id" = ${surveyId}
+    FOR UPDATE
+  `
+  return rows[0] ?? null
+}
+
+function ensureDraftCanChange(surveyId: string, isActive: boolean): void {
+  if (isActive) {
+    throw new FeedbackSurveyMustBeInactiveError(surveyId)
+  }
+}
+
+function questionCreateInput(question: FeedbackQuestionEntity) {
+  return {
+    id: question.id,
+    type: question.type,
+    text: question.text,
+    required: question.required,
+    sortOrder: question.sortOrder,
+    choices: {
+      create: question.choices.map((choice) => ({
+        id: choice.id,
+        value: choice.value,
+        label: choice.label,
+        sortOrder: choice.sortOrder,
+      })),
+    },
   }
 }
 

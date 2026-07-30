@@ -1,8 +1,11 @@
 import type { RouteHandler } from "@hono/zod-openapi"
+import type { Context } from "hono"
 import {
   DuplicateFeedbackAnswerError,
   EmptyActiveFeedbackSurveyError,
   FeedbackAnswerTypeMismatchError,
+  FeedbackSurveyHasSubmissionsError,
+  FeedbackSurveyMustBeInactiveError,
   FeedbackSurveySlugConflictError,
   FeedbackTextTooLongError,
   InvalidFeedbackChoiceError,
@@ -15,10 +18,13 @@ import {
 } from "../../application"
 import type {
   CreateFeedbackSurveyUseCase,
+  DeleteFeedbackSurveyUseCase,
+  DuplicateFeedbackSurveyUseCase,
   GetActiveFeedbackSurveyUseCase,
   GetFeedbackSurveyDetailUseCase,
   ListFeedbackSubmissionsUseCase,
   ListFeedbackSurveysUseCase,
+  ReplaceFeedbackSurveyQuestionsUseCase,
   SubmitFeedbackUseCase,
   SummarizeFeedbackUseCase,
   UpdateFeedbackSurveyUseCase,
@@ -28,10 +34,13 @@ import { ErrorCodes } from "../errors"
 import { errorResponse } from "../http"
 import type {
   createFeedbackSurveyRoute,
+  deleteFeedbackSurveyRoute,
+  duplicateFeedbackSurveyRoute,
   getActiveFeedbackSurveyRoute,
   getFeedbackSurveyDetailRoute,
   listFeedbackSubmissionsRoute,
   listFeedbackSurveysRoute,
+  replaceFeedbackSurveyQuestionsRoute,
   submitFeedbackRoute,
   summarizeFeedbackRoute,
   updateFeedbackSurveyRoute,
@@ -69,7 +78,10 @@ export class FeedbackController {
     private readonly listFeedbackSubmissionsUseCase: ListFeedbackSubmissionsUseCase,
     private readonly summarizeFeedbackUseCase: SummarizeFeedbackUseCase,
     private readonly createFeedbackSurveyUseCase: CreateFeedbackSurveyUseCase,
-    private readonly updateFeedbackSurveyUseCase: UpdateFeedbackSurveyUseCase
+    private readonly updateFeedbackSurveyUseCase: UpdateFeedbackSurveyUseCase,
+    private readonly replaceFeedbackSurveyQuestionsUseCase: ReplaceFeedbackSurveyQuestionsUseCase,
+    private readonly duplicateFeedbackSurveyUseCase: DuplicateFeedbackSurveyUseCase,
+    private readonly deleteFeedbackSurveyUseCase: DeleteFeedbackSurveyUseCase
   ) {}
 
   // GET /feedback/survey: 回答フォームを描画するための設問一覧。
@@ -233,6 +245,69 @@ export class FeedbackController {
     }
   }
 
+  // PATCH /admin/feedback/surveys/{surveyId}/questions: 未回答の下書きの設問を全置換する。
+  replaceSurveyQuestions: RouteHandler<
+    typeof replaceFeedbackSurveyQuestionsRoute,
+    AppEnv
+  > = async (c) => {
+    const { surveyId } = c.req.valid("param")
+    const { questions } = c.req.valid("json")
+    try {
+      const survey = await this.replaceFeedbackSurveyQuestionsUseCase.execute({
+        surveyId,
+        questions,
+      })
+      return c.json(survey, 200)
+    } catch (error) {
+      return this.handleDraftMutationError(c, error)
+    }
+  }
+
+  // POST /admin/feedback/surveys/{surveyId}/duplicate: 新しい非公開surveyとして複製する。
+  duplicateSurvey: RouteHandler<typeof duplicateFeedbackSurveyRoute, AppEnv> =
+    async (c) => {
+      const { surveyId } = c.req.valid("param")
+      const body = c.req.valid("json")
+      try {
+        const survey = await this.duplicateFeedbackSurveyUseCase.execute({
+          surveyId,
+          ...body,
+        })
+        return c.json(survey, 201)
+      } catch (error) {
+        if (error instanceof FeedbackSurveySlugConflictError) {
+          return errorResponse(
+            c,
+            409,
+            ErrorCodes.FEEDBACK_SURVEY_SLUG_CONFLICT,
+            error.message
+          )
+        }
+        if (error instanceof FeedbackSurveyNotFoundError) {
+          return errorResponse(
+            c,
+            404,
+            ErrorCodes.FEEDBACK_SURVEY_NOT_FOUND,
+            error.message
+          )
+        }
+        throw error
+      }
+    }
+
+  // DELETE /admin/feedback/surveys/{surveyId}: 未回答の下書きだけを完全削除する。
+  deleteSurvey: RouteHandler<typeof deleteFeedbackSurveyRoute, AppEnv> = async (
+    c
+  ) => {
+    const { surveyId } = c.req.valid("param")
+    try {
+      await this.deleteFeedbackSurveyUseCase.execute({ surveyId })
+      return c.body(null, 204)
+    } catch (error) {
+      return this.handleDraftMutationError(c, error)
+    }
+  }
+
   // GET /admin/feedback/submissions: 回答者の氏名・メール・自由記述を含むため admin 限定。
   listSubmissions: RouteHandler<typeof listFeedbackSubmissionsRoute, AppEnv> =
     async (c) => {
@@ -252,5 +327,33 @@ export class FeedbackController {
     const { surveyId } = c.req.valid("query")
     const summary = await this.summarizeFeedbackUseCase.execute({ surveyId })
     return c.json(summary, 200)
+  }
+
+  private handleDraftMutationError(c: Context<AppEnv>, error: unknown) {
+    if (error instanceof FeedbackSurveyNotFoundError) {
+      return errorResponse(
+        c,
+        404,
+        ErrorCodes.FEEDBACK_SURVEY_NOT_FOUND,
+        error.message
+      )
+    }
+    if (error instanceof FeedbackSurveyMustBeInactiveError) {
+      return errorResponse(
+        c,
+        409,
+        ErrorCodes.FEEDBACK_SURVEY_MUST_BE_INACTIVE,
+        error.message
+      )
+    }
+    if (error instanceof FeedbackSurveyHasSubmissionsError) {
+      return errorResponse(
+        c,
+        409,
+        ErrorCodes.FEEDBACK_SURVEY_HAS_SUBMISSIONS,
+        error.message
+      )
+    }
+    throw error
   }
 }

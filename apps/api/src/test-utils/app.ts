@@ -3,6 +3,8 @@ import type { AuthInstance } from "@workspace/auth/server"
 import type {
   ChangeUserRoleUseCase,
   CreateFeedbackSurveyUseCase,
+  DeleteFeedbackSurveyUseCase,
+  DuplicateFeedbackSurveyUseCase,
   GetActiveFeedbackSurveyUseCase,
   GetAdminSummaryUseCase,
   GetCurrentUserUseCase,
@@ -10,6 +12,7 @@ import type {
   ListFeedbackSubmissionsUseCase,
   ListFeedbackSurveysUseCase,
   ListUsersUseCase,
+  ReplaceFeedbackSurveyQuestionsUseCase,
   SubmitFeedbackUseCase,
   SummarizeFeedbackUseCase,
   UpdateFeedbackSurveyUseCase,
@@ -64,6 +67,9 @@ export function createTestApp(
     summarizeFeedback?: ReturnType<typeof vi.fn>
     createFeedbackSurvey?: ReturnType<typeof vi.fn>
     updateFeedbackSurvey?: ReturnType<typeof vi.fn>
+    replaceFeedbackSurveyQuestions?: ReturnType<typeof vi.fn>
+    duplicateFeedbackSurvey?: ReturnType<typeof vi.fn>
+    deleteFeedbackSurvey?: ReturnType<typeof vi.fn>
     env?: Partial<Env>
   } = {}
 ) {
@@ -81,6 +87,10 @@ export function createTestApp(
   const summarizeFeedback = overrides.summarizeFeedback ?? vi.fn()
   const createFeedbackSurvey = overrides.createFeedbackSurvey ?? vi.fn()
   const updateFeedbackSurvey = overrides.updateFeedbackSurvey ?? vi.fn()
+  const replaceFeedbackSurveyQuestions =
+    overrides.replaceFeedbackSurveyQuestions ?? vi.fn()
+  const duplicateFeedbackSurvey = overrides.duplicateFeedbackSurvey ?? vi.fn()
+  const deleteFeedbackSurvey = overrides.deleteFeedbackSurvey ?? vi.fn()
 
   const auth = {
     api: { getSession },
@@ -122,6 +132,15 @@ export function createTestApp(
   const updateFeedbackSurveyUseCase = {
     execute: updateFeedbackSurvey,
   } as unknown as UpdateFeedbackSurveyUseCase
+  const replaceFeedbackSurveyQuestionsUseCase = {
+    execute: replaceFeedbackSurveyQuestions,
+  } as unknown as ReplaceFeedbackSurveyQuestionsUseCase
+  const duplicateFeedbackSurveyUseCase = {
+    execute: duplicateFeedbackSurvey,
+  } as unknown as DuplicateFeedbackSurveyUseCase
+  const deleteFeedbackSurveyUseCase = {
+    execute: deleteFeedbackSurvey,
+  } as unknown as DeleteFeedbackSurveyUseCase
 
   const app = buildApp({
     env: { ...testEnv, ...overrides.env },
@@ -141,7 +160,10 @@ export function createTestApp(
       listFeedbackSubmissionsUseCase,
       summarizeFeedbackUseCase,
       createFeedbackSurveyUseCase,
-      updateFeedbackSurveyUseCase
+      updateFeedbackSurveyUseCase,
+      replaceFeedbackSurveyQuestionsUseCase,
+      duplicateFeedbackSurveyUseCase,
+      deleteFeedbackSurveyUseCase
     ),
   })
 
@@ -161,5 +183,8 @@ export function createTestApp(
     summarizeFeedback,
     createFeedbackSurvey,
     updateFeedbackSurvey,
+    replaceFeedbackSurveyQuestions,
+    duplicateFeedbackSurvey,
+    deleteFeedbackSurvey,
   }
 }

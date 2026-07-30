@@ -5,8 +5,18 @@ export interface IFeedbackSurveyRepository extends IRepository<
   FeedbackSurveyEntity,
   string
 > {
+  /** 非公開かつ提出 0 件の下書きだけを削除する。 */
+  delete(entity: FeedbackSurveyEntity): Promise<void>
   findActive(): Promise<FeedbackSurveyEntity | null>
   findBySlug(slug: string): Promise<FeedbackSurveyEntity | null>
+  /**
+   * 非公開かつ提出 0 件のアンケートの設問セットを丸ごと置換する。
+   * 実装は survey 行をロックし、条件確認・削除・再作成を同一トランザクションで行う。
+   * 競合削除で対象が無くなった場合は null。
+   */
+  replaceQuestions(
+    entity: FeedbackSurveyEntity
+  ): Promise<FeedbackSurveyEntity | null>
   /**
    * 「同時にアクティブなのは 1 件」を保つため、対象を有効化し他をすべて無効化する。
    * 複数の集約ルートを跨ぐ操作なので `save(entity)` には収まらず、

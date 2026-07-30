@@ -30,6 +30,18 @@ export class EmptyActiveFeedbackSurveyError extends DomainError {
   }
 }
 
+export class FeedbackSurveyMustBeInactiveError extends DomainError {
+  constructor(id: string) {
+    super(`FeedbackSurvey must be inactive for this operation: id="${id}"`)
+  }
+}
+
+export class FeedbackSurveyHasSubmissionsError extends DomainError {
+  constructor(id: string) {
+    super(`FeedbackSurvey with submissions cannot be changed: id="${id}"`)
+  }
+}
+
 export function parseFeedbackQuestionType(value: string): FeedbackQuestionType {
   if (!FEEDBACK_QUESTION_TYPES.has(value)) {
     throw new InvalidFeedbackQuestionTypeError(value)
@@ -329,5 +341,25 @@ export class FeedbackSurveyEntity extends BaseEntity<string> {
       false,
       this.questions
     )
+  }
+
+  /**
+   * 未公開の下書きに限り、設問セット全体を差し替える。
+   * 提出件数は Entity が保持しないため、Repository でも同じ inactive 条件と
+   * submission 0 件をトランザクション内で再検証する。
+   */
+  replaceQuestions(
+    questions: readonly FeedbackQuestionDraft[]
+  ): FeedbackSurveyEntity {
+    if (this.isActive) {
+      throw new FeedbackSurveyMustBeInactiveError(this.id)
+    }
+    return FeedbackSurveyEntity.create({
+      id: this.id,
+      slug: this.slug,
+      title: this.title,
+      isActive: false,
+      questions,
+    })
   }
 }

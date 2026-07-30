@@ -93,6 +93,8 @@
               "FEEDBACK_SURVEY_NOT_FOUND",
               "FEEDBACK_SURVEY_SLUG_CONFLICT",
               "FEEDBACK_SURVEY_NOT_PUBLISHABLE",
+              "FEEDBACK_SURVEY_MUST_BE_INACTIVE",
+              "FEEDBACK_SURVEY_HAS_SUBMISSIONS",
               "FEEDBACK_INVALID_ANSWER",
               "RATE_LIMIT_EXCEEDED",
               "VALIDATION_ERROR",
@@ -1628,6 +1630,97 @@
             }
           }
         }
+      },
+      "delete": {
+        "tags": [
+          "Admin"
+        ],
+        "summary": "Delete an unsubmitted draft survey (admin only)",
+        "description": "Hard-deletes an inactive survey only when it has no submissions. Its slug becomes reusable.",
+        "security": [
+          {
+            "cookieAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "schema": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 64,
+              "description": "Draft survey to mutate"
+            },
+            "required": true,
+            "description": "Draft survey to mutate",
+            "name": "surveyId",
+            "in": "path"
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": "The survey was deleted"
+          },
+          "400": {
+            "description": "Invalid surveyId (VALIDATION_ERROR)",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Unauthorized (missing or invalid session)",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Forbidden (authenticated but not an admin)",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "No survey has that id (FEEDBACK_SURVEY_NOT_FOUND)",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Survey is active or already has submissions (FEEDBACK_SURVEY_MUST_BE_INACTIVE / FEEDBACK_SURVEY_HAS_SUBMISSIONS)",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Internal Server Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        }
       }
     },
     "/api/v1/admin/feedback/submissions": {
@@ -1793,6 +1886,305 @@
           },
           "403": {
             "description": "Forbidden (authenticated but not an admin)",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Internal Server Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/admin/feedback/surveys/{surveyId}/questions": {
+      "patch": {
+        "tags": [
+          "Admin"
+        ],
+        "summary": "Replace every question in a draft survey (admin only)",
+        "description": "Replaces the complete question set. The survey must be inactive and have no submissions. Question and choice ids are regenerated.",
+        "security": [
+          {
+            "cookieAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "schema": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 64,
+              "description": "Draft survey to mutate"
+            },
+            "required": true,
+            "description": "Draft survey to mutate",
+            "name": "surveyId",
+            "in": "path"
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "questions": {
+                    "type": "array",
+                    "items": {
+                      "type": "object",
+                      "properties": {
+                        "type": {
+                          "type": "string",
+                          "enum": [
+                            "single_choice",
+                            "text"
+                          ]
+                        },
+                        "text": {
+                          "type": "string",
+                          "minLength": 1,
+                          "maxLength": 2000
+                        },
+                        "required": {
+                          "type": "boolean",
+                          "default": false
+                        },
+                        "choices": {
+                          "type": "array",
+                          "items": {
+                            "type": "object",
+                            "properties": {
+                              "value": {
+                                "type": "string",
+                                "minLength": 1,
+                                "maxLength": 100
+                              },
+                              "label": {
+                                "type": "string",
+                                "minLength": 1,
+                                "maxLength": 200
+                              }
+                            },
+                            "required": [
+                              "value",
+                              "label"
+                            ],
+                            "additionalProperties": false
+                          },
+                          "maxItems": 20,
+                          "default": []
+                        }
+                      },
+                      "required": [
+                        "type",
+                        "text"
+                      ],
+                      "additionalProperties": false
+                    },
+                    "maxItems": 50
+                  }
+                },
+                "required": [
+                  "questions"
+                ],
+                "additionalProperties": false
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "The survey with its replacement question set",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/FeedbackSurveyMutationResult"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Request validation failed (VALIDATION_ERROR)",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Unauthorized (missing or invalid session)",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Forbidden (authenticated but not an admin)",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "No survey has that id (FEEDBACK_SURVEY_NOT_FOUND)",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Survey is active or already has submissions (FEEDBACK_SURVEY_MUST_BE_INACTIVE / FEEDBACK_SURVEY_HAS_SUBMISSIONS)",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Internal Server Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/admin/feedback/surveys/{surveyId}/duplicate": {
+      "post": {
+        "tags": [
+          "Admin"
+        ],
+        "summary": "Duplicate a feedback survey (admin only)",
+        "description": "Copies questions and choices into a new inactive survey with new ids. Submissions and answers are not copied.",
+        "security": [
+          {
+            "cookieAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "schema": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 64,
+              "description": "Draft survey to mutate"
+            },
+            "required": true,
+            "description": "Draft survey to mutate",
+            "name": "surveyId",
+            "in": "path"
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "slug": {
+                    "type": "string",
+                    "minLength": 1,
+                    "maxLength": 64,
+                    "pattern": "^[a-z0-9]+(?:-[a-z0-9]+)*$"
+                  },
+                  "title": {
+                    "type": "string",
+                    "minLength": 1,
+                    "maxLength": 200
+                  }
+                },
+                "required": [
+                  "slug",
+                  "title"
+                ],
+                "additionalProperties": false
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "The new inactive survey",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/FeedbackSurveyMutationResult"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Request validation failed (VALIDATION_ERROR)",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Unauthorized (missing or invalid session)",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Forbidden (authenticated but not an admin)",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "No survey has that id (FEEDBACK_SURVEY_NOT_FOUND)",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Slug conflict (FEEDBACK_SURVEY_SLUG_CONFLICT)",
             "content": {
               "application/json": {
                 "schema": {
