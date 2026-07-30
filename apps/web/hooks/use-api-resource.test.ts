@@ -86,6 +86,25 @@ describe("useApiResource", () => {
     expect(mocks.reportError).toHaveBeenCalledWith(networkError)
   })
 
+  it("mapErrorForReporting で監視系へ渡すエラーだけを変換する", async () => {
+    const apiError = new ApiError(500, {
+      email: "private@example.com",
+    })
+    const safeError = new ApiError(500)
+    const fetcher = vi.fn().mockRejectedValue(apiError)
+    const mapErrorForReporting = vi.fn().mockReturnValue(safeError)
+    const { result } = renderHook(() =>
+      useApiResource(fetcher, { mapErrorForReporting })
+    )
+
+    await waitFor(() => {
+      expect(result.current.isLoading).toBe(false)
+    })
+    expect(result.current.error).toBe(apiError)
+    expect(mapErrorForReporting).toHaveBeenCalledWith(apiError)
+    expect(mocks.reportError).toHaveBeenCalledWith(safeError)
+  })
+
   it("reload で再取得し、isLoading が再び true になる", async () => {
     const fetcher = vi
       .fn()
