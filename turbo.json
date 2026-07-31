@@ -33,6 +33,9 @@
     "lint": {
       "dependsOn": ["^lint"]
     },
+    "lint:type-aware": {
+      "dependsOn": ["^lint:type-aware"]
+    },
     "format": {
       "dependsOn": ["^format"]
     },

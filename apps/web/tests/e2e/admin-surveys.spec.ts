@@ -189,9 +189,8 @@ async function mockSurveysFlow(page: Page, surveys: SurveyItem[]) {
       return
     }
 
-    const duplicateMatch = path.match(
-      /\/admin\/feedback\/surveys\/([^/]+)\/duplicate$/
-    )
+    const duplicateMatch =
+      /\/admin\/feedback\/surveys\/([^/]+)\/duplicate$/.exec(path)
     if (duplicateMatch && request.method() === "POST") {
       const source = surveys.find((survey) => survey.id === duplicateMatch[1])
       if (!source) {
@@ -294,9 +293,8 @@ async function mockSurveysFlow(page: Page, surveys: SurveyItem[]) {
       return
     }
 
-    const questionsPatchMatch = path.match(
-      /\/admin\/feedback\/surveys\/([^/]+)\/questions$/
-    )
+    const questionsPatchMatch =
+      /\/admin\/feedback\/surveys\/([^/]+)\/questions$/.exec(path)
     if (questionsPatchMatch && request.method() === "PATCH") {
       await json(200, { questions: route.request().postDataJSON().questions })
       return
@@ -374,7 +372,7 @@ async function mockSurveysFlow(page: Page, surveys: SurveyItem[]) {
       return
     }
 
-    const patchMatch = path.match(/\/admin\/feedback\/surveys\/([^/]+)$/)
+    const patchMatch = /\/admin\/feedback\/surveys\/([^/]+)$/.exec(path)
     if (patchMatch && request.method() === "PATCH") {
       await handleSurveyPatch(route, json, surveys, patchMatch[1]!)
       return

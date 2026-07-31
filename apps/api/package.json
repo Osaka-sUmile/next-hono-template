@@ -12,6 +12,7 @@
     "test:watch": "vitest",
     "test:coverage": "vitest run --coverage",
     "lint": "eslint .",
+    "lint:type-aware": "eslint -c eslint.type-aware.config.mjs .",
     "format": "prettier --write \"**/*.{ts,tsx}\" --ignore-path ../../.prettierignore",
     "format:check": "prettier --check \"**/*.{ts,tsx}\" --ignore-path ../../.prettierignore",
     "openapi:dump": "tsx scripts/dump-openapi.mts"

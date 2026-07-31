@@ -78,6 +78,7 @@
 ## 開発ガイドライン
 - `CLAUDE.md`: 新機能追加のフローや命名・バリデーション規則
 - `docs/architecture.md`: 依存関係のルールやアーキテクチャ概要
+- `docs/eslint-policy.md`: ESLint・複雑度・型情報付き lint の運用方針
 
 ## Web (apps/web) のデプロイ
 

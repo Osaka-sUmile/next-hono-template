@@ -11,7 +11,7 @@ export abstract class BaseEntity<TId> {
 
   // エンティティの同一性はIDによって判定されます
   public equals(other?: BaseEntity<TId>): boolean {
-    if (other === null || other === undefined) {
+    if (other == null) {
       return false
     }
     if (this === other) {
@@ -45,10 +45,10 @@ type Equatable<T> = {
 }
 
 function hasEquals<T>(value: T): value is T & Equatable<T> {
+  if (value == null || typeof value !== "object") {
+    return false
+  }
   return (
-    value !== null &&
-    value !== undefined &&
-    typeof value === "object" &&
     "equals" in value &&
     typeof (value as Record<string, unknown>).equals === "function"
   )

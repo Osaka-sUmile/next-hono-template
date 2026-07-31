@@ -39,11 +39,13 @@ export function createAuth(config: AuthConfig) {
 
   // OTP 本体を送る（従来の挙動）。
   async function sendOtpEmail(email: string, otp: string, type: string) {
-    const subject =
-      type === "forget-password" ? "パスワードリセットコード" :
-      type === "change-email"    ? "メールアドレス変更コード" :
-                                   "認証コード";
-    const body = `${subject}: ${otp}\n\nこのコードは5分間有効です。`;
+    let subject = "認証コード"
+    if (type === "forget-password") {
+      subject = "パスワードリセットコード"
+    } else if (type === "change-email") {
+      subject = "メールアドレス変更コード"
+    }
+    const body = `${subject}: ${otp}\n\nこのコードは5分間有効です。`
     const { error } = await resendClient.emails.send({
       from: config.resendFromEmail,
       to: email,
