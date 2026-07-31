@@ -210,6 +210,7 @@ jobs:
           } > /tmp/codex-review-full-prompt.md
 
           # 差分は Workflow 側で生成済み。read-only サンドボックスでシェル実行を制限する。
+          # プロンプトは stdin 経由（巨大 PR で argv 長制限 E2BIG を避ける）。
           codex exec \
             --sandbox read-only \
             --model "${CODEX_MODEL}" \
@@ -217,7 +218,7 @@ jobs:
             --ephemeral \
             --ignore-user-config \
             --output-last-message codex-review-output.md \
-            "$(cat /tmp/codex-review-full-prompt.md)"
+            - < /tmp/codex-review-full-prompt.md
 
       - name: Validate Codex output
         if: steps.pr.outputs.skip != 'true' && steps.duplicate.outputs.skip != 'true'
@@ -241,6 +242,11 @@ jobs:
           VERDICT_COUNT=$(grep -cE '^CODEX VERDICT: (LGTM|CHANGES REQUESTED)$' "$OUTPUT" || true)
           if [ "$VERDICT_COUNT" -ne 1 ]; then
             echo "Expected exactly one CODEX VERDICT line, found ${VERDICT_COUNT}."
+            exit 1
+          fi
+          LAST_NONEMPTY_LINE=$(awk 'NF { line = $0 } END { print line }' "$OUTPUT")
+          if ! printf '%s\n' "$LAST_NONEMPTY_LINE" | grep -Eq '^CODEX VERDICT: (LGTM|CHANGES REQUESTED)$'; then
+            echo "The final non-empty line must be a CODEX VERDICT."
             exit 1
           fi
           if grep -q '^CODEX VERDICT: CHANGES REQUESTED$' "$OUTPUT"; then

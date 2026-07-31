@@ -62,7 +62,7 @@ Workflow は `contents: read` と `pull-requests: write` で動作します。fo
 
 ## Verdict の意味
 
-Codex の出力末尾には必ず次のいずれかが含まれます。
+Codex の出力**末尾（最終非空行）**には必ず次のいずれかが含まれます。Workflow は投稿前にこの契約を検証します。
 
 ```text
 CODEX VERDICT: LGTM
