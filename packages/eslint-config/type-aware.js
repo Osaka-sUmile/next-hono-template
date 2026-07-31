@@ -20,10 +20,6 @@ export function createTypeAwareConfig(tsconfigRootDir) {
     {
       files: ["**/*.{ts,tsx,mts,cts}"],
       ignores: [
-        "**/*.test.ts",
-        "**/*.test.tsx",
-        "**/*.spec.ts",
-        "**/*.spec.tsx",
         "**/eslint.config.*",
         "**/eslint.type-aware.config.*",
         "**/test-utils/**",

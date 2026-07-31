@@ -40,11 +40,11 @@
 
 ### 複雑度（`warn` — 初回導入）
 
-記事 [clean-code-ci-for-ai-era](https://zenn.dev/singularity/articles/clean-code-ci-for-ai-era) の初期基準:
+#171 で確定した基準（`CLAUDE.md` と一致）:
 
 | ルール | 閾値 |
 |--------|------|
-| `max-lines-per-function` | 60 行（空行・コメント除外） |
+| `max-lines-per-function` | 20 行（空行・コメント除外） |
 | `complexity` | 20 |
 | `max-depth` | 4 |
 | `max-params` | 6 |
@@ -73,10 +73,11 @@
 
 ## 例外の追加方法
 
-- **インライン `eslint-disable` は原則禁止。**
+- **インライン `eslint-disable` は使用しない。**
+- **`@ts-ignore` は使用しない。**
+- **`@ts-expect-error` は使用しない。** 型エラーは Vitest の型テスト API（`expectTypeOf` 等）またはコンパイル失敗 fixture で検証する。
 - 例外は `packages/eslint-config/base.js`（または `type-aware.js`）の `files` override に集約し、**理由をコメント**する。
 - 警告を消すためだけの `any`・型アサーション・non-null assertion への置換は禁止。
-- `@ts-ignore` は使用しない。`@ts-expect-error` は意図的な compile error テスト等に限定。
 
 ## 参考実装との差分
 
@@ -84,7 +85,7 @@
 |------|-------------------------------------|--------------|
 | プリセット | `strict` 一括 | `recommended` + 個別ルール追加（段階導入） |
 | 複雑度 | 多くが `error` | 初回はすべて `warn` |
-| 型情報 lint | 広い `strictTypeChecked` | 実害が大きい 4 ルールに限定 |
+| 型情報 lint | 広い `strictTypeChecked` | 実害が大きい 4 ルールに限定（テスト含む。誤検知ルールのみ override） |
 | 実行 | 単一パス | `lint` と `lint:type-aware` を分離 |
 | Security | グローバル + tuning | 同様の 3 ルール off |
 | Vue / i18n | あり | 対象外（Next.js + React） |

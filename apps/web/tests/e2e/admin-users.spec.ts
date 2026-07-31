@@ -125,7 +125,7 @@ async function mockUsersFlow(page: Page, users: MockUser[]) {
         body: JSON.stringify(body),
       })
 
-    const roleMatch = url.pathname.match(/\/admin\/users\/([^/]+)\/role$/)
+    const roleMatch = /\/admin\/users\/([^/]+)\/role$/.exec(url.pathname)
     if (roleMatch && request.method() === "PATCH") {
       const target = users.find((user) => user.id === roleMatch[1])
       if (!target) {

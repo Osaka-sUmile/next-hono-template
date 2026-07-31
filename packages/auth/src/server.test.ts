@@ -48,9 +48,9 @@ function lastEmail(): SentEmail {
 }
 
 function extractOtp(text: string): string {
-  const match = text.match(/(\d{4,8})/);
-  if (!match) throw new Error(`OTP がメール本文に見つかりません: ${text}`);
-  return match[1]!;
+  const match = /(\d{4,8})/.exec(text)
+  if (!match) throw new Error(`OTP がメール本文に見つかりません: ${text}`)
+  return match[1]!
 }
 
 /** 新規登録(signUp: true)を完了させ、確立済みのユーザーを作る。 */

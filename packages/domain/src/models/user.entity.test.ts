@@ -74,11 +74,11 @@ describe("UserEntity.reconstitute email validation", () => {
     ).toThrow(InvalidArgumentError)
   })
 
-  it("タブを含むメールアドレスを拒否する", () => {
+  it("改行を含むメールアドレスを拒否する", () => {
     expect(() =>
       UserEntity.reconstitute(
         "user-1",
-        "a\tb@example.com",
+        "user\n@example.com",
         "Test User",
         "user",
         null
