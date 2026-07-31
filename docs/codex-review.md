@@ -116,9 +116,9 @@ OpenAI API の利用料金が発生します。`concurrency` による実行集�
 - Codex は **コードを自動修正しません**（レビューのみ）
 - インラインコメントは投稿しません
 
-レビュー指摘への対応フローは、CodeRabbit 用の `.claude/skills/coderabbit-pr-fix/SKILL.md` とは別です。Codex の指摘は PR レビュー本文を読んで手動で対応してください。
+レビュー指摘への対応フローは、グローバル Skill `gh-review-loop`（`~/.claude/skills/gh-review-loop/SKILL.md`）で Codex と CodeRabbit を統合して扱います。リポジトリ内の `.claude/skills/` には複製しません。
 
 ## 関連 Issue
 
 - #168 — 本機能の導入
-- #170 — レビューと修正の自動ループ（本ドキュメントの対象外）
+- #170 — レビューと修正の自動ループ（`gh-review-loop` Skill）
