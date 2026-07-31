@@ -5,6 +5,20 @@
  * @param {string} tsconfigRootDir Workspace package root (directory containing tsconfig.json).
  * @returns {import("eslint").Linter.Config[]}
  */
+const typeAwareRules = {
+  "@typescript-eslint/no-base-to-string": "error",
+  "@typescript-eslint/no-floating-promises": "error",
+  "@typescript-eslint/no-misused-promises": [
+    "error",
+    {
+      checksVoidReturn: {
+        attributes: false,
+      },
+    },
+  ],
+  "@typescript-eslint/await-thenable": "error",
+}
+
 export function createTypeAwareConfig(tsconfigRootDir) {
   return [
     {
@@ -15,8 +29,6 @@ export function createTypeAwareConfig(tsconfigRootDir) {
         "**/prisma.*.config.*",
         "**/playwright.config.*",
         "**/next.config.*",
-        // scripts/*.mts は tsconfig include が src のみのため projectService 対象外。含めるには tsconfig.eslint.json 等が必要。
-        "**/scripts/**",
       ],
     },
     {
@@ -24,6 +36,7 @@ export function createTypeAwareConfig(tsconfigRootDir) {
       ignores: [
         "**/eslint.config.*",
         "**/eslint.type-aware.config.*",
+        "scripts/**",
       ],
       languageOptions: {
         parserOptions: {
@@ -31,19 +44,18 @@ export function createTypeAwareConfig(tsconfigRootDir) {
           tsconfigRootDir,
         },
       },
-      rules: {
-        "@typescript-eslint/no-base-to-string": "error",
-        "@typescript-eslint/no-floating-promises": "error",
-        "@typescript-eslint/no-misused-promises": [
-          "error",
-          {
-            checksVoidReturn: {
-              attributes: false,
-            },
-          },
-        ],
-        "@typescript-eslint/await-thenable": "error",
+      rules: typeAwareRules,
+    },
+    {
+      // scripts/*.mts はビルド用 tsconfig の include 外。ESLint 専用 tsconfig.eslint.json で型解決する。
+      files: ["scripts/**/*.{ts,mts,cts}"],
+      languageOptions: {
+        parserOptions: {
+          project: ["./tsconfig.eslint.json"],
+          tsconfigRootDir,
+        },
       },
+      rules: typeAwareRules,
     },
   ]
 }
