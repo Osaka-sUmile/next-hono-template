@@ -48,7 +48,7 @@ describe("resolveTracesSampleRate", () => {
       ["1 超過", "1.5"],
       ["未設定", undefined],
     ])("%s は無効として既定値にフォールバックする", (_label, raw) => {
-      expect(resolveTracesSampleRate(raw, "production")).toBe(0.1);
+      expect(resolveTracesSampleRate(raw, "production")).toBeCloseTo(0.1)
     });
   });
 });

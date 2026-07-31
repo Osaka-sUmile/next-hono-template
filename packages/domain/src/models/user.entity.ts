@@ -16,8 +16,20 @@ export function parseUserRole(value: string): UserRole {
   return value as UserRole
 }
 
-const EMAIL_REGEX = /^[^\s@]+@[^\s@]+\.[^\s@]+$/
 const DISPLAY_NAME_MAX_LENGTH = 100
+
+/** 線形時間の簡易チェック（ReDoS を避ける。厳密な RFC 検証は Presentation 層の Zod に委ねる）。 */
+function isValidEmailFormat(email: string): boolean {
+  const at = email.indexOf("@")
+  if (at <= 0 || at === email.length - 1) return false
+  const local = email.slice(0, at)
+  const domain = email.slice(at + 1)
+  if (local.length === 0 || domain.length === 0) return false
+  if (local.includes(" ") || domain.includes(" ")) return false
+  const dot = domain.indexOf(".")
+  if (dot <= 0 || dot === domain.length - 1) return false
+  return true
+}
 
 export class UserEntity extends BaseEntity<string> {
   private constructor(
@@ -28,7 +40,7 @@ export class UserEntity extends BaseEntity<string> {
     readonly displayName: string | null
   ) {
     super(id)
-    if (!EMAIL_REGEX.test(email))
+    if (!isValidEmailFormat(email))
       throw new InvalidArgumentError(`Invalid email format: "${email}"`)
     if (displayName !== null && displayName.length > DISPLAY_NAME_MAX_LENGTH) {
       throw new InvalidArgumentError(

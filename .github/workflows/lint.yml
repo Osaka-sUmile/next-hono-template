@@ -24,6 +24,9 @@ jobs:
       - name: Run Lint
         run: pnpm run lint
 
+      - name: Run Lint (type-aware)
+        run: pnpm run lint:type-aware
+
       - name: Run Format Check
         run: pnpm run format:check
 

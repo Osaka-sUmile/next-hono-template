@@ -20,6 +20,7 @@
     "build": "tsc",
     "typecheck": "tsc --noEmit",
     "lint": "eslint .",
+    "lint:type-aware": "eslint -c eslint.type-aware.config.mjs .",
     "test": "vitest run"
   },
   "dependencies": {

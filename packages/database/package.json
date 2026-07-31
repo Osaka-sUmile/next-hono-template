@@ -13,6 +13,7 @@
   "scripts": {
     "build": "tsc -p tsconfig.build.json",
     "lint": "eslint .",
+    "lint:type-aware": "eslint -c eslint.type-aware.config.mjs .",
     "format": "prettier --write \"**/*.{ts,tsx}\" --ignore-path ../../.prettierignore",
     "format:check": "prettier --check \"**/*.{ts,tsx}\" --ignore-path ../../.prettierignore",
     "typecheck": "tsc --noEmit",

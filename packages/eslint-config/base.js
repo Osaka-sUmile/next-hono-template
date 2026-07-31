@@ -1,7 +1,24 @@
 import js from "@eslint/js"
 import eslintConfigPrettier from "eslint-config-prettier"
+import pluginSecurity from "eslint-plugin-security"
+import pluginSonarjs from "eslint-plugin-sonarjs"
 import turboPlugin from "eslint-plugin-turbo"
 import tseslint from "typescript-eslint"
+
+/**
+ * Complexity guards (article baseline). Warn-only on introduction — see docs/eslint-policy.md.
+ */
+const complexityRules = {
+  "max-lines-per-function": [
+    "warn",
+    { max: 60, skipBlankLines: true, skipComments: true },
+  ],
+  complexity: ["warn", 20],
+  "max-depth": ["warn", 4],
+  "max-params": ["warn", 6],
+  "max-nested-callbacks": ["warn", 4],
+  "sonarjs/cognitive-complexity": ["warn", 15],
+}
 
 /**
  * A shared ESLint configuration for the repository.
@@ -10,12 +27,14 @@ import tseslint from "typescript-eslint"
  * (no-restricted-imports による Barrel 違反など) を warning に
  * 格下げしてしまい、ガードが看板倒れになるため。
  *
- * @type {import("eslint").Linter.Config}
- * */
+ * @type {import("eslint").Linter.Config[]}
+ */
 export const config = [
   js.configs.recommended,
   eslintConfigPrettier,
   ...tseslint.configs.recommended,
+  pluginSonarjs.configs.recommended,
+  pluginSecurity.configs.recommended,
   {
     plugins: {
       turbo: turboPlugin,
@@ -23,10 +42,26 @@ export const config = [
     rules: {
       "turbo/no-undeclared-env-vars": "warn",
       "@typescript-eslint/no-unused-vars": ["error", { argsIgnorePattern: "^_" }],
+      "@typescript-eslint/consistent-type-assertions": [
+        "warn",
+        { assertionStyle: "as", objectLiteralTypeAssertions: "never" },
+      ],
+      "@typescript-eslint/no-explicit-any": "warn",
+      "@typescript-eslint/no-non-null-assertion": "warn",
+      "sonarjs/no-ignored-exceptions": "warn",
+      // Sonar recommended のうち UI / Next.js / テストでノイズが高いものは warn で導入（段階的 error 化）。
+      "sonarjs/no-nested-conditional": "warn",
+      "sonarjs/no-globals-shadowing": "warn",
+      "sonarjs/no-hardcoded-passwords": "warn",
+      "sonarjs/no-identical-functions": "warn",
+      "sonarjs/super-linear-regex": "warn",
+      "sonarjs/no-floating-point-equality": "warn",
+      "sonarjs/pseudo-random": "warn",
+      "sonarjs/prefer-read-only-props": "warn",
+      "sonarjs/different-types-comparison": "warn",
+      "sonarjs/deprecation": "warn",
+      ...complexityRules,
       // Barrel Pattern: 外部パッケージは package.json の公開エントリ経由のみ許可。
-      // 深い相対パス (例: @workspace/database/src/...) を import するのを禁止する。
-      // 同一パッケージ内の越境 (例: presentation -> application/commands/foo.use-case)
-      // についても、index.ts を経由するため `../../*/**` の深い相対参照を禁ずる。
       "no-restricted-imports": [
         "error",
         {
@@ -44,16 +79,43 @@ export const config = [
           ],
         },
       ],
+      // High-noise, low-signal on this repo (validated paths, Prisma, regex in routes).
+      "security/detect-non-literal-fs-filename": "off",
+      "security/detect-object-injection": "off",
+      "security/detect-non-literal-regexp": "off",
     },
   },
   {
-    // テストファイルは test-utils などのヘルパを直接参照することがあるため barrel ルール除外
+    // Vitest suites are nested callbacks by design; keep cognitive complexity on.
     files: ["**/*.test.ts", "**/*.test.tsx", "**/*.spec.ts", "**/*.spec.tsx"],
     rules: {
       "no-restricted-imports": "off",
+      "max-lines-per-function": "off",
+      "max-nested-callbacks": "off",
     },
   },
   {
-    ignores: ["dist/**", ".next/**", "**/.turbo/**", "**/coverage/**"],
+    files: [
+      "**/eslint.config.*",
+      "**/eslint.type-aware.config.*",
+      "**/vitest.config.*",
+      "**/next.config.*",
+      "**/prisma.config.*",
+      "**/playwright.config.*",
+    ],
+    rules: {
+      "max-lines-per-function": "off",
+      complexity: "off",
+      "sonarjs/cognitive-complexity": "off",
+    },
+  },
+  {
+    ignores: [
+      "dist/**",
+      ".next/**",
+      "**/.turbo/**",
+      "**/coverage/**",
+      "**/prisma/migrations/**",
+    ],
   },
 ]
