@@ -67,7 +67,7 @@ describe("resolveSentryOptions", () => {
         SENTRY_DSN: DSN,
         SENTRY_ENVIRONMENT: "production",
       })
-      expect(options?.tracesSampleRate).toBeCloseTo(0.1)
+      expect(options?.tracesSampleRate).toBe(0.1)
     })
 
     it("SENTRY_TRACES_SAMPLE_RATE が有効な文字列なら上書きされる（共有関数との結線確認）", () => {
@@ -76,7 +76,7 @@ describe("resolveSentryOptions", () => {
         SENTRY_ENVIRONMENT: "production",
         SENTRY_TRACES_SAMPLE_RATE: "0.5",
       })
-      expect(options?.tracesSampleRate).toBeCloseTo(0.5)
+      expect(options?.tracesSampleRate).toBe(0.5)
     })
 
     it.each([
@@ -90,7 +90,7 @@ describe("resolveSentryOptions", () => {
           SENTRY_ENVIRONMENT: "production",
           SENTRY_TRACES_SAMPLE_RATE: raw,
         })
-        expect(options?.tracesSampleRate).toBeCloseTo(0.1)
+        expect(options?.tracesSampleRate).toBe(0.1)
       }
     )
   })

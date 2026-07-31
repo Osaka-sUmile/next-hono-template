@@ -19,13 +19,23 @@ export function parseUserRole(value: string): UserRole {
 const DISPLAY_NAME_MAX_LENGTH = 100
 
 /** 線形時間の簡易チェック（ReDoS を避ける。厳密な RFC 検証は Presentation 層の Zod に委ねる）。 */
+function containsAsciiWhitespace(value: string): boolean {
+  for (let i = 0; i < value.length; i++) {
+    const code = value.charCodeAt(i)
+    if (code <= 32 || code === 127) return true
+  }
+  return false
+}
+
 function isValidEmailFormat(email: string): boolean {
   const at = email.indexOf("@")
-  if (at <= 0 || at === email.length - 1) return false
+  if (at <= 0 || at !== email.lastIndexOf("@")) return false
   const local = email.slice(0, at)
   const domain = email.slice(at + 1)
   if (local.length === 0 || domain.length === 0) return false
-  if (local.includes(" ") || domain.includes(" ")) return false
+  if (containsAsciiWhitespace(local) || containsAsciiWhitespace(domain)) {
+    return false
+  }
   const dot = domain.indexOf(".")
   if (dot <= 0 || dot === domain.length - 1) return false
   return true

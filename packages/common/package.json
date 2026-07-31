@@ -13,7 +13,7 @@
   "scripts": {
     "build": "tsc",
     "lint": "eslint \"src/**/*.ts\"",
-    "lint:type-aware": "eslint -c eslint.type-aware.config.mjs \"src/**/*.ts\"",
+    "lint:type-aware": "eslint -c eslint.type-aware.config.mjs .",
     "typecheck": "tsc --noEmit",
     "test": "vitest run"
   },

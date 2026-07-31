@@ -50,6 +50,43 @@ describe("InvalidUserRoleError", () => {
   })
 })
 
+describe("UserEntity.reconstitute email validation", () => {
+  it("有効なメールアドレスを受け付ける", () => {
+    const user = UserEntity.reconstitute(
+      "user-1",
+      "test@example.com",
+      "Test User",
+      "user",
+      null
+    )
+    expect(user.email).toBe("test@example.com")
+  })
+
+  it("複数の @ を含むメールアドレスを拒否する", () => {
+    expect(() =>
+      UserEntity.reconstitute(
+        "user-1",
+        "a@b@c.com",
+        "Test User",
+        "user",
+        null
+      )
+    ).toThrow(InvalidArgumentError)
+  })
+
+  it("タブを含むメールアドレスを拒否する", () => {
+    expect(() =>
+      UserEntity.reconstitute(
+        "user-1",
+        "a\tb@example.com",
+        "Test User",
+        "user",
+        null
+      )
+    ).toThrow(InvalidArgumentError)
+  })
+})
+
 describe("UserEntity.changeDisplayName", () => {
   const createUser = (displayName: string | null = "元の名前") =>
     UserEntity.reconstitute(
