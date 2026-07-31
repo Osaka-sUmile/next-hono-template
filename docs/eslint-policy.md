@@ -100,7 +100,8 @@
 
 - ルート TS 設定: `vitest.config.*`, `prisma.config.*`, `playwright.config.*`, `next.config.*`
 - ESLint 設定自身: `eslint.config.*`, `eslint.type-aware.config.*`
-- `scripts/**` — 各 workspace の `tsconfig.json` が `src` のみを include するため、`projectService` 対象外（`tsconfig.eslint.json` 整備後に見直し）
+
+`scripts/**` はビルド用 `tsconfig.json`（`include: ["src"]`）の対象外だが、各 workspace の `tsconfig.eslint.json` と Flat Config override（`parserOptions.project`）で型情報 lint の対象とする。
 
 `test-utils/**` は型情報 lint の対象とする（async のテストインフラで Promise 誤用を検出するため）。
 
