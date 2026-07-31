@@ -100,7 +100,9 @@
 
 - ルート TS 設定: `vitest.config.*`, `prisma.config.*`, `playwright.config.*`, `next.config.*`
 - ESLint 設定自身: `eslint.config.*`, `eslint.type-aware.config.*`
-- `scripts/**`, `test-utils/**`
+- `scripts/**` — 各 workspace の `tsconfig.json` が `src` のみを include するため、`projectService` 対象外（`tsconfig.eslint.json` 整備後に見直し）
+
+`test-utils/**` は型情報 lint の対象とする（async のテストインフラで Promise 誤用を検出するため）。
 
 `lint:type-aware` は `projectService` による静的解析のため Turbo 上で `^build` に依存しない（`turbo.json`）。
 

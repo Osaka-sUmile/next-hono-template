@@ -15,6 +15,7 @@ export function createTypeAwareConfig(tsconfigRootDir) {
         "**/prisma.*.config.*",
         "**/playwright.config.*",
         "**/next.config.*",
+        // scripts/*.mts は tsconfig include が src のみのため projectService 対象外。含めるには tsconfig.eslint.json 等が必要。
         "**/scripts/**",
       ],
     },
@@ -23,7 +24,6 @@ export function createTypeAwareConfig(tsconfigRootDir) {
       ignores: [
         "**/eslint.config.*",
         "**/eslint.type-aware.config.*",
-        "**/test-utils/**",
       ],
       languageOptions: {
         parserOptions: {
