@@ -52,8 +52,8 @@ Workflow は `contents: read` と `pull-requests: write` で動作します。fo
 
 ### スキップされる PR
 
-- Dependabot が作成した PR（`dependabot[bot]`）
-- 外部 fork からの PR（同一リポジトリ内ブランチのみ対象）
+- Dependabot が作成した PR（PR 作者が `dependabot[bot]`）
+- 外部 fork からの PR（head リポジトリが本リポジトリと一致しない場合。**`workflow_dispatch` でも同様**）
 - **同一 head SHA に対して既に Codex レビューが投稿済み**の場合（手動再実行時の重複防止）
 
 ## Verdict の意味
@@ -93,12 +93,12 @@ Workflow 内の `env` で固定しています。
 
 | 変数 | 現在の値 | 更新方法 |
 |------|----------|----------|
-| `CODEX_VERSION` | `0.146.0` | `.github/workflows/codex-review.yml` の `env.CODEX_VERSION` を更新。npm cache キーも同バージョン |
-| `CODEX_MODEL` | `codex-auto-review` | 同上の `env.CODEX_MODEL` を更新 |
+| `CODEX_VERSION` | `0.146.0` | `.github/workflows/codex-review.yml` の `env.CODEX_VERSION` を更新。pnpm store の cache キーも同バージョン |
+| `CODEX_MODEL` | `gpt-5.3-codex` | 同上の `env.CODEX_MODEL` を更新 |
 
 Codex CLI の更新手順:
 
-1. `npm view @openai/codex version` で利用可能なバージョンを確認
+1. `pnpm view @openai/codex version` で利用可能なバージョンを確認
 2. Workflow の `CODEX_VERSION` を更新してコミット
 3. テスト PR で動作確認
 
