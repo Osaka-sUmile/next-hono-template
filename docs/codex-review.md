@@ -40,6 +40,8 @@ Codex CLI は `--ignore-user-config` 使用時に環境変数 `OPENAI_API_KEY` �
 
 Azure OpenAI は使用しません。
 
+### 2. 権限
+
 Workflow は `contents: read` と `pull-requests: write` で動作します。fork からの PR には Secrets が渡らないため、外部 fork PR は自動スキップされます。
 
 ## 実行対象とスキップ条件
