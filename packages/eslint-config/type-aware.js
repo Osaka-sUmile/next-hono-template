@@ -36,7 +36,7 @@ export function createTypeAwareConfig(tsconfigRootDir) {
       ignores: [
         "**/eslint.config.*",
         "**/eslint.type-aware.config.*",
-        "scripts/**",
+        "**/scripts/**",
       ],
       languageOptions: {
         parserOptions: {
@@ -48,7 +48,7 @@ export function createTypeAwareConfig(tsconfigRootDir) {
     },
     {
       // scripts/*.mts はビルド用 tsconfig の include 外。ESLint 専用 tsconfig.eslint.json で型解決する。
-      files: ["scripts/**/*.{ts,mts,cts}"],
+      files: ["**/scripts/**/*.{ts,mts,cts}"],
       languageOptions: {
         parserOptions: {
           project: ["./tsconfig.eslint.json"],
