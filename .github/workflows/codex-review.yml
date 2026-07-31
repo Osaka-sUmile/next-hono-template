@@ -170,6 +170,20 @@ jobs:
         if: steps.pr.outputs.skip != 'true' && steps.duplicate.outputs.skip != 'true'
         run: pnpm add --global "@openai/codex@${CODEX_VERSION}"
 
+      - name: Verify OpenAI API key and configure Codex auth
+        if: steps.pr.outputs.skip != 'true' && steps.duplicate.outputs.skip != 'true'
+        env:
+          OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
+        run: |
+          set -euo pipefail
+          if [ -z "${OPENAI_API_KEY}" ]; then
+            echo "::error::OPENAI_API_KEY repository secret is not set. Add it under Settings → Secrets and variables → Actions."
+            exit 1
+          fi
+          # --ignore-user-config では環境変数 OPENAI_API_KEY を自動読み込みしないため、明示的に login する。
+          printenv OPENAI_API_KEY | codex login --with-api-key
+          codex login status
+
       - name: Run Codex review
         if: steps.pr.outputs.skip != 'true' && steps.duplicate.outputs.skip != 'true'
         id: codex

@@ -34,9 +34,11 @@ GitHub リポジトリの **Settings → Secrets and variables → Actions** に
 |--------|------|
 | `OPENAI_API_KEY` | OpenAI API キー。Codex CLI が OpenAI API 経由でモデルを呼び出す際に使用 |
 
-Azure OpenAI は使用しません。
+**必須:** 未設定のまま Workflow を実行すると `401 Unauthorized` で失敗します。Organization secret を使う場合は、対象リポジトリへのアクセス権も確認してください。
 
-### 2. 権限
+Codex CLI は `--ignore-user-config` 使用時に環境変数 `OPENAI_API_KEY` を自動では読み込まない。Workflow 内で `codex login --with-api-key` により認証情報を設定する。
+
+Azure OpenAI は使用しません。
 
 Workflow は `contents: read` と `pull-requests: write` で動作します。fork からの PR には Secrets が渡らないため、外部 fork PR は自動スキップされます。
 
