@@ -64,13 +64,7 @@ describe("UserEntity.reconstitute email validation", () => {
 
   it("複数の @ を含むメールアドレスを拒否する", () => {
     expect(() =>
-      UserEntity.reconstitute(
-        "user-1",
-        "a@b@c.com",
-        "Test User",
-        "user",
-        null
-      )
+      UserEntity.reconstitute("user-1", "a@b@c.com", "Test User", "user", null)
     ).toThrow(InvalidArgumentError)
   })
 
