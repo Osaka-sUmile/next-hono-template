@@ -1,0 +1,270 @@
+# Codex CLI による PR 自動レビュー（CodeRabbit と併用）。
+# 実装担当 AI とは別モデルにレビューさせ、自己レビューの見落としを減らす。
+# レビュー結果はトップレベルの PR レビューコメント（event=COMMENT）として投稿する。
+#
+# 必要な Repository Secret:
+#   OPENAI_API_KEY — OpenAI API キー（Codex CLI 認証）
+#
+# 手動再実行: Actions → Codex review → Run workflow → PR 番号を指定
+
+name: Codex review
+
+on:
+  pull_request:
+    types:
+      - opened
+      - synchronize
+      - reopened
+    branches:
+      - main
+      - develop
+  workflow_dispatch:
+    inputs:
+      pr_number:
+        description: "PR number to review"
+        required: true
+        type: string
+
+permissions:
+  contents: read
+  pull-requests: write
+
+env:
+  CODEX_VERSION: "0.146.0"
+  CODEX_MODEL: "gpt-5.3-codex"
+
+concurrency:
+  group: codex-review-pr-${{ github.event.pull_request.number || inputs.pr_number }}
+  cancel-in-progress: true
+
+jobs:
+  codex-review:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - name: Resolve PR metadata
+        id: pr
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          PR_NUMBER: ${{ github.event.pull_request.number || inputs.pr_number }}
+        run: |
+          set -euo pipefail
+          PR_JSON=$(gh api "repos/${GITHUB_REPOSITORY}/pulls/${PR_NUMBER}")
+          HEAD_SHA=$(echo "$PR_JSON" | jq -r .head.sha)
+          BASE_REF=$(echo "$PR_JSON" | jq -r .base.ref)
+          TITLE=$(echo "$PR_JSON" | jq -r .title)
+          NUMBER=$(echo "$PR_JSON" | jq -r .number)
+          HEAD_REPO=$(echo "$PR_JSON" | jq -r .head.repo.full_name)
+          PR_AUTHOR=$(echo "$PR_JSON" | jq -r .user.login)
+
+          if [ "$HEAD_REPO" != "$GITHUB_REPOSITORY" ]; then
+            echo "Skipping: head repository ${HEAD_REPO} is not ${GITHUB_REPOSITORY}."
+            echo "skip=true" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+
+          if [ "$PR_AUTHOR" = "dependabot[bot]" ]; then
+            echo "Skipping: Dependabot PR #${NUMBER}."
+            echo "skip=true" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+
+          echo "head_sha=${HEAD_SHA}" >> "$GITHUB_OUTPUT"
+          echo "base_ref=${BASE_REF}" >> "$GITHUB_OUTPUT"
+          echo "title=${TITLE}" >> "$GITHUB_OUTPUT"
+          echo "number=${NUMBER}" >> "$GITHUB_OUTPUT"
+          echo "skip=false" >> "$GITHUB_OUTPUT"
+
+      - name: Skip if Codex review already exists for this commit
+        id: duplicate
+        if: steps.pr.outputs.skip != 'true'
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          HEAD_SHA: ${{ steps.pr.outputs.head_sha }}
+          PR_NUMBER: ${{ steps.pr.outputs.number }}
+        run: |
+          set -euo pipefail
+          MARKER="Reviewed commit: ${HEAD_SHA}"
+          COUNT=$(gh api "repos/${GITHUB_REPOSITORY}/pulls/${PR_NUMBER}/reviews" --paginate \
+            --jq "[.[] | select(.body != null and (.body | contains(\"## Codex Review\")) and (.body | contains(\"${MARKER}\")))] | length")
+          if [ "$COUNT" -gt 0 ]; then
+            echo "Codex review for ${HEAD_SHA} already exists on PR #${PR_NUMBER}. Skipping."
+            echo "skip=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "skip=false" >> "$GITHUB_OUTPUT"
+          fi
+
+      - uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4.3.1
+        if: steps.pr.outputs.skip != 'true' && steps.duplicate.outputs.skip != 'true'
+        with:
+          ref: ${{ steps.pr.outputs.head_sha }}
+          fetch-depth: 0
+          persist-credentials: false
+
+      - name: Fetch base branch for diff
+        if: steps.pr.outputs.skip != 'true' && steps.duplicate.outputs.skip != 'true'
+        env:
+          BASE_REF: ${{ steps.pr.outputs.base_ref }}
+        run: git fetch origin "$BASE_REF"
+
+      - name: Prepare PR diff
+        if: steps.pr.outputs.skip != 'true' && steps.duplicate.outputs.skip != 'true'
+        env:
+          BASE_REF: ${{ steps.pr.outputs.base_ref }}
+        run: git diff "origin/${BASE_REF}...HEAD" > /tmp/pr.diff
+
+      - name: Collect existing PR feedback for context
+        if: steps.pr.outputs.skip != 'true' && steps.duplicate.outputs.skip != 'true'
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          PR_NUMBER: ${{ steps.pr.outputs.number }}
+        run: |
+          set -euo pipefail
+          # 信頼できるボットのコメントのみ渡す（プロンプトインジェクション対策）。
+          TRUSTED_JQ='select(.user.login == "coderabbitai[bot]" or .user.login == "github-actions[bot]" or .user.login == "coderabbitai")'
+          {
+            echo "# Existing bot review feedback (read-only context)"
+            echo
+            echo "## Issue comments"
+            gh api "repos/${GITHUB_REPOSITORY}/issues/${PR_NUMBER}/comments" --paginate \
+              --jq ".[] | ${TRUSTED_JQ} | \"---\nAuthor: \(.user.login)\n\(.body)\n\""
+            echo
+            echo "## Pull request reviews"
+            gh api "repos/${GITHUB_REPOSITORY}/pulls/${PR_NUMBER}/reviews" --paginate \
+              --jq ".[] | select(.body != null and .body != \"\") | ${TRUSTED_JQ} | \"---\nAuthor: \(.user.login)\n\(.body)\n\""
+            echo
+            echo "## Inline review comments"
+            gh api "repos/${GITHUB_REPOSITORY}/pulls/${PR_NUMBER}/comments" --paginate \
+              --jq ".[] | ${TRUSTED_JQ} | \"---\nAuthor: \(.user.login)\nFile: \(.path) Line: \(.line // .original_line // \"n/a\")\n\(.body)\n\""
+          } > /tmp/pr-existing-feedback.md
+
+      - name: Setup pnpm
+        if: steps.pr.outputs.skip != 'true' && steps.duplicate.outputs.skip != 'true'
+        uses: pnpm/action-setup@fc06bc1257f339d1d5d8b3a19a8cae5388b55320 # v4.4.0
+        with:
+          version: "9.15.9"
+
+      - name: Use Node.js
+        if: steps.pr.outputs.skip != 'true' && steps.duplicate.outputs.skip != 'true'
+        uses: actions/setup-node@48b55a011bda9f5d6aeb4c2d9c7362e8dae4041e # v6.4.0
+        with:
+          node-version: "22"
+          cache: pnpm
+
+      - name: Get pnpm store directory
+        if: steps.pr.outputs.skip != 'true' && steps.duplicate.outputs.skip != 'true'
+        id: pnpm-store
+        shell: bash
+        run: echo "STORE_PATH=$(pnpm store path --silent)" >> "$GITHUB_OUTPUT"
+
+      - name: Cache pnpm store
+        if: steps.pr.outputs.skip != 'true' && steps.duplicate.outputs.skip != 'true'
+        uses: actions/cache@0057852bfaa89a56745cba8c7296529d2fc39830 # v4.3.0
+        with:
+          path: ${{ steps.pnpm-store.outputs.STORE_PATH }}
+          key: codex-cli-${{ env.CODEX_VERSION }}-pnpm-store
+          restore-keys: |
+            codex-cli-${{ env.CODEX_VERSION }}-pnpm-store
+
+      - name: Install Codex CLI (pinned)
+        if: steps.pr.outputs.skip != 'true' && steps.duplicate.outputs.skip != 'true'
+        run: pnpm add --global "@openai/codex@${CODEX_VERSION}"
+
+      - name: Verify OpenAI API key and configure Codex auth
+        if: steps.pr.outputs.skip != 'true' && steps.duplicate.outputs.skip != 'true'
+        env:
+          OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
+        run: |
+          set -euo pipefail
+          if [ -z "${OPENAI_API_KEY}" ]; then
+            echo "::error::OPENAI_API_KEY repository secret is not set. Add it under Settings → Secrets and variables → Actions."
+            exit 1
+          fi
+          # --ignore-user-config では環境変数 OPENAI_API_KEY を自動読み込みしないため、明示的に login する。
+          printenv OPENAI_API_KEY | codex login --with-api-key
+          codex login status
+
+      - name: Run Codex review
+        if: steps.pr.outputs.skip != 'true' && steps.duplicate.outputs.skip != 'true'
+        id: codex
+        env:
+          OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
+          PR_NUMBER: ${{ steps.pr.outputs.number }}
+          PR_TITLE: ${{ steps.pr.outputs.title }}
+          BASE_REF: ${{ steps.pr.outputs.base_ref }}
+          HEAD_SHA: ${{ steps.pr.outputs.head_sha }}
+        run: |
+          set -euo pipefail
+          export PR_NUMBER PR_TITLE BASE_REF HEAD_SHA
+          envsubst '${PR_NUMBER} ${PR_TITLE} ${BASE_REF} ${HEAD_SHA}' \
+            < .github/prompts/codex-review.md > /tmp/codex-review-prompt.md
+          {
+            cat /tmp/codex-review-prompt.md
+            echo
+            echo "## PR diff"
+            echo '```diff'
+            cat /tmp/pr.diff
+            echo '```'
+            echo
+            cat /tmp/pr-existing-feedback.md
+          } > /tmp/codex-review-full-prompt.md
+
+          # 差分は Workflow 側で生成済み。read-only サンドボックスでシェル実行を制限する。
+          # プロンプトは stdin 経由（巨大 PR で argv 長制限 E2BIG を避ける）。
+          codex exec \
+            --sandbox read-only \
+            --model "${CODEX_MODEL}" \
+            --color never \
+            --ephemeral \
+            --ignore-user-config \
+            --output-last-message codex-review-output.md \
+            - < /tmp/codex-review-full-prompt.md
+
+      - name: Validate Codex output
+        if: steps.pr.outputs.skip != 'true' && steps.duplicate.outputs.skip != 'true'
+        env:
+          HEAD_SHA: ${{ steps.pr.outputs.head_sha }}
+        run: |
+          set -euo pipefail
+          OUTPUT="codex-review-output.md"
+          if [ ! -s "$OUTPUT" ]; then
+            echo "Codex review output is empty."
+            exit 1
+          fi
+          if ! grep -Fxq "## Codex Review" "$OUTPUT"; then
+            echo "Missing required header: ## Codex Review"
+            exit 1
+          fi
+          if ! grep -Fxq "Reviewed commit: ${HEAD_SHA}" "$OUTPUT"; then
+            echo "Missing or mismatched Reviewed commit line."
+            exit 1
+          fi
+          VERDICT_COUNT=$(grep -cE '^CODEX VERDICT: (LGTM|CHANGES REQUESTED)$' "$OUTPUT" || true)
+          if [ "$VERDICT_COUNT" -ne 1 ]; then
+            echo "Expected exactly one CODEX VERDICT line, found ${VERDICT_COUNT}."
+            exit 1
+          fi
+          LAST_NONEMPTY_LINE=$(awk 'NF { line = $0 } END { print line }' "$OUTPUT")
+          if ! printf '%s\n' "$LAST_NONEMPTY_LINE" | grep -Eq '^CODEX VERDICT: (LGTM|CHANGES REQUESTED)$'; then
+            echo "The final non-empty line must be a CODEX VERDICT."
+            exit 1
+          fi
+          if grep -q '^CODEX VERDICT: CHANGES REQUESTED$' "$OUTPUT"; then
+            echo "Codex requested changes (workflow continues)."
+          else
+            echo "Codex verdict: LGTM"
+          fi
+
+      - name: Post PR review comment
+        if: steps.pr.outputs.skip != 'true' && steps.duplicate.outputs.skip != 'true'
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          HEAD_SHA: ${{ steps.pr.outputs.head_sha }}
+          PR_NUMBER: ${{ steps.pr.outputs.number }}
+        run: |
+          set -euo pipefail
+          jq -n \
+            --rawfile body codex-review-output.md \
+            --arg commit_id "$HEAD_SHA" \
+            '{event: "COMMENT", commit_id: $commit_id, body: $body}' | \
+            gh api "repos/${GITHUB_REPOSITORY}/pulls/${PR_NUMBER}/reviews" --input -

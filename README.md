@@ -184,6 +184,7 @@ pnpm --filter @workspace/database test:integration
 | **Git Hooks** | `.husky/pre-commit` | コミット前に自動的に `pnpm run typecheck` → `pnpm run lint` → `pnpm run test` を実行し、問題があれば中断 |
 | **CI (Lint)** | `.github/workflows/lint.yml` | PR時に変更されたフロント・バックエンドファイルに対して `eslint` を実行 |
 | **CI (E2Eテスト)** | `.github/workflows/e2e.yml` | Playwright を用いたフロントエンドのE2Eテストを実行 |
+| **CI (Codexレビュー)** | `.github/workflows/codex-review.yml` | Codex CLI による PR 自動レビュー（CodeRabbit と併用。`OPENAI_API_KEY` が必要。詳細は `docs/codex-review.md`） |
 | **CD (デプロイ)** | `.github/workflows/deploy.yml` | develop → preview / main → production へ Cloudflare Workers に自動デプロイ（詳細は `docs/deployment.md`） |
 
 ※ **注意:** GitHub Actions の実行時間（制限・コスト）を節約するため、DB 接続先の安全性を担保するテストハーネスの単体テストを除き、**CI 上での単体テスト自動実行は行わない方針** としています。その他の単体テストは、コミット時の Git Hooks (`pre-commit`) で自己検証される前提です。
