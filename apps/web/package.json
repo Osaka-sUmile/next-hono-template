@@ -11,7 +11,7 @@
     "deploy": "node ../../scripts/ensure-ci-deploy.mjs && opennextjs-cloudflare build && opennextjs-cloudflare deploy",
     "cf-typegen": "wrangler types --env-interface CloudflareEnv ./cloudflare-env.d.ts",
     "lint": "eslint",
-    "lint:type-aware": "eslint -c eslint.type-aware.config.js",
+    "lint:type-aware": "eslint -c eslint.type-aware.config.js .",
     "format": "prettier --write \"**/*.{ts,tsx}\" --ignore-path ../../.prettierignore",
     "format:check": "prettier --check \"**/*.{ts,tsx}\" --ignore-path ../../.prettierignore",
     "typecheck": "tsc --noEmit",

@@ -94,6 +94,16 @@
 
 各パッケージは `eslint.config.*` で共有設定を import し、`eslint.type-aware.config.*` で型情報付き設定を追加する。ルールの重複定義はしない。
 
+`lint:type-aware` の CLI 引数は全 workspace で `eslint -c eslint.type-aware.config.* .` に統一する（`.` 明示で検査対象を揃える）。
+
+型情報付き lint の除外対象（`packages/eslint-config/type-aware.js` の `ignores`）:
+
+- ルート TS 設定: `vitest.config.*`, `prisma.config.*`, `playwright.config.*`, `next.config.*`
+- ESLint 設定自身: `eslint.config.*`, `eslint.type-aware.config.*`
+- `scripts/**`, `test-utils/**`
+
+`lint:type-aware` は `projectService` による静的解析のため Turbo 上で `^build` に依存しない（`turbo.json`）。
+
 ## 関連
 
 - 開発ガイドライン: ルート `CLAUDE.md`

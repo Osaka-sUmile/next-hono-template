@@ -14,6 +14,7 @@ export function createTypeAwareConfig(tsconfigRootDir) {
         "**/prisma.config.*",
         "**/prisma.*.config.*",
         "**/playwright.config.*",
+        "**/next.config.*",
         "**/scripts/**",
       ],
     },
