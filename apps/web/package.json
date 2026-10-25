@@ -52,7 +52,7 @@
     "@workspace/eslint-config": "workspace:^",
     "@workspace/typescript-config": "workspace:*",
     "eslint": "^9.39.5",
-    "jsdom": "^29.1.1",
+    "jsdom": "^30.0.0",
     "openapi-typescript": "^7.13.0",
     "typescript": "5.9.3",
     "vite": "^8.0.16",
